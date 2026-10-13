@@ -1,0 +1,598 @@
+import {
+  FULL_CIRCLE,
+  lerp,
+  makeBoundedLinear,
+  ReadOnlyRect,
+  RealSvgRect,
+} from "phil-lib/misc";
+import { LCommand, PathShape, Point, QCommand } from "./glib/path-shape";
+import { LatticeValue } from "./lattice";
+import { Showable } from "./showable";
+
+/**
+ * If the old code used element.animate(), this file will help build the new code.
+ * This code knows how to interpolate between one value and another.
+ */
+
+/**
+ *
+ * @param progress A value between 0 and 1.
+ * @param from A valid css color.  The result is this when progress = 0.
+ * @param to A valid css color.  The result is this when progress = 1.
+ * @returns A valid css color.  Something in between the two inputs.
+ */
+export function interpolateColor(progress: number, from: string, to: string) {
+  return `color-mix(in srgb, ${to} ${progress * 100}%, ${from})`;
+}
+
+/**
+ * This is a helper for interpolating between a list full of items.
+ * After calling this you probably need a more specific function that
+ * understands the datatype of the items in the list.
+ *
+ * See {@link timedKeyframes} for a more powerful alternative.
+ * @param progress 0 for the beginning, 1 for the end.
+ * @param array A list of items to interpolate between.
+ * The amount of time between each adjacent pair of items is the same.
+ * @returns The item to use at the given time.
+ * Or the two items nearest to the time,
+ * and how much progress we have made between the first and second item.
+ */
+function equalWeights<T>(
+  progress: number,
+  array: readonly T[],
+):
+  | { single: true; value: T }
+  | { single: false; progress: number; from: T; to: T } {
+  if (array.length == 0) {
+    throw new Error("wtf");
+  }
+  if (array.length == 1 || progress <= 0) {
+    return { single: true, value: array[0] };
+  }
+  const transitionCount = array.length - 1;
+  const scaledProgress = progress * transitionCount;
+  if (scaledProgress >= transitionCount) {
+    return { single: true, value: array.at(-1)! };
+  }
+  const index = Math.floor(scaledProgress);
+  const localProgress = scaledProgress - index;
+  if (localProgress == 0) {
+    return { single: true, value: array[index] };
+  }
+  return {
+    single: false,
+    progress: localProgress,
+    from: array[index],
+    to: array[index + 1],
+  };
+}
+
+/**
+ * Similar to the build in Keyframe from Element.animate(), but it only works on a single value.
+ * If you need to animate multiple properties, do them each separately.
+ */
+export type Keyframe<T> = {
+  /**
+   * This can be any value, not necessarily between 0 and 1.
+   */
+  time: number;
+  value: T;
+  /**
+   * This adjusts the progress variable when easing between consecutive
+   * items in the keyframe list.
+   *
+   * The default is the identity function for linear interpolation.
+   *
+   * See {@link ease}, {@link easeIn}, and {@link easeOut} for some standard values.
+   * @param progress A value between 0 and 1.
+   * @returns A value between 0 and 1.
+   */
+  easeAfter?: (progress: number) => number;
+};
+
+/**
+ *
+ * @param time There is no fixed scale.  This fits into the values of time in the array.
+ * @param keyframes Inputs should come in order.
+ * @returns The item to use at the given time.
+ * Or the two items nearest to the time,
+ * and how much progress we have made between the first and second item.
+ * Inputs before the first keyframe will return the value of the first keyframe.
+ * Inputs before the last keyframe will return the value of the last keyframe.
+ */
+export function timedKeyframes<T>(
+  time: number,
+  keyframes: readonly Keyframe<T>[],
+):
+  | { index: number; single: true; value: T }
+  | { index: number; single: false; progress: number; from: T; to: T } {
+  if (time <= keyframes[0].time) {
+    return { index: 0, single: true, value: keyframes[0].value };
+  }
+  if (time >= keyframes.at(-1)!.time) {
+    return {
+      index: keyframes.length - 1,
+      single: true,
+      value: keyframes.at(-1)!.value,
+    };
+  }
+  // TODO change this to a binary search
+  for (let i = 1; i < keyframes.length; i++) {
+    const to = keyframes[i];
+    if (time == to.time) {
+      return { index: i, single: true, value: to.value };
+    }
+    const fromIndex = i - 1;
+    const from = keyframes[fromIndex];
+    if (time >= from.time && time <= to.time) {
+      let progress = (time - from.time) / (to.time - from.time);
+      if (from.easeAfter) {
+        progress = from.easeAfter(progress);
+      }
+      return {
+        index: fromIndex,
+        single: false,
+        progress,
+        from: from.value,
+        to: to.value,
+      };
+    }
+  }
+  throw new Error("wtf");
+}
+
+export type DiscreteKeyframe<T> = { time: number; value: T };
+
+export type DiscreteKeyframes<T> = readonly DiscreteKeyframe<T>[];
+
+/**
+ *
+ * @param time Look for the value at this time.
+ * This can be any scale, not necessarily 0-1.
+ * @param keyframes A list of values.
+ * Each value comes with a start time.
+ * The value continues until the start time of the next keyframe.
+ * The first keyframe starts at -Infinity, regardless of what it says.
+ * And the last keyframe continues until +Infinity.
+ * @returns One of the values from the list of keyframes.
+ */
+export function discreteKeyframes<T>(
+  time: number,
+  keyframes: DiscreteKeyframes<T>,
+): T {
+  const initial = timedKeyframes(time, keyframes);
+  if (initial.single) {
+    return initial.value;
+  } else {
+    return initial.from;
+  }
+}
+
+// I ended up using durationKeyframes() instead.
+// export function discreteWithProgress<T>(
+//   time: number,
+//   keyframes: DiscreteKeyframes<T>,
+// ): { value: T; progress: number; index: number } {
+//   const initial = timedKeyframes(time, keyframes);
+//   if (initial.single) {
+//     return { value: initial.value, index: initial.index, progress: 0 };
+//   } else {
+//     return {
+//       value: initial.from,
+//       index: initial.index,
+//       progress: initial.progress,
+//     };
+//   }
+// }
+
+/**
+ *
+ * @param time Look for the value at this time.
+ * Automatically clamped between 0 and the total duration.
+ * @param keyframes The time value of each keyframe is a duration, not a start time.
+ * @returns The value at this time.  And the progress (0 to 1) within this value.
+ */
+export function durationKeyframes<T>(
+  time: number,
+  keyframes: readonly Keyframe<T>[],
+) {
+  let foundAt = -1;
+  for (let i = 0; i < keyframes.length; i++) {
+    const keyframe = keyframes[i];
+    if (time < keyframe.time) {
+      foundAt = i;
+      break;
+    }
+    time -= keyframe.time;
+  }
+  if (foundAt == -1) {
+    // Time before 0 points to the beginning of the first item.
+    // Sometimes you need to freeze at the beginning or end.
+    // I was worried that you might miss the exact end because of round off error.
+    // So I extend the end forever rather than trying to cut it off exactly at the end.
+    foundAt = keyframes.length - 1;
+    time = keyframes[foundAt].time;
+  }
+  const keyframe = keyframes[foundAt];
+  let progress = time / keyframe.time;
+  progress = Math.min(1, Math.max(0, progress));
+  if (keyframe.easeAfter) {
+    progress = keyframe.easeAfter(progress);
+  }
+  return { value: keyframe.value, progress };
+}
+
+/**
+ * Common design pattern:
+ * ```
+ *  // Once in advance:
+ *  const schedule: Keyframe<number>[] = [
+ *    { time: startTimeMS, value: 0 },
+ *    { time: endTimeMS, value: 1 },
+ *  ];
+ *  // Each frame:
+ *  const progress = interpolateNumbers(timeInMs, schedule);
+ * ```
+ * Start with this simple straw man until you decide on a better schedule.
+ * Note that the output is frozen at 0 when `timeInMs <= startTimeMS`,
+ * and it is frozen at 1 when `timeInMs >= endTimeMS`.
+ *
+ * A lot of scenes in my videos use exactly this design pattern.
+ * I like to show a brief "pre roll" and "post roll" as a default,
+ * where the visuals are present but not moving,
+ * because it can be jarring to skip these pauses.
+ *
+ * Assumption:  This schedule is likely to change to a more interesting schedule at some point in the future.
+ * Maybe not every time, but this is a common pattern, especially when I'm choreographing a video.
+ * This is an excellent example to start with in these cases.
+ * (If you are *certain* you won't want to upgrade to something more complicated, consider {@link makeBoundedLinear}() as a simpler alternative.)
+ *
+ * Note that the output, a value between 0 and 1, is often called [progress](https://github.com/TradeIdeasPhilip/canvas-recorder/blob/master/README.md#glossary)
+ * This function can output any number you need,
+ * but it's often a nice interface for the the animation code to take a number between 0 and 1 as its input.
+ *
+ * If you are using this with a {@link Showable}:
+ * * The {@link Showable.duration} is often specified as `schedule.at(-1)!.time + DEFAULT_POST_ROLL_MS`.
+ * * If the schedule is interesting (*not* just this straw man) you can add it to {@link Showable.schedules}.
+ * *
+ *
+ * A more advanced example can be found at
+ * https://github.com/TradeIdeasPhilip/canvas-recorder/blob/c60c7000231a24a3d6425f85d7bc79688b7479f7/src/showcase.ts#L2693.
+ * In this case the animation is partitioned into n discrete steps.
+ * Each step is implemented by a TypeScript function that takes "progress" as its only input.
+ *
+ * @param time There is no fixed scale.  This fits into the values of time in the array.
+ * @param array Inputs should come in order.
+ * @returns The value associated with the given time.
+ */
+export function interpolateNumbers(
+  time: number,
+  keyframes: readonly Keyframe<number>[],
+): number {
+  const relevant = timedKeyframes(time, keyframes);
+  if (relevant.single) {
+    return relevant.value;
+  } else {
+    return lerp(relevant.from, relevant.to, relevant.progress);
+  }
+}
+
+type Rect = RealSvgRect;
+
+export function interpolateRectangle(
+  progress: number,
+  from: ReadOnlyRect,
+  to: ReadOnlyRect,
+): Rect {
+  return {
+    x: lerp(from.x, to.x, progress),
+    y: lerp(from.y, to.y, progress),
+    width: lerp(from.width, to.width, progress),
+    height: lerp(from.height, to.height, progress),
+  };
+}
+
+/**
+ *
+ * @param time There is no fixed scale.  This fits into the values of time in the array.
+ * @param array Inputs should come in order.
+ * @returns The value associated with the given time.
+ */
+export function interpolateRects(
+  time: number,
+  keyframes: readonly Keyframe<Rect>[],
+): Rect {
+  const relevant = timedKeyframes(time, keyframes);
+  if (relevant.single) {
+    return relevant.value;
+  } else {
+    const { from, to, progress } = relevant;
+    return interpolateRectangle(progress, from, to);
+  }
+}
+
+export function interpolateLattice(
+  progress: number,
+  from: LatticeValue,
+  to: LatticeValue,
+): LatticeValue {
+  return {
+    x: lerp(from.x, to.x, progress),
+    y: lerp(from.y, to.y, progress),
+    width: lerp(from.width, to.width, progress),
+    height: lerp(from.height, to.height, progress),
+    cellWidth: lerp(from.cellWidth, to.cellWidth, progress),
+    cellHeight: lerp(from.cellHeight, to.cellHeight, progress),
+  };
+}
+
+/**
+ *
+ * @param time There is no fixed scale.  This fits into the values of time in the array.
+ * @param array Inputs should come in order.
+ * @returns The value associated with the given time.
+ */
+export function interpolateLattices(
+  time: number,
+  keyframes: readonly Keyframe<LatticeValue>[],
+): LatticeValue {
+  const relevant = timedKeyframes(time, keyframes);
+  if (relevant.single) {
+    return relevant.value;
+  } else {
+    const { from, to, progress } = relevant;
+    return interpolateLattice(progress, from, to);
+  }
+}
+
+export function interpolatePoint(
+  progress: number,
+  from: Point,
+  to: Point,
+): Point {
+  return {
+    x: lerp(from.x, to.x, progress),
+    y: lerp(from.y, to.y, progress),
+  };
+}
+
+/**
+ *
+ * @param time There is no fixed scale.  This fits into the values of time in the array.
+ * @param array Inputs should come in order.
+ * @returns The value associated with the given time.
+ */
+export function interpolatePoints(
+  time: number,
+  keyframes: readonly Keyframe<Point>[],
+): Point {
+  const relevant = timedKeyframes(time, keyframes);
+  if (relevant.single) {
+    return relevant.value;
+  } else {
+    const { from, to, progress } = relevant;
+    return interpolatePoint(progress, from, to);
+  }
+}
+
+/**
+ *
+ * @param time There is no fixed scale.  This fits into the values of time in the array.
+ * @param array Inputs should come in order.
+ * @returns The value associated with the given time.
+ */
+export function interpolateColors(
+  time: number,
+  keyframes: readonly Keyframe<string>[],
+): string {
+  const relevant = timedKeyframes(time, keyframes);
+  if (relevant.single) {
+    return relevant.value;
+  } else {
+    return interpolateColor(relevant.progress, relevant.from, relevant.to);
+  }
+}
+
+/**
+ * Pick a color from the list of colors, interpolating as required.
+ * @param progress A value between 0 and 1.
+ * @param colors A list of colors.
+ * Progress = 0 returns the first item.
+ * Progress = 1 returns the last item.
+ * The remainder are keyframes spread evenly in time.
+ * @returns A color from the `colors` input, or an interpolation between two adjacent colors.
+ */
+export function interpolateColorsEqualWidths(
+  progress: number,
+  colors: readonly string[],
+) {
+  const relevant = equalWeights(progress, colors);
+  if (relevant.single) {
+    return relevant.value;
+  } else {
+    return interpolateColor(relevant.progress, relevant.from, relevant.to);
+  }
+}
+
+/**
+ * Interpolate between two paths.  The two paths must have identical command types in the identical order.  Only the arguments to the commands can change.
+ *
+ * See matchShapes() in morph-animations.ts for a newer version of this function.
+ * See createCrossFade() in cross-fade.ts for an alternative.
+ * @param from The path to return at progress <= 0.
+ * @param to The path to return at progress >= 1.
+ * @returns A function that will take progress as an input and returns a path as an output.
+ */
+export function makePathShapeInterpolator(from: PathShape, to: PathShape) {
+  if (from.commands.length != to.commands.length) {
+    console.error(from, to);
+    throw new Error("wtf");
+  }
+  const interpolators = from.commands.map((fromCommand, index) => {
+    const toCommand = to.commands[index];
+    if (fromCommand instanceof LCommand && toCommand instanceof LCommand) {
+      function makeLCommand(progress: number) {
+        return new LCommand(
+          lerp(fromCommand.x0, toCommand.x0, progress),
+          lerp(fromCommand.y0, toCommand.y0, progress),
+          lerp(fromCommand.x, toCommand.x, progress),
+          lerp(fromCommand.y, toCommand.y, progress),
+        );
+      }
+      return makeLCommand;
+    } else if (
+      fromCommand instanceof QCommand &&
+      toCommand instanceof QCommand
+    ) {
+      const from = fromCommand;
+      const to = toCommand;
+      function makeQCommand(progress: number) {
+        return QCommand.controlPoints(
+          lerp(from.x0, to.x0, progress),
+          lerp(from.y0, to.y0, progress),
+          lerp(from.x1, to.x1, progress),
+          lerp(from.y1, to.y1, progress),
+          lerp(from.x, to.x, progress),
+          lerp(from.y, to.y, progress),
+        );
+      }
+      return makeQCommand;
+    } else {
+      // I could do the CCommand if and when there is a need
+      console.error({
+        command: fromCommand,
+        otherCommand: toCommand,
+        index,
+        from,
+        to,
+      });
+      throw new Error("wtf");
+    }
+  });
+  function interpolate(progress: number): PathShape {
+    if (progress <= 0) {
+      return from;
+    } else if (progress >= 1) {
+      return to;
+    } else {
+      const commands = interpolators.map((f) => f(progress));
+      return new PathShape(commands);
+    }
+  }
+  return interpolate;
+}
+
+export function qCommandInterpolation(
+  fromCommands: readonly QCommand[],
+  toCommands: readonly QCommand[],
+  progress: number,
+) {
+  if (fromCommands.length != toCommands.length) {
+    throw new Error("wtf");
+  }
+  const result = fromCommands.map((fromCommand, index) => {
+    const toCommand = toCommands[index];
+    return QCommand.controlPoints(
+      lerp(fromCommand.x0, toCommand.x0, progress),
+      lerp(fromCommand.y0, toCommand.y0, progress),
+      lerp(fromCommand.x1, toCommand.x1, progress),
+      lerp(fromCommand.y1, toCommand.y1, progress),
+      lerp(fromCommand.x, toCommand.x, progress),
+      lerp(fromCommand.y, toCommand.y, progress),
+    );
+  });
+  return result;
+  /**
+   * Do this after splitting on connected segments.
+   * Do this to each connected segment.
+   * Do this before calling pathShapeInterpolation()
+   *
+   * Can we give preference that if a connected segment must be split,
+   * and we have corners, we do the split at the corners?
+   * That's pretty specific, not sure of the test case.
+   *
+   * Start by counting the number of corners.
+   * If any segment is adjacent to two corners, split it in half.
+   * Record the number of segments currently present,
+   * plus one for the piece to be added in each corner.
+   * Do this for the initial and final states.
+   * Then use the algorithm we've been using to match things.
+   * Using the recently modified list of commands.
+   * And the count that includes the commands to be added.
+   * Then we find the positions of the corners in each PathShape.
+   * And we verify that the number matches the previous pass.
+   * That's all we can do in advance.
+   * __When we have a value for progress:__
+   * Create an array of QCommand for the result
+   * Walk through the commands from the matching pass.
+   * Most get copied to the result unchanged.
+   * But when we get to a pair with a corner:
+   * Before the corner, cut off the last part.
+   * Cut off (1-progress)/2 from the end.
+   * Keep 0 through 1-((1-progress)/2).
+   * Add that to the result.
+   * Now look at the command after the bend.
+   * Cut off the first part.
+   * Cut off (1-progress)/2 from the beginning.
+   * Keep (1-progress)/2 through 1.
+   * Now create the bendy part.
+   * Start where the first piece ends,
+   * the one we just cut then added to result.
+   * End where the next piece starts,
+   * the one we just created but have not yet added to the result.
+   * The middle control point is the meeting point of the two commands before clipping.
+   * Add the bendy piece then the recently clipped piece to the result.
+   * Do that for both of the paths.
+   * Then the simplest interpolation between the commands in each of those to make a third.
+   *
+   * No.  The match step comes before the call to makePathShapeInterpolator()
+   * A filler command should be added before the call
+   */
+}
+
+/**
+ * This converts a linear timing to an eased timing.
+ * This is similar to a css "ease" or "ease-in-out" timing function.
+ * @param t A value between 0 and 1.
+ * @returns A value between 0 and 1.
+ */
+export function ease(t: number): number {
+  const angle = t * Math.PI;
+  const cosine = Math.cos(angle);
+  const result = (1 - cosine) / 2;
+  return result;
+}
+
+/**
+ * This creates an "ease-in" acceleration profile.
+ * It starts (t=0) with an speed of 0 that quickly increases.
+ * The speed is maximum and nearly constant near the end (t=1).
+ * @param t A value between 0 and 1.
+ * @returns A value between 0 and 1.
+ */
+export function easeIn(t: number): number {
+  return 1 - Math.cos((t * Math.PI) / 2);
+}
+
+/**
+ * This creates an "ease-out" acceleration profile.
+ * The speed is maximum and nearly constant at the beginning (t=0).
+ * The speed quickly drops to 0 at the end (t=1).
+ * @param t A value between 0 and 1.
+ * @returns A value between 0 and 1.
+ */
+export function easeOut(t: number): number {
+  return Math.sin((t * Math.PI) / 2);
+}
+
+/**
+ * As the input goes from 0 to 1, the output from 0 to 1 and back.
+ * It slows down near the ends and moves quickly in between.
+ * @param t Typically a value between 0 and 1.
+ * The function is periodic and effectively starts with `t %= 1;`.
+ * @returns A value between 0 and 1.
+ */
+export function easeAndBack(t: number): number {
+  return -Math.cos(t * FULL_CIRCLE) / 2 + 0.5;
+}

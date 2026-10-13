@@ -1,0 +1,3344 @@
+import {
+  assertNonNullable,
+  initializedArray,
+  makeBoundedLinear,
+  NON_BREAKING_SPACE,
+  pickAny,
+  polarToRectangular,
+} from "phil-lib/misc";
+import { Font, FontMetrics } from "./letters-base";
+import {
+  PathShape,
+  PathBuilder,
+  LCommand,
+  QCommand,
+  Command,
+  Point,
+} from "./path-shape";
+import { Line } from "bezier-js";
+
+const dEast = 0;
+const dSouthEast = Math.PI / 4; // 45°
+const dSouth = 2 * dSouthEast; // 90°
+const dSouthWest = 3 * dSouthEast;
+const dWest = 4 * dSouthEast; // 180°
+const dNorthWest = 5 * dSouthEast;
+const dNorth = 6 * dSouthEast; // 270°
+const dNorthEast = 7 * dSouthEast;
+
+dEast || dSouthEast || dNorthEast;
+
+class DescriptionOfLetter {
+  /**
+   * Create a new `DescriptionOfLetter` object exactly like this one but with a different shape.
+   * @param newShape Replace the existing shape with this.
+   * @returns The new `DescriptionOfLetter` object.
+   */
+  reshape(newShape: PathShape) {
+    return new DescriptionOfLetter(newShape, this.advance, this.fontMetrics);
+  }
+  readonly #shapeFactory: () => PathShape;
+  get shape() {
+    return this.#shapeFactory();
+  }
+  constructor(
+    shape: PathShape | (() => PathShape),
+    /**
+     * How far to advance the print head after printing this character.
+     * In SVG units.
+     * Typically the "black" area of the character will start at x=0 and end at x=advance.
+     */
+    public readonly advance: number,
+    public readonly fontMetrics: FontMetrics,
+  ) {
+    if (shape instanceof PathShape) {
+      this.#shapeFactory = () => shape;
+    } else {
+      this.#shapeFactory = shape;
+    }
+  }
+  /**
+   * This is in the right format for a lot of _css properties_.
+   *
+   * If you are planning to set the d _attribute_ of an element, use this.d instead.
+   */
+  get cssPath() {
+    return this.shape.cssPath;
+  }
+  get d() {
+    return this.shape.rawPath;
+  }
+  /**
+   * Create a new element to draw this letter.
+   * @returns This is always a <path> element.
+   *
+   * I considered making that a <g> element.
+   * But see makeElements(), translate(), etc. instead.
+   * The focus of this project is creating and
+   * manipulating paths.
+   */
+  makeElement(): SVGPathElement {
+    return this.shape.makeElement();
+  }
+  /**
+   *
+   * @returns One element per continuous part of the path.
+   */
+  makeElements() {
+    return this.shape.splitOnMove().map((innerShape) => ({
+      innerShape,
+      element: innerShape.makeElement(),
+    }));
+  }
+}
+
+/**
+ * Order is explicitly undefined.
+ * The order is based on the most convenient implementation and is likely to change.
+ *
+ * This is aimed at older code.
+ * This used to be called `Font` in a previous project.
+ * See the new `Font` class for the preferred way of doing things.
+ */
+export type FontMap = Map<string, DescriptionOfLetter>;
+
+/**
+ *
+ * @param fontMetrics How big to make the font.
+ * There are additional things you can configure with a LineFontMetrics object.
+ * In particular, some letters get a little wider if you use a thicker line width.
+ * @returns
+ */
+export function makeLineFont(fontMetrics: number | LineFontMetrics): Font {
+  const fontMap = makeLineFontMap(fontMetrics);
+  const { top, bottom, spaceWidth, strokeWidth, defaultKerning, mHeight } =
+    (fontMap.get("0") ?? pickAny(fontMap))!.fontMetrics;
+  const result = new Font(
+    top,
+    bottom,
+    spaceWidth,
+    strokeWidth,
+    defaultKerning,
+    mHeight,
+    fontMap,
+  );
+  return result;
+}
+
+/**
+ * Create a font whose full height (top margin through descender) equals
+ * `totalHeight`.  The mHeight (cap height) is `totalHeight * 2/3` because
+ * LineFontMetrics always allocates 1.5× mHeight for the full row:
+ * 5/4 mHeight above the baseline (caps + top margin) + 1/4 mHeight below
+ * (descenders).
+ *
+ * If you have a ParagraphLayout with a single line of text, you expect that
+ * line to have a height of `totalHeight`.
+ * If you have multiple lines in the same paragraph,
+ * by default there is no extra space between the lines.
+ * The total height of the paragraph will be `totalHeight` times the number of lines.
+ *
+ * You could use totalHeight to match the size of the container you are drawing text in.
+ * However, that might be a little tight.
+ * Remember that there is usually a little extra space below one line *and* more extra space above the next.
+ * And you would usually add extra space between paragraphs.
+ *
+ * You can check {@link ParagraphLayout.align}().height if you want to know the value.
+ * That will tell you the result for the entire paragraph.
+ *
+ * If you want to center the text vertically within a container, use this size.
+ * @param totalHeight The desired row height in canvas units.
+ * @param boldnessRatio Stroke width multiplier relative to the normal weight.
+ *   Defaults to 1 (normal weight).
+ */
+export function makeLineFontFromTotalHeight(
+  totalHeight: number,
+  boldnessRatio = 1,
+): Font {
+  const mHeight = (totalHeight * 2) / 3;
+  if (boldnessRatio === 1) {
+    return makeLineFont(mHeight);
+  }
+  return makeLineFontRatio(mHeight, boldnessRatio);
+}
+
+export function makeLineFontStrokeWidth(
+  mHeight: number,
+  strokeWidth: number,
+): Font {
+  return makeLineFont(new LineFontMetrics(mHeight, strokeWidth));
+}
+
+export function makeLineFontRatio(
+  mHeight: number,
+  boldnessRatio: number,
+): Font {
+  const strokeWidth =
+    LineFontMetrics.defaultStrokeWidth(mHeight) * boldnessRatio;
+  return makeLineFontStrokeWidth(mHeight, strokeWidth);
+}
+
+/**
+ * This seems silly.  Is size really the only input?
+ * I'm not sure that the size should be fixed at this time.
+ * And it seems like fontMetrics should be the input.
+ * @param fontSize The M height in svg units.
+ * @returns A new font.
+ */
+export function makeLineFontMap(
+  fontMetrics: number | LineFontMetrics,
+): FontMap {
+  const result = new Map<string, DescriptionOfLetter>();
+  if (typeof fontMetrics === "number") {
+    fontMetrics = new LineFontMetrics(fontMetrics);
+  }
+  const add = (letter: string, shape: PathShape, advance: number) => {
+    const description = new DescriptionOfLetter(shape, advance, fontMetrics);
+    if (result.has(letter)) {
+      throw new Error(
+        `duplicate letter: "${letter}", previous letter: "${
+          [...result].at(-1)![0]
+        }"`,
+      );
+    }
+    result.set(letter, description);
+  };
+  const {
+    aWidth,
+    digitWidth,
+    capitalTop,
+    capitalTopMiddle,
+    capitalMiddle,
+    capitalBottomMiddle,
+    baseline,
+    descender,
+    strokeWidth,
+  } = fontMetrics;
+  const left = 0;
+  /**
+   * @deprecated See dotHeightReplacement.
+   *
+   * The question is how long to draw a line that is supposed to represent a dot.
+   *
+   * This is only meaningful when linecap="butt", and I don't know of that works well with this or any font.
+   *
+   * When linecap="square" or "round" this is not necessary.
+   * A zero length line becomes a square or circle.
+   * In fact, this seems to cause problems.
+   * Maybe best to get rid of it.
+   * Or if there is some value to it, make it an explicit option.
+   *
+   * dotHeight is also used in other places,
+   * and I'm not sure how appropriate it is there.
+   */
+  const dotHeight = strokeWidth / 3;
+  const dotHeightReplacement = fontMetrics.mHeight / 30;
+  // MARK: Non breaking space
+  {
+    const advance = fontMetrics.spaceWidth;
+    add(NON_BREAKING_SPACE, PathShape.EMPTY, advance);
+  }
+  // MARK: &
+  {
+    // This code was automatically generated.
+    // See path-debugger.ts for the source.
+    const scaleFactor = fontMetrics.mHeight;
+    const advance = 0.5803571598560251 * scaleFactor;
+    const commands: QCommand[] = [];
+    commands.push(
+      QCommand.controlPoints(
+        0.5803571598560251 * scaleFactor,
+        -0.011904772996231272 * scaleFactor,
+        0.1993461912459357 * scaleFactor,
+        -0.4845653833822309 * scaleFactor,
+        0.15178572549774305 * scaleFactor,
+        -0.5833333559985097 * scaleFactor,
+      ),
+    );
+    commands.push(
+      QCommand.controlPoints(
+        0.15178572549774305 * scaleFactor,
+        -0.5833333559985097 * scaleFactor,
+        0.07142858010885174 * scaleFactor,
+        -0.7502096094253163 * scaleFactor,
+        0.07142858010885174 * scaleFactor,
+        -0.8809523915616125 * scaleFactor,
+      ),
+    );
+    commands.push(
+      QCommand.controlPoints(
+        0.07142858010885174 * scaleFactor,
+        -0.8809523915616125 * scaleFactor,
+        0.07142858010885174 * scaleFactor,
+        -1 * scaleFactor,
+        0.18154763484090689 * scaleFactor,
+        -1 * scaleFactor,
+      ),
+    );
+    commands.push(
+      QCommand.controlPoints(
+        0.18154763484090689 * scaleFactor,
+        -1 * scaleFactor,
+        0.3125000278492327 * scaleFactor,
+        -1 * scaleFactor,
+        0.3125000278492327 * scaleFactor,
+        -0.8809523857747589 * scaleFactor,
+      ),
+    );
+    commands.push(
+      QCommand.controlPoints(
+        0.3125000278492327 * scaleFactor,
+        -0.8809523857747589 * scaleFactor,
+        0.3125000278492327 * scaleFactor,
+        -0.795672021064033 * scaleFactor,
+        0.14880952935525849 * scaleFactor,
+        -0.5863095347804337 * scaleFactor,
+      ),
+    );
+    commands.push(
+      QCommand.controlPoints(
+        0.14880952935525849 * scaleFactor,
+        -0.5863095347804337 * scaleFactor,
+        0 * scaleFactor,
+        -0.39598002063544424 * scaleFactor,
+        0 * scaleFactor,
+        -0.23511904966855834 * scaleFactor,
+      ),
+    );
+    commands.push(
+      QCommand.controlPoints(
+        0 * scaleFactor,
+        -0.23511904966855834 * scaleFactor,
+        0 * scaleFactor,
+        0 * scaleFactor,
+        0.16369048113341364 * scaleFactor,
+        0 * scaleFactor,
+      ),
+    );
+    commands.push(
+      QCommand.controlPoints(
+        0.16369048113341364 * scaleFactor,
+        0 * scaleFactor,
+        0.31699631330709954 * scaleFactor,
+        0 * scaleFactor,
+        0.45535713019840074 * scaleFactor,
+        -0.4583333263408854 * scaleFactor,
+      ),
+    );
+    add("&", new PathShape(commands), advance);
+    /**
+     * The following is how I created a path for the & character.
+     * The process is ugly, but it worked.  I think it's a great start.
+     *
+     * I found a bitmap image I liked.
+     * I loaded that into Inkscape.
+     * I picked a few spots that seemed like good endpoints for QCommands.
+     * I focused on places where I could get 90 degree angles, when possible, because it was easier to think about.
+     * I tried to draw the path in Inkscape, but Inkscape does not support quadratic curves.
+     * You have to use cubic curves.
+     * I used Inkscape just to get a rough sense of what I was looking at.
+     * I was focused on the tangent lines at each of my points.
+     * Then I saved my image file and used a text editor to find the path string.
+     * PathShape.fromString() now understands C and c commands.
+     * And I added a special conversion in the code below.
+     * It will interpret the C commands the way I intended them.
+     * It will create Q commands preserving the positions and angles.
+     * And the code below got rid of the kinks.
+     * And it made some angles snap to a cardinal direction.
+     * I don't know how to do those two things in Inkscape.
+     *
+     * I need to find a better vector graphics editor.
+     * path-debugger.* was very helpful.
+     *
+     * Initial string that feeds into this:
+     * "M 159.43363,236.57893 C 139.39225,211.71673 116.17009,188.00602 85.374138,137.83294 79.442993,121.43379 68.706413,107.78059 71.487983,86.40274 70.012084,75.635902 75.543692,68.372817 90.517159,65.830661 c 21.193741,1.982131 19.627371,12.092873 22.629291,20.57208 5.01399,12.845433 -15.622616,33.019609 -28.286615,50.915899 -13.036541,15.12654 -22.269361,34.60019 -25.715102,60.68764 -2.353207,23.26949 10.162985,35.15145 28.286612,40.62986 18.916925,0.15644 35.598375,-30.16544 50.401595,-79.20251";
+     */
+    /*
+      const commands = fullPathShape.commands.map((original) =>
+        QCommand.angles(
+          original.x0,
+          original.y0,
+          original.incomingAngle,
+          original.x,
+          original.y,
+          original.outgoingAngle
+        )
+      );
+      commands.forEach((first, firstIndex, array) => {
+        const secondIndex = firstIndex + 1;
+        const second = array.at(secondIndex);
+        if (second) {
+          let newAngle =
+            first.outgoingAngle +
+            angleBetween(first.outgoingAngle, second.incomingAngle) / 2;
+          // console.log(
+          //   (newAngle * degreesPerRadian).toFixed(2) + "°",
+          //   ((angleBetween(0, newAngle * 4) / 4) * degreesPerRadian).toFixed(2) +
+          //     "°"
+          // );
+          const cutoff = 23 * radiansPerDegree;
+          for (let i = 0; i < 4; i++) {
+            const cardinal = (FULL_CIRCLE / 4) * i;
+            if (Math.abs(angleBetween(cardinal, newAngle)) < cutoff) {
+              newAngle = cardinal;
+            }
+          }
+          const first1 = first.newAngles(undefined, newAngle);
+          const second1 = second.newAngles(newAngle, undefined);
+          array[firstIndex] = first1;
+          array[secondIndex] = second1;
+        }
+      });
+      if (commands.length > 0) {
+        let minX = commands[0].x0;
+        let maxX = minX;
+        let minY = commands[0].y0;
+        let maxY = minY;
+        commands.forEach((command) => {
+          const { x, y } = command;
+          minX = Math.min(x, minX);
+          minY = Math.min(y, minY);
+          maxX = Math.max(x, maxX);
+          maxY = Math.max(y, maxY);
+        });
+        const newY = makeLinear(minY, -1, maxY, 0);
+        const originalHeight = maxY - minY;
+        const originalWidth = maxX - minX;
+        const finalWidth = originalWidth / originalHeight;
+        const newX = makeLinear(minX, 0, maxX, finalWidth);
+        for (let i = 0; i < commands.length; i++) {
+          const original = commands[i];
+          const scaled = QCommand.controlPoints(
+            newX(original.x0),
+            newY(original.y0),
+            newX(original.x1),
+            newY(original.y1),
+            newX(original.x),
+            newY(original.y)
+          );
+          commands[i] = scaled;
+        }
+        let code = "";
+        code += "const scaleFactor = fontMetrics.mHeight;\n";
+        code += `const advance = ${finalWidth}*scaleFactor;\n`;
+        code += "const commands:QCommand[]=[];\n";
+        commands.forEach((command) => {
+          code += `commands.push(QCommand.controlPoints(
+          ${command.x0} * scaleFactor, ${command.y0}* scaleFactor,
+          ${command.x1}* scaleFactor, ${command.y1}* scaleFactor,
+          ${command.x}* scaleFactor, ${command.y} * scaleFactor
+        ) );\n`;
+        });
+        code += 'add("&", new PathShape(commands), advance);\n';
+        console.log(code);
+      }
+        */
+  }
+  // MARK: < > ≤ ≥
+  {
+    const sideLength = digitWidth;
+    const advance = (sideLength / 2) * Math.sqrt(3);
+    const middle = (baseline + capitalTop) / 2;
+    const top = middle - sideLength / 2;
+    const bottom = top + sideLength;
+    const left = 0;
+    const right = advance;
+    add(
+      "<",
+      new PathShape([
+        QCommand.line4(right, top, left, middle),
+        QCommand.line4(left, middle, right, bottom),
+      ]),
+      advance,
+    );
+    add(
+      ">",
+      new PathShape([
+        QCommand.line4(left, top, right, middle),
+        QCommand.line4(right, middle, left, bottom),
+      ]),
+      advance,
+    );
+    add(
+      "≤",
+      new PathShape([
+        QCommand.line4(right, top, left, middle),
+        QCommand.line4(left, middle, right, bottom),
+        new LCommand(left, baseline, advance, baseline),
+      ]),
+      advance,
+    );
+    add(
+      "≥",
+      new PathShape([
+        QCommand.line4(left, top, right, middle),
+        QCommand.line4(right, middle, left, bottom),
+        new LCommand(left, baseline, advance, baseline),
+      ]),
+      advance,
+    );
+  }
+  // MARK: ?
+  {
+    const advance = digitWidth * 0.9;
+    const center = advance / 2;
+    //const right = advance;
+    const radius = advance / 2;
+    const sqrt = radius * Math.SQRT1_2;
+    const pathBuilder = PathBuilder.M(left, capitalTop + radius);
+    pathBuilder.arc(
+      center,
+      capitalTop + radius,
+      center + sqrt,
+      capitalTop + radius + sqrt,
+      "cw",
+    );
+    pathBuilder.Q_angles(center, capitalBottomMiddle, dSouth);
+    pathBuilder.M(center, baseline - dotHeightReplacement);
+    pathBuilder.L(center, baseline);
+    add("?", pathBuilder.pathShape, advance);
+  }
+  {
+    const advance = (digitWidth * 7) / 8;
+    const center = advance / 2;
+    const right = advance;
+    const radius = advance / 2;
+    const tipHeight = fontMetrics.mHeight / 8;
+    const top = capitalTop - tipHeight;
+    const bottom = baseline + tipHeight;
+    if (bottom - top < radius * 4) {
+      throw new Error("wtf");
+    }
+    const middle = (top + bottom) / 2;
+    const lShape = PathBuilder.M(right, top)
+      .arc(right, top + radius, center, top + radius, "ccw")
+      .L(center, middle - radius)
+      .arc(left, middle - radius, left, middle, "cw")
+      .arc(left, middle + radius, center, middle + radius, "cw")
+      .L(center, bottom - radius)
+      .arc(right, bottom - radius, right, bottom, "ccw").pathShape;
+    add("{", lShape, advance);
+    const rShape = PathBuilder.M(left, top)
+      .arc(left, top + radius, center, top + radius, "cw")
+      .L(center, middle - radius)
+      .arc(right, middle - radius, right, middle, "ccw")
+      .arc(right, middle + radius, center, middle + radius, "ccw")
+      .L(center, bottom - radius)
+      .arc(left, bottom - radius, left, bottom, "cw").pathShape;
+    add("}", rShape, advance);
+  }
+  {
+    const advance = digitWidth;
+    const radius = advance / 2;
+    const center = radius;
+    const right = advance;
+    {
+      const curveHeight = (descender - baseline) * 2;
+      const y0 = descender;
+      const y1 = y0 - curveHeight;
+      const y3 = capitalTop - curveHeight / 4;
+      const y2 = y3 + curveHeight;
+      if (curveHeight <= 0 || y0 <= y1 || y1 <= y2 || y2 <= y3) {
+        throw new Error("wtf");
+      }
+      const advance = digitWidth * 0.5;
+      {
+        // MARK: (
+        const shape = PathBuilder.M(advance, y3)
+          .Q_HV(0, y2)
+          .V(y1)
+          .Q_VH(advance, y0).pathShape;
+        add("(", shape, advance);
+      }
+      {
+        // MARK: )
+        const advance = digitWidth * 0.5;
+        const shape = PathBuilder.M(0, y3)
+          .Q_HV(advance, y2)
+          .V(y1)
+          .Q_VH(0, y0).pathShape;
+        add(")", shape, advance);
+      }
+      {
+        // MARK: [
+        const shape = PathBuilder.M(advance, y3)
+          .H(0)
+          .V(y0)
+          .H(advance).pathShape;
+        add("[", shape, advance);
+      }
+      {
+        // MARK: ]
+        const shape = PathBuilder.M(0, y3).H(advance).V(y0).H(0).pathShape;
+        add("]", shape, advance);
+      }
+    }
+    {
+      // MARK: ~
+      const outerWidth = digitWidth * 0.4;
+      const innerWidth = digitWidth * 0.3;
+      const x0 = left;
+      const x1 = x0 + outerWidth;
+      const x2 = x1 + innerWidth;
+      const x3 = x2 + innerWidth;
+      const x4 = x3 + outerWidth;
+      const advance = x4;
+      const vOffset = digitWidth * 0.25;
+      const middle = capitalMiddle;
+      const top = middle - vOffset;
+      const bottom = middle + vOffset;
+      const shape = PathBuilder.M(x0, middle)
+        .Q_angles(x1, top, dEast, dNorthEast)
+        .Q_angles(x2, middle, (dSouth + dSouthEast) / 2)
+        .Q_angles(x3, bottom, dEast)
+        .Q_angles(x4, middle, dNorthEast).pathShape;
+      add("~", shape, advance);
+      // MARK: ≈ Almost equal to.
+      const offset = strokeWidth * 1.25;
+      const doubleShape = PathShape.join([
+        { shape, Δx: 0, Δy: -offset },
+        { shape, Δx: 0, Δy: offset },
+      ]);
+      add("≈", doubleShape, advance);
+    }
+    {
+      // MARK: + Plus
+      const advance = digitWidth * 0.75;
+      const center = advance / 2;
+      const shape = PathBuilder.M(center, capitalMiddle - center)
+        .V(capitalMiddle + center)
+        .M(left, capitalMiddle)
+        .H(advance).pathShape;
+      add("+", shape, advance);
+    }
+    {
+      // MARK: - - Minus
+      const advance = digitWidth * 0.75;
+      const shape = PathBuilder.M(left, capitalMiddle).H(advance).pathShape;
+      add("-", shape, advance);
+    }
+    {
+      // Mark: — em dash
+      /**
+       * 1em
+       */
+      const width = -capitalTop;
+      /**
+       * The dash should extend past its normal area taking the space between letters.
+       * So if you have two of these in a row, they should touch.
+       */
+      const advance = width - fontMetrics.defaultKerning;
+      const shape = new PathShape([
+        new LCommand(left, capitalMiddle, left + width, capitalMiddle),
+      ]);
+      add("—", shape, advance);
+    }
+    {
+      // MARK: ±
+      const advance = digitWidth * 0.75;
+      const space = 2 * strokeWidth;
+      const height = advance + space;
+      const top = capitalMiddle - height / 2;
+      const bottom = top + height;
+      const topOfPlus = top;
+      const bottomOfPlus = top + advance;
+      const middleOfPlus = (topOfPlus + bottomOfPlus) / 2;
+      const left = 0;
+      const right = advance;
+      const center = advance / 2;
+      const shape = new PathShape([
+        new LCommand(left, middleOfPlus, right, middleOfPlus),
+        new LCommand(center, topOfPlus, center, bottomOfPlus),
+        new LCommand(left, bottom, right, bottom),
+      ]);
+      add("±", shape, advance);
+    }
+    {
+      // MARK: ÷
+      const advance = digitWidth * 0.75;
+      const left = 0;
+      const center = advance / 2;
+      const right = advance;
+      const space = 2 * strokeWidth;
+      const middle = capitalMiddle;
+      const shape = new PathShape([
+        new LCommand(left, middle, right, middle),
+        new LCommand(
+          center,
+          middle - space - dotHeightReplacement,
+          center,
+          middle - space,
+        ),
+        new LCommand(
+          center,
+          middle + space,
+          center,
+          middle + space + dotHeightReplacement,
+        ),
+      ]);
+      PathBuilder.M(left, capitalMiddle).H(advance).pathShape;
+      add("÷", shape, advance);
+    }
+    {
+      // MARK: ×
+      const advance = digitWidth * 0.75 * Math.SQRT1_2;
+      const top = capitalMiddle - advance / 2;
+      const bottom = capitalMiddle + advance / 2;
+      const left = 0;
+      const right = advance;
+      const shape = new PathShape([
+        new LCommand(left, top, right, bottom),
+        new LCommand(right, top, left, bottom),
+      ]);
+      add("×", shape, advance);
+    }
+    {
+      // MARK: *
+      const outerRadius = (digitWidth / 2) * 0.9;
+      const spokes = 5;
+      const initialAngle = -Math.PI / 2;
+      const middle = (capitalTop + baseline) / 2;
+      const innerRadius = 0;
+      const geometry = initializedArray(spokes, (n) => {
+        const θ = (n * (Math.PI * 2)) / spokes + initialAngle;
+        const inside = polarToRectangular(innerRadius, θ);
+        const outside = polarToRectangular(outerRadius, θ);
+        return [inside, outside];
+      });
+      const allPoints = geometry.flat();
+      const smallestX = Math.min(...allPoints.map(({ x }) => x));
+      allPoints.forEach((point) => {
+        point.x -= smallestX;
+        point.y += middle;
+      });
+      const commands = geometry.map(
+        ([from, to]) => new LCommand(from.x, from.y, to.x, to.y),
+      );
+      const shape = new PathShape(commands);
+      const advance = Math.max(...allPoints.map(({ x }) => x));
+      add("*", shape, advance);
+    }
+    {
+      // MARK: =
+      const advance = digitWidth * 0.75;
+      const shape = PathBuilder.M(left, capitalMiddle - strokeWidth * 1.25)
+        .H(advance)
+        .M(left, capitalMiddle + strokeWidth * 1.25)
+        .H(advance).pathShape;
+      add("=", shape, advance);
+    }
+    {
+      // MARK: _
+      const advance = digitWidth * 1.25;
+      const y = baseline + strokeWidth;
+      const shape = PathBuilder.M(0, y).H(advance).pathShape;
+      add("_", shape, advance);
+    }
+    {
+      // MARK: #
+      const third = digitWidth / 2;
+      const advance = 3 * third;
+      const tilt = third / 3;
+      const y0 = capitalTop;
+      const y1 = y0 + third;
+      const y2 = y1 + third;
+      const y3 = y2 + third;
+      const shape = PathBuilder.M(third + tilt, y0)
+        .L(third - tilt, y3)
+        .M(2 * third + tilt, y0)
+        .L(2 * third - tilt, y3)
+        .M(0, y1)
+        .H(advance)
+        .M(0, y2)
+        .H(advance).pathShape;
+      add("#", shape, advance);
+    }
+    {
+      // MARK: @
+      const third = digitWidth / 2;
+      const advance = 3 * third;
+      const left = 0;
+      const leftCenter = third;
+      const center = advance / 2;
+      const rightCenter = 2 * third;
+      const right = advance;
+      const top = capitalTop + (fontMetrics.mHeight - advance) / 2; // And assert (left==0);
+      const topMiddle = top + leftCenter;
+      const middle = top + center;
+      const bottomMiddle = top + rightCenter;
+      const bottom = top + right;
+      const shape = PathBuilder.M(rightCenter, middle)
+        .Q_VH(center, topMiddle)
+        .Q_HV(leftCenter, middle)
+        .Q_VH(center, bottomMiddle)
+        .Q_HV(rightCenter, middle)
+        .Q_VH((rightCenter + right) / 2, bottomMiddle)
+        .Q_HV(right, middle)
+        .V((topMiddle + middle) / 2)
+        .Q_VH(center, top)
+        .Q_HV(left, middle)
+        .Q_VH(center, bottom)
+        .H((rightCenter + right) / 2).pathShape;
+      add("@", shape, advance);
+    }
+    {
+      // MARK: θ Theta
+      // Copied from "0"
+      const shape = PathBuilder.M(center, capitalTop)
+        .Q(right, capitalTop, right, capitalTopMiddle)
+        .L(right, capitalBottomMiddle)
+        .Q(right, baseline, center, baseline)
+        .Q(left, baseline, left, capitalBottomMiddle)
+        .L(left, capitalTopMiddle)
+        .Q(left, capitalTop, center, capitalTop)
+        .M(right, capitalMiddle)
+        .L(left, capitalMiddle).pathShape;
+      add("θ", shape, advance);
+    }
+    {
+      // MARK: 0
+      const shape = PathBuilder.M(center, capitalTop)
+        .Q(right, capitalTop, right, capitalTopMiddle)
+        .L(right, capitalBottomMiddle)
+        .Q(right, baseline, center, baseline)
+        .Q(left, baseline, left, capitalBottomMiddle)
+        .L(left, capitalTopMiddle)
+        .Q(left, capitalTop, center, capitalTop)
+        .M(right, capitalTopMiddle)
+        .L(left, capitalBottomMiddle).pathShape;
+      add("0", shape, advance);
+    }
+    {
+      // MARK: 1
+      const shape = PathBuilder.M(left, capitalTopMiddle)
+        .Q(center, capitalTopMiddle, center, capitalTop)
+        .L(center, baseline)
+        .M(left, baseline)
+        .L(right, baseline).pathShape;
+      add("1", shape, advance);
+    }
+    {
+      // MARK: 2
+      const shape = PathBuilder.M(left, capitalTopMiddle)
+        .Q_VH(center, capitalTop)
+        .Q_HV(right, capitalTopMiddle)
+        .Q_VH(center, capitalMiddle)
+        .Q_HV(left, baseline)
+        .L(right, baseline).pathShape;
+      add("2", shape, advance);
+    }
+    {
+      // MARK: 3
+      const shape = PathBuilder.M(left, capitalTopMiddle)
+        .Q_VH(center, capitalTop)
+        .Q_HV(right, capitalTopMiddle)
+        .Q_VH(center, capitalMiddle)
+        .Q_HV(right, capitalBottomMiddle)
+        .Q_VH(center, baseline)
+        .Q_HV(left, capitalBottomMiddle).pathShape;
+      add("3", shape, advance);
+    }
+    {
+      // MARK: 4
+      const centerRight = (center + right) / 2;
+      const centerLeft = (center + left) / 2;
+      const shape = PathBuilder.M(right, capitalMiddle)
+        .L(left, capitalMiddle)
+        .L(centerLeft, capitalTop)
+        .M(centerRight, capitalTop)
+        .L(centerRight, baseline).pathShape;
+      add("4", shape, advance);
+    }
+    {
+      // MARK: 5
+      const centerLeft = left + digitWidth / 5;
+      const centerRight = right - digitWidth / 5;
+      const curveMiddle = (capitalMiddle + capitalBottomMiddle) / 2;
+      const shape = PathBuilder.M(centerRight, capitalTop)
+        .L(centerLeft, capitalTop)
+        .L(left, capitalMiddle)
+        .Q_VH(center, capitalTopMiddle)
+        .Q_HV(right, curveMiddle)
+        .Q_VH(center, baseline)
+        .Q_HV(left, capitalBottomMiddle).pathShape;
+      add("5", shape, advance);
+    }
+    {
+      // MARK: 6
+      const shape = PathBuilder.M(right, capitalTop)
+        .Q_HV(left, capitalBottomMiddle)
+        .Q_VH(center, baseline)
+        .Q_HV(right, capitalBottomMiddle)
+        .Q_VH(center, capitalMiddle)
+        .Q_HV(left, capitalBottomMiddle).pathShape;
+      add("6", shape, advance);
+    }
+    {
+      // MARK: 7
+      const shape = PathBuilder.M(left, capitalTop)
+        .L(right, capitalTop)
+        .L(left, baseline).pathShape;
+      add("7", shape, advance);
+    }
+    {
+      // MARK: 8
+      const shape = PathBuilder.M(center, capitalTop)
+        .Q(right, capitalTop, right, capitalTopMiddle)
+        .Q(right, capitalMiddle, center, capitalMiddle)
+        .Q(left, capitalMiddle, left, capitalBottomMiddle)
+        .Q(left, baseline, center, baseline)
+        .Q(right, baseline, right, capitalBottomMiddle)
+        .Q(right, capitalMiddle, center, capitalMiddle)
+        .Q(left, capitalMiddle, left, capitalTopMiddle)
+        .Q(left, capitalTop, center, capitalTop).pathShape;
+      add("8", shape, advance);
+    }
+    {
+      // MARK: 9
+      const shape = PathBuilder.M(right, capitalTopMiddle)
+        .Q(right, capitalMiddle, center, capitalMiddle)
+        .Q(left, capitalMiddle, left, capitalTopMiddle)
+        .Q(left, capitalTop, center, capitalTop)
+        .Q(right, capitalTop, right, capitalTopMiddle)
+        .Q(right, baseline, left, baseline).pathShape;
+      add("9", shape, advance);
+    }
+  }
+
+  {
+    // MARK: Superscripts
+    /**
+     * How big should the subscript be compared to the original.
+     */
+    const ratio = 0.5;
+    /**
+     * How high to go above the top of a capital.
+     * Copied from the definition of "$".
+     */
+    const tipHeight = fontMetrics.mHeight / 8;
+    const transform = new DOMMatrixReadOnly()
+      .translate(0, -fontMetrics.mHeight * (1 - ratio) - tipHeight)
+      .scaleSelf(ratio);
+    function addSuperscript(base: string, superscript: string) {
+      const original = assertNonNullable(result.get(base));
+      const newShape = original.shape.transform(transform);
+      const newAdvance = original.advance * ratio;
+      add(superscript, newShape, newAdvance);
+    }
+    addSuperscript("0", "⁰");
+    addSuperscript("1", "¹");
+    addSuperscript("2", "²");
+    addSuperscript("3", "³");
+    addSuperscript("4", "⁴");
+    addSuperscript("5", "⁵");
+    addSuperscript("6", "⁶");
+    addSuperscript("7", "⁷");
+    addSuperscript("8", "⁸");
+    addSuperscript("9", "⁹");
+    addSuperscript("-", "⁻");
+  }
+
+  {
+    // MARK: A
+    const shape = PathBuilder.M(left, baseline)
+      .L(aWidth / 2, capitalTop)
+      .L(fontMetrics.aWidth, baseline)
+      .M(fontMetrics.aWidth / 4, capitalMiddle)
+      .L(fontMetrics.aWidth * 0.75, capitalMiddle).pathShape;
+    add("A", shape, aWidth);
+  }
+  /**
+   * If you are drawing a second copy of a vertical line, move the second one this far to the right.
+   *
+   * If you are drawing a second copy of an angled line, see {@link doubleStruckDeltaX}().
+   */
+  const doubleStruckVerticalSpace = strokeWidth * 2;
+  /**
+   * We often draw two lines next to each other, where the space between them,
+   * after stroking them at lineWidth, will all be lineWidth.
+   * Very often we shift second line to the right with no other changes.
+   * Depending on the angle of the line, you might have to shift right more or less,
+   * so the distance between the lines is correct.
+   *
+   * The inputs are the two endpoints of the line segment.
+   * The order of the points doesn't matter.
+   * And you get the same result if the line segment leans left or right.
+   * @param x1
+   * @param y1
+   * @param x2
+   * @param y2
+   * @returns How far to the right to shift the second line.
+   */
+  function doubleStruckDeltaX(x1: number, y1: number, x2: number, y2: number) {
+    const θ = Math.atan2(y2 - y1, x2 - x1);
+    const dx = Math.abs(doubleStruckVerticalSpace / Math.sin(θ));
+    return dx;
+  }
+  {
+    // MARK: 𝔸 (double-struck)
+    const dx = doubleStruckDeltaX(0, capitalTop, aWidth / 2, 0);
+    const advance = aWidth + dx;
+    const shape = PathBuilder.M(left, baseline)
+      .L(aWidth / 2, capitalTop)
+      .L(aWidth / 2 + dx, capitalTop)
+      .L(advance, baseline)
+      .L(aWidth, baseline)
+      .L(aWidth / 2, capitalTop)
+      .M(fontMetrics.aWidth / 4, capitalMiddle)
+      .L(fontMetrics.aWidth * 0.75, capitalMiddle).pathShape;
+    add("𝔸", shape, advance);
+  }
+  {
+    // MARK: B
+    const advance = digitWidth;
+    const topRadius = capitalTopMiddle - capitalTop;
+    if (topRadius <= 0) {
+      throw new Error("wtf");
+    }
+    const topLineLength = (advance - topRadius) * (2 / 3);
+    const bottomRadius = baseline - capitalBottomMiddle;
+    if (bottomRadius <= 0) {
+      throw new Error("wtf");
+    }
+    const bottomLineLength = advance - bottomRadius;
+    const shape = PathBuilder.M(left, baseline)
+      .L(left, capitalTop)
+      .L(topLineLength, capitalTop)
+      .Q_HV(topLineLength + topRadius, capitalTop + topRadius)
+      .Q(topLineLength + topRadius, capitalMiddle, topLineLength, capitalMiddle)
+      .L(left, capitalMiddle)
+      .M(Math.max(bottomLineLength, topLineLength), capitalMiddle)
+      .Q_HV(bottomLineLength + bottomRadius, baseline - bottomRadius)
+      .Q_VH(bottomLineLength, baseline)
+      .L(left, baseline).pathShape;
+    add("B", shape, advance);
+  }
+  {
+    // MARK: 𝔹
+    const dx = doubleStruckVerticalSpace;
+    const advance = digitWidth + dx;
+    const topRadius = capitalTopMiddle - capitalTop;
+    if (topRadius <= 0) {
+      throw new Error("wtf");
+    }
+    const topLineLength = (digitWidth - topRadius) * (2 / 3);
+    const bottomRadius = baseline - capitalBottomMiddle;
+    if (bottomRadius <= 0) {
+      throw new Error("wtf");
+    }
+    const bottomLineLength = digitWidth - bottomRadius;
+    const shape = PathBuilder.M(dx, capitalTop)
+      .L(left, capitalTop)
+      .L(left, baseline)
+      .L(left + dx, baseline)
+      .L(left + dx, capitalTop)
+      .L(topLineLength + dx, capitalTop)
+      .Q_HV(topLineLength + topRadius + dx, capitalTop + topRadius)
+      .Q(
+        topLineLength + topRadius + dx,
+        capitalMiddle,
+        topLineLength + dx,
+        capitalMiddle,
+      )
+      .L(left + dx, capitalMiddle)
+      .M(Math.max(bottomLineLength, topLineLength) + dx, capitalMiddle)
+      .Q_HV(bottomLineLength + bottomRadius + dx, baseline - bottomRadius)
+      .Q_VH(bottomLineLength + dx, baseline)
+      .L(left + dx, baseline).pathShape;
+    add("𝔹", shape, advance);
+  }
+  {
+    // MARK: C
+    const advance = digitWidth;
+    const radius = advance / 2;
+    const x1 = radius;
+    const x2 = advance;
+    const shape = PathBuilder.M(x2, capitalTopMiddle)
+      .Q(x2, capitalTop, x1, capitalTop)
+      .Q(left, capitalTop, left, capitalTopMiddle)
+      .L(left, capitalBottomMiddle)
+      .Q(left, baseline, x1, baseline)
+      .Q(x2, baseline, x2, capitalBottomMiddle).pathShape;
+    add("C", shape, advance);
+  }
+  {
+    // MARK: ℂ
+    const dx = doubleStruckVerticalSpace;
+    const advance = digitWidth + dx;
+    const radius = digitWidth / 2;
+    const x1 = radius;
+    const x1_5 = radius + dx;
+    const x2 = advance;
+    const pathBuilder = PathBuilder.M(x2, capitalTopMiddle)
+      .Q(x2, capitalTop, x1_5, capitalTop)
+      .L(x1, capitalTop)
+      .Q(left, capitalTop, left, capitalTopMiddle)
+      .L(left, capitalBottomMiddle)
+      .Q(left, baseline, x1, baseline)
+      .L(x1_5, baseline)
+      .Q(x2, baseline, x2, capitalBottomMiddle);
+    const offset = (() => {
+      /**
+       * The curve closest to (0, 0)
+       */
+      const bezier = pathBuilder.commands[4].getBezier();
+      const intersections = bezier.intersects({
+        p1: { x: dx, y: baseline },
+        p2: { x: dx, y: capitalTop },
+      }) as number[];
+      if (intersections.length == 0) {
+        return 0;
+      } else {
+        const point = bezier.get(intersections[0]);
+        return point.y;
+      }
+    })();
+    pathBuilder.M(dx, capitalTop - offset).V(baseline + offset);
+    const shape = pathBuilder.pathShape;
+    add("ℂ", shape, advance);
+  }
+  {
+    // MARK: D
+    const advance = digitWidth;
+    const radius = advance / 2;
+    const x1 = radius;
+    const x2 = advance;
+    const shape = PathBuilder.M(left, capitalTop)
+      .L(left, baseline)
+      .L(x1, baseline)
+      .Q(x2, baseline, x2, capitalBottomMiddle)
+      .L(x2, capitalTopMiddle)
+      .Q(x2, capitalTop, x1, capitalTop)
+      .L(left, capitalTop).pathShape;
+    add("D", shape, advance);
+  }
+  {
+    // MARK: 𝔻
+    const dx = doubleStruckVerticalSpace;
+    const advance = digitWidth + dx;
+    const radius = digitWidth / 2;
+    const x0 = dx;
+    const x1 = radius + dx;
+    const x2 = advance;
+    const shape = PathBuilder.M(dx, baseline)
+      .L(left, baseline)
+      .L(left, capitalTop)
+      .L(x0, capitalTop)
+      .L(x0, baseline)
+      .L(x1, baseline)
+      .Q(x2, baseline, x2, capitalBottomMiddle)
+      .L(x2, capitalTopMiddle)
+      .Q(x2, capitalTop, x1, capitalTop)
+      .L(left + dx, capitalTop).pathShape;
+    add("𝔻", shape, advance);
+  }
+  {
+    // MARK: E
+    const advance = digitWidth;
+    const x1 = advance * (2 / 3);
+    const x2 = advance;
+    const shape = PathBuilder.M(x2, capitalTop)
+      .L(left, capitalTop)
+      .L(left, baseline)
+      .L(x2, baseline)
+      .M(x1, capitalMiddle)
+      .L(left, capitalMiddle).pathShape;
+    add("E", shape, advance);
+  }
+  {
+    // MARK: 𝔼
+    const dx = doubleStruckVerticalSpace;
+    const advance = digitWidth + dx;
+    const x0 = dx;
+    const x1 = digitWidth * (2 / 3) + dx;
+    const x2 = advance;
+    const shape = PathBuilder.M(x2, capitalTop)
+      .L(left, capitalTop)
+      .L(left, baseline)
+      .L(x2, baseline)
+      .M(x0, capitalTop)
+      .L(x0, baseline)
+      .M(x1, capitalMiddle)
+      .L(x0, capitalMiddle).pathShape;
+    add("𝔼", shape, advance);
+  }
+  {
+    // MARK: F
+    const advance = digitWidth;
+    const x1 = advance * (2 / 3);
+    const x2 = advance;
+    const shape = PathBuilder.M(x2, capitalTop)
+      .L(left, capitalTop)
+      .L(left, baseline)
+      .M(x1, capitalMiddle)
+      .L(left, capitalMiddle).pathShape;
+    add("F", shape, advance);
+  }
+  {
+    // MARK: 𝔽
+    const dx = doubleStruckVerticalSpace;
+    const advance = digitWidth + dx;
+    const x0 = dx;
+    const x1 = digitWidth * (2 / 3) + dx;
+    const x2 = advance;
+    const shape = PathBuilder.M(x2, capitalTop)
+      .L(left, capitalTop)
+      .L(left, baseline)
+      .L(x0, baseline)
+      .L(x0, capitalTop)
+      .M(x1, capitalMiddle)
+      .L(x0, capitalMiddle).pathShape;
+    add("𝔽", shape, advance);
+  }
+  {
+    // MARK: G
+    const advance = digitWidth;
+    const radius = advance / 2;
+    const x1 = radius;
+    const x2 = advance;
+    const shape = PathBuilder.M(x2, capitalTopMiddle)
+      .Q(x2, capitalTop, x1, capitalTop)
+      .Q(left, capitalTop, left, capitalTopMiddle)
+      .L(left, capitalBottomMiddle)
+      .Q(left, baseline, x1, baseline)
+      .Q(x2, baseline, x2, capitalBottomMiddle)
+      .L(x2, capitalMiddle)
+      .L(x1, capitalMiddle).pathShape;
+    add("G", shape, advance);
+  }
+  {
+    // MARK: 𝔾
+    const dx = doubleStruckVerticalSpace;
+    const advance = digitWidth + dx;
+    const radius = digitWidth / 2;
+    const x1 = radius;
+    const x1_5 = radius + dx;
+    const x2 = advance;
+    const pathBuilder = PathBuilder.M(x2, capitalTopMiddle)
+      .Q(x2, capitalTop, x1_5, capitalTop)
+      .L(x1, capitalTop)
+      .Q(left, capitalTop, left, capitalTopMiddle)
+      .L(left, capitalBottomMiddle)
+      .Q(left, baseline, x1, baseline)
+      .L(x1_5, baseline)
+      .Q(x2, baseline, x2, capitalBottomMiddle)
+      .L(x2, capitalMiddle)
+      .L(x1 + dx, capitalMiddle);
+    const offset = (() => {
+      /**
+       * The curve closest to (0, 0)
+       */
+      const bezier = pathBuilder.commands[4].getBezier();
+      const intersections = bezier.intersects({
+        p1: { x: dx, y: baseline },
+        p2: { x: dx, y: capitalTop },
+      }) as number[];
+      if (intersections.length == 0) {
+        return 0;
+      } else {
+        const point = bezier.get(intersections[0]);
+        return point.y;
+      }
+    })();
+    pathBuilder.M(dx, capitalTop - offset).V(baseline + offset);
+    const shape = pathBuilder.pathShape;
+    add("𝔾", shape, advance);
+  }
+  {
+    // MARK: H
+    const advance = digitWidth;
+    const x1 = advance;
+    const shape = PathBuilder.M(left, capitalTop)
+      .L(left, baseline)
+      .M(x1, capitalTop)
+      .L(x1, baseline)
+      .M(left, capitalMiddle)
+      .L(x1, capitalMiddle).pathShape;
+    add("H", shape, advance);
+  }
+  {
+    // MARK: ℍ
+    const dx = doubleStruckVerticalSpace;
+    const advance = digitWidth + 2 * dx;
+    const x0 = dx;
+    const x1 = advance - dx;
+    // const shape = PathBuilder.M(left, capitalTop)
+    //   .L(left, baseline)
+    //   .M(x1, capitalTop)
+    //   .L(x1, baseline)
+    //   .M(left, capitalMiddle)
+    //   .L(x1, capitalMiddle).pathShape;
+    const shape = PathBuilder.M(x0, capitalMiddle)
+      .V(capitalTop)
+      .H(left)
+      .V(baseline)
+      .H(x0)
+      .L(x0, capitalMiddle)
+      .H(x1)
+      .V(baseline)
+      .H(advance)
+      .V(capitalTop)
+      .H(x1)
+      .V(capitalMiddle).pathShape;
+    add("ℍ", shape, advance);
+  }
+  {
+    // MARK: I
+    const advance = fontMetrics.mHeight / 3;
+    const x1 = advance / 2;
+    const x2 = advance;
+    const shape = PathBuilder.M(left, capitalTop)
+      .L(x2, capitalTop)
+      .M(left, baseline)
+      .L(x2, baseline)
+      .M(x1, capitalTop)
+      .L(x1, baseline).pathShape;
+    add("I", shape, advance);
+  }
+  {
+    // MARK: 𝕀
+    const dx = doubleStruckVerticalSpace;
+    const baseWidth = fontMetrics.mHeight / 3;
+    const advance = baseWidth + dx;
+    const x1 = baseWidth / 2;
+    const x1a = x1 + dx;
+    const x2 = advance;
+    const shape = PathBuilder.M(left, capitalTop)
+      .L(x2, capitalTop)
+      .M(left, baseline)
+      .L(x2, baseline)
+      .M(x1, capitalTop)
+      .L(x1, baseline)
+      .M(x1a, capitalTop)
+      .L(x1a, baseline).pathShape;
+    add("𝕀", shape, advance);
+  }
+  {
+    // MARK: J
+    const advance = digitWidth * 0.85;
+    const radius = advance / 2;
+    const x1 = radius;
+    const x2 = advance;
+    const shape = PathBuilder.M(x2, capitalTop)
+      .L(x2, capitalBottomMiddle)
+      .Q(x2, baseline, x1, baseline)
+      .Q(left, baseline, left, capitalBottomMiddle).pathShape;
+    add("J", shape, advance);
+  }
+  {
+    // MARK: 𝕁
+    const dx = doubleStruckVerticalSpace;
+    const baseWidth = digitWidth * 0.85;
+    const advance = baseWidth + dx;
+    const radius = baseWidth / 2;
+    const x1 = radius;
+    const x2 = radius + dx;
+    const x4 = advance;
+    const x3 = x4 - dx;
+    const pathBuilder = PathBuilder.M(left, capitalBottomMiddle)
+      .Q(left, baseline, x1, baseline)
+      .L(x2, baseline)
+      .Q(x4, baseline, x4, capitalBottomMiddle)
+      .L(x4, capitalTop)
+      .L(x3, capitalTop);
+    // const shape = PathBuilder.M(x2, capitalTop)
+    //   .L(x2, capitalBottomMiddle)
+    //   .Q(x2, baseline, x1, baseline)
+    //   .Q(left, baseline, left, capitalBottomMiddle).pathShape;
+    const offset = (() => {
+      const bezier = pathBuilder.commands[2].getBezier();
+      const intersections = bezier.intersects({
+        p1: { x: x3, y: baseline },
+        p2: { x: x3, y: capitalTop },
+      }) as number[];
+      if (intersections.length == 0) {
+        return 0;
+      } else {
+        const point = bezier.get(intersections[0]);
+        return point.y;
+      }
+    })();
+    pathBuilder.V(offset);
+    const shape = pathBuilder.pathShape;
+    add("𝕁", shape, advance);
+    //console.log(shape.rawPath)
+  }
+  {
+    // MARK: K
+    const advance = digitWidth + strokeWidth;
+    const middle = (capitalTop + baseline) / 2;
+    const shape = PathBuilder.M(left, capitalTop)
+      .L(left, baseline)
+      .M(advance, capitalTop)
+      .L(left + strokeWidth, middle)
+      .L(advance, baseline).pathShape;
+    add("K", shape, advance);
+  }
+  {
+    // MARK: 𝕂
+    const dx = doubleStruckVerticalSpace;
+    const miterSize = dx / Math.SQRT2;
+    const middle = (capitalTop + baseline) / 2;
+    const diagonalWidth = -middle;
+    const advance = diagonalWidth + dx;
+    const pathBuilder = PathBuilder.M(advance, capitalTop)
+      .L(dx, middle)
+      .L(dx, capitalTop)
+      .L(left, capitalTop)
+      .L(left, baseline)
+      .L(dx, baseline)
+      .L(dx, middle + miterSize)
+      .L(advance - miterSize, baseline)
+      .L(advance, baseline)
+      .L(advance, -miterSize)
+      .L(dx + miterSize / 2, middle - miterSize / 2);
+    const shape = pathBuilder.pathShape;
+    add("𝕂", shape, advance);
+  }
+  {
+    // MARK: L
+    const advance = digitWidth;
+    const shape = PathBuilder.M(left, capitalTop)
+      .L(left, baseline)
+      .L(advance, baseline).pathShape;
+    add("L", shape, advance);
+  }
+  {
+    // MARK: 𝕃
+    const dx = doubleStruckVerticalSpace;
+    const baseWidth = digitWidth;
+    const advance = baseWidth + dx;
+    const shape = PathBuilder.M(dx, baseline)
+      .V(capitalTop)
+      .H(left)
+      .V(baseline)
+      .L(advance, baseline).pathShape;
+    add("𝕃", shape, advance);
+  }
+  {
+    // MARK: M
+    const advance = digitWidth * 1.5;
+    const center = advance / 2;
+    const shape = PathBuilder.M(left, baseline)
+      .L(left, capitalTop)
+      .L(center, capitalMiddle)
+      .L(advance, capitalTop)
+      .L(advance, baseline).pathShape;
+    add("M", shape, advance);
+  }
+  {
+    // MARK: 𝕄
+    const baseWidth = digitWidth * 1.5;
+    /**
+     * Center is always horizontal:  left, center, right
+     */
+    const center = baseWidth / 2;
+    const vBottom = capitalMiddle;
+    /**
+     * For the leftmost diagonal line.
+     */
+    const dx1 = doubleStruckDeltaX(left, capitalTop, center, vBottom);
+    /**
+     * For the rightmost vertical line.
+     */
+    const dx2 = doubleStruckVerticalSpace;
+    const advance = baseWidth + dx1 + dx2;
+    const shape = PathBuilder.M(left, baseline)
+      .L(left, capitalTop)
+      .L(center, vBottom)
+      .L(center + dx1, vBottom)
+      .L(baseWidth + dx1, capitalTop)
+      .L(advance, capitalTop)
+      .L(advance, baseline)
+      .L(advance - dx2, baseline)
+      .L(advance - dx2, capitalTop)
+      .M(left, capitalTop)
+      .L(left + dx1, capitalTop)
+      .L(center + dx1, vBottom).pathShape;
+    add("𝕄", shape, advance);
+  }
+  {
+    // MARK: N
+    const advance = digitWidth * 1.2;
+    const shape = PathBuilder.M(left, baseline)
+      .L(left, capitalTop)
+      .L(advance, baseline)
+      .L(advance, capitalTop).pathShape;
+    add("N", shape, advance);
+  }
+  {
+    // MARK: ℕ
+    const nAdvance = digitWidth * 1.2;
+    const extraHeight = strokeWidth * Math.SQRT2;
+    const extraWidth = strokeWidth * Math.SQRT2;
+    const advance = nAdvance + extraWidth;
+
+    const shape = PathBuilder.M(left, baseline)
+      .L(left, capitalTop)
+      .L(left + extraWidth, capitalTop)
+      .L(advance, baseline - extraHeight)
+      .M(left, capitalTop + extraHeight)
+      .L(advance - extraWidth, baseline)
+      .L(advance, baseline)
+      .L(advance, capitalTop).pathShape;
+    add("ℕ", shape, advance);
+  }
+  {
+    // MARK: O
+    const advance = digitWidth * 1.5;
+    const center = advance / 2;
+    const middle = (capitalTop + baseline) / 2;
+    const shape = PathBuilder.M(center, capitalTop)
+      .Q_HV(advance, middle)
+      .Q_VH(center, baseline)
+      .Q_HV(left, middle)
+      .Q_VH(center, capitalTop).pathShape;
+    add("O", shape, advance);
+  }
+  {
+    // MARK: 𝕆
+    const dx = doubleStruckVerticalSpace;
+    const baseWidth = digitWidth * 1.5;
+    const advance = baseWidth + dx;
+    const x1 = baseWidth / 2;
+    const x2 = x1 + dx;
+    const middle = (capitalTop + baseline) / 2;
+    const pathBuilder = PathBuilder.M(x2, capitalTop)
+      .Q_HV(advance, middle)
+      .Q_VH(x2, baseline)
+      .H(x1)
+      .Q_HV(left, middle)
+      .Q_VH(x1, capitalTop)
+      .H(x2);
+    const offset = (() => {
+      /**
+       * The bottom left curve.
+       */
+      const bezier = pathBuilder.commands.at(-3)!.getBezier();
+      const intersections = bezier.intersects({
+        p1: { x: dx, y: baseline },
+        p2: { x: dx, y: capitalTop },
+      }) as number[];
+      if (intersections.length == 0) {
+        return 0;
+      } else {
+        const point = bezier.get(intersections[0]);
+        return point.y;
+      }
+    })();
+    pathBuilder.M(dx, capitalTop - offset).V(baseline + offset);
+    const shape = pathBuilder.pathShape;
+    add("𝕆", shape, advance);
+  }
+  {
+    // MARK: P
+    const advance = digitWidth;
+    const radius = capitalMiddle - capitalTopMiddle;
+    if (radius <= 0) {
+      throw new Error("wtf");
+    }
+    const x1 = advance - radius;
+    const shape = PathBuilder.M(left, capitalTop)
+      .L(left, baseline)
+      .M(left, capitalTop)
+      .L(x1, capitalTop)
+      .Q_HV(advance, capitalTopMiddle)
+      .Q_VH(x1, capitalMiddle)
+      .L(left, capitalMiddle).pathShape;
+    add("P", shape, advance);
+  }
+  {
+    // MARK: ℙ
+    const dx = doubleStruckVerticalSpace;
+    const baseWidth = digitWidth;
+    const advance = baseWidth + dx;
+    const radius = capitalMiddle - capitalTopMiddle;
+    if (radius <= 0) {
+      throw new Error("wtf");
+    }
+    const x1 = dx;
+    const x2 = advance - radius;
+    const shape = PathBuilder.M(x1, capitalTop)
+      .L(x1, baseline)
+      .H(left)
+      .V(capitalTop)
+      .L(x2, capitalTop)
+      .Q_HV(advance, capitalTopMiddle)
+      .Q_VH(x2, capitalMiddle)
+      .L(x1, capitalMiddle).pathShape;
+    add("ℙ", shape, advance);
+  }
+  {
+    // MARK: Q
+    const advance = digitWidth * 1.5;
+    const center = advance / 2;
+    const middle = (capitalTop + baseline) / 2;
+    const shape = PathBuilder.M(center, capitalTop)
+      .Q_HV(advance, middle)
+      .Q_VH(center, baseline)
+      .Q_HV(left, middle)
+      .Q_VH(center, capitalTop)
+      .M(advance - center * 0.75, baseline - center * 0.75)
+      .L(advance + center / 6, baseline + center / 6).pathShape;
+    add("Q", shape, advance);
+  }
+  {
+    // MARK: ℚ
+    const rightWidth = digitWidth * 0.75;
+    const leftWidth = rightWidth;
+    const extraWidth = doubleStruckVerticalSpace;
+    const advance = leftWidth + extraWidth + rightWidth;
+    const middle = (capitalTop + baseline) / 2;
+    const pathBuilder = PathBuilder.M(leftWidth + extraWidth, capitalTop)
+      .Q_HV(advance, middle)
+      .Q_VH(leftWidth + extraWidth, baseline)
+      .L(leftWidth, baseline)
+      .Q_HV(left, middle)
+      .Q_VH(leftWidth, capitalTop)
+      .L(leftWidth + extraWidth, capitalTop)
+      .M(advance - rightWidth * 0.75, baseline - rightWidth * 0.75)
+      .L(advance + rightWidth / 6, baseline + rightWidth / 6);
+    const offset = (() => {
+      const bezier = pathBuilder.commands[3].getBezier();
+      const intersections = bezier.intersects({
+        p1: { x: extraWidth, y: baseline },
+        p2: { x: extraWidth, y: capitalTop },
+      }) as number[];
+      if (intersections.length == 0) {
+        return 0;
+      } else {
+        const point = bezier.get(intersections[0]);
+        return point.y;
+      }
+    })();
+    pathBuilder.M(extraWidth, capitalTop - offset).V(baseline + offset);
+    const shape = pathBuilder.pathShape;
+    add("ℚ", shape, advance);
+  }
+  {
+    // MARK: R
+    const advance = digitWidth;
+    const radius = capitalMiddle - capitalTopMiddle;
+    if (radius <= 0) {
+      throw new Error("wtf");
+    }
+    const x1 = advance - radius;
+    const shape = PathBuilder.M(left, capitalTop)
+      .L(left, baseline)
+      .M(left, capitalTop)
+      .L(x1, capitalTop)
+      .Q_HV(advance, capitalTopMiddle)
+      .Q_VH(x1, capitalMiddle)
+      .L(left, capitalMiddle)
+      .M(x1, capitalMiddle)
+      .L(advance, baseline).pathShape;
+    add("R", shape, advance);
+  }
+  {
+    // MARK: ℝ
+    const dx = doubleStruckVerticalSpace;
+    const baseWidth = digitWidth;
+    const advance = baseWidth + dx;
+    const radius = capitalMiddle - capitalTopMiddle;
+    if (radius <= 0) {
+      throw new Error("wtf");
+    }
+    const x1 = dx;
+    const x2 = advance - radius;
+    const shape = PathBuilder.M(x1, capitalTop)
+      .L(x1, baseline)
+      .H(left)
+      .V(capitalTop)
+      .L(x2, capitalTop)
+      .Q_HV(advance, capitalTopMiddle)
+      .Q_VH(x2, capitalMiddle)
+      .L(x1, capitalMiddle)
+      .M(x2, capitalMiddle)
+      .L(advance, baseline).pathShape;
+    add("ℝ", shape, advance);
+  }
+  {
+    // MARK: S
+    // This is basically a subset of the 8 with he direction is reversed.
+    const advance = digitWidth;
+    const center = digitWidth / 2;
+    const right = digitWidth;
+    const shape = PathBuilder.M(right, capitalTopMiddle)
+      .Q_VH(center, capitalTop)
+      .Q_HV(left, capitalTopMiddle)
+      .Q_VH(center, capitalMiddle)
+      .Q_HV(right, capitalBottomMiddle)
+      .Q_VH(center, baseline)
+      .Q_HV(left, capitalBottomMiddle).pathShape;
+    add("S", shape, advance);
+  }
+  {
+    // MARK: $
+    // This is basically an S with an extra vertical line.
+    const extraWidth = strokeWidth;
+    const advance = digitWidth + extraWidth;
+    const center = advance / 2;
+    const right = advance;
+    const tipHeight = fontMetrics.mHeight / 8;
+    const shape = PathBuilder.M(right, capitalTopMiddle)
+      .Q_VH(center, capitalTop)
+      .Q_HV(left, capitalTopMiddle)
+      .Q_VH(center, capitalMiddle)
+      .Q_HV(right, capitalBottomMiddle)
+      .Q_VH(center, baseline)
+      .Q_HV(left, capitalBottomMiddle)
+      .M(center, capitalTop - tipHeight)
+      .V(baseline + tipHeight).pathShape;
+    add("$", shape, advance);
+  }
+  {
+    // MARK: 𝕊
+    const dx = doubleStruckVerticalSpace;
+    const baseWidth = digitWidth;
+    const advance = baseWidth + dx;
+    const x1 = baseWidth / 2;
+    const x2 = x1 + dx;
+    const right = advance;
+    /**
+     * Assume the `line` segment intersects with these `commands` in exactly two points.
+     * Create an LCommand connecting those two points.
+     * @param commands We want to draw a segment connecting to one or more of these.
+     * @param line We want to find a subset of that line, bounded by the commands.
+     * @returns A new `LCommand` if we found *exactly* two points of intersection.
+     * Otherwise `undefined`.
+     * @throws Do not include and LCommand, it will throw an exception.
+     */
+    function clippedSegment(commands: readonly Command[], line: Line) {
+      /**
+       * These are "parameters".
+       * They have no value in the real world but are appropriate inputs for Bezier.get().
+       */
+      const intersectionPoints = new Array<Point>();
+      commands.forEach((command) => {
+        const bezier = command.getBezier();
+        if (command instanceof LCommand) {
+          // Warning:  I'm catching the cases where I'm certain you are going to fail.
+          // No false positives, but lots of false negatives!
+          // straight lines are bad even if packed in a QCommand or a CCommand.
+          // TODO The internet suggests that I switch to a better library than Bezier.js if I want good intersections.
+          throw new Error(
+            "Bezier.js’s intersection functions don't work when the “curve” is a straight line!",
+          );
+        }
+        const intersectionParameters = bezier.lineIntersects(line);
+        intersectionParameters.forEach((parameter) => {
+          intersectionPoints.push(bezier.get(parameter));
+        });
+      });
+      if (intersectionPoints.length == 2) {
+        return new LCommand(
+          intersectionPoints[0].x,
+          intersectionPoints[0].y,
+          intersectionPoints[1].x,
+          intersectionPoints[1].y,
+        );
+      } else {
+        return undefined;
+      }
+    }
+    const pathBuilder = PathBuilder.M(right, capitalTopMiddle)
+      .Q_VH(x2, capitalTop)
+      .H(x1)
+      .Q_HV(left, capitalTopMiddle)
+      .Q_VH(x1, capitalMiddle)
+      .H(x2)
+      .Q_HV(right, capitalBottomMiddle)
+      .Q_VH(x2, baseline)
+      .H(x1)
+      .Q_HV(left, capitalBottomMiddle);
+    {
+      // Top left
+      const curves = pathBuilder.commands.slice(2, 4);
+      const x = dx;
+      const line = {
+        p1: { x, y: baseline },
+        p2: { x, y: capitalTop },
+      };
+      const betweenCurves = clippedSegment(curves, line);
+      const newCommand =
+        betweenCurves ?? new LCommand(x, capitalTop, x, capitalMiddle);
+      pathBuilder.addCommand(newCommand);
+    }
+    {
+      // Bottom right
+      const curves = pathBuilder.commands.slice(5, 7);
+      const x = advance - dx;
+      const line = {
+        p1: { x, y: baseline },
+        p2: { x, y: capitalTop },
+      };
+      const betweenCurves = clippedSegment(curves, line);
+      const newCommand =
+        betweenCurves ?? new LCommand(x, capitalMiddle, x, baseline);
+      pathBuilder.addCommand(newCommand);
+    }
+    const shape = pathBuilder.pathShape;
+    add("𝕊", shape, advance);
+  }
+  {
+    // MARK: T
+    const advance = digitWidth;
+    const center = advance / 2;
+    const shape = PathBuilder.M(center, capitalTop)
+      .L(center, baseline)
+      .M(advance, capitalTop)
+      .L(left, capitalTop).pathShape;
+    // Down then back.  That's how I do it every time.
+    add("T", shape, advance);
+  }
+  {
+    // MARK: 𝕋
+    const dx = doubleStruckVerticalSpace;
+    const baseWidth = digitWidth;
+    const advance = baseWidth + dx;
+    const x1 = baseWidth / 2;
+    const x2 = x1 + dx;
+    const shape = new PathShape([
+      // Across the top
+      new LCommand(left, capitalTop, advance, capitalTop),
+      // Down the center right
+      new LCommand(x2, capitalTop, x2, baseline),
+      // Up the center left.
+      new LCommand(x1, baseline, x1, capitalTop),
+    ]);
+    add("𝕋", shape, advance);
+  }
+  // MARK: U
+  {
+    const topOfCurve = (capitalBottomMiddle + capitalMiddle) / 2;
+    const center = Math.abs(topOfCurve - baseline) * 0.85;
+    const advance = center * 2;
+    const shape = PathBuilder.M(left, capitalTop)
+      .V(topOfCurve)
+      .Q_VH(center, baseline)
+      .Q_HV(advance, topOfCurve)
+      .V(capitalTop).pathShape;
+    add("U", shape, advance);
+  }
+  // MARK: 𝕌
+  {
+    const dx = doubleStruckVerticalSpace;
+    const topOfCurve = (capitalBottomMiddle + capitalMiddle) / 2;
+    const center = Math.abs(topOfCurve - baseline) * 0.85;
+    const advance = center * 2 + dx;
+    const x1 = center;
+    const x2 = center + dx;
+    const commands = PathBuilder.M(left, capitalTop)
+      .V(topOfCurve)
+      .Q_VH(x1, baseline)
+      .L(x2, baseline)
+      .Q_HV(advance, topOfCurve)
+      .V(capitalTop)
+      .commands.slice();
+    const offset = (() => {
+      /**
+       * The curve closest to (0, 0)
+       */
+      const bezier = commands[1].getBezier();
+      const intersections = bezier.intersects({
+        p1: { x: dx, y: capitalTop },
+        p2: { x: dx, y: -capitalTop },
+      }) as number[];
+      if (intersections.length == 0) {
+        return 0;
+      } else {
+        const point = bezier.get(intersections[0]);
+        return point.y;
+      }
+    })();
+    commands.unshift(new LCommand(dx, capitalTop, left, capitalTop));
+    commands.unshift(new LCommand(dx, capitalTop, dx, offset));
+    const shape = new PathShape(commands);
+    add("𝕌", shape, advance);
+  }
+  // MARK: V
+  {
+    const advance = aWidth;
+    const center = advance / 2;
+    const shape = PathBuilder.M(left, capitalTop)
+      .L(center, baseline)
+      .L(advance, capitalTop).pathShape;
+    add("V", shape, advance);
+  }
+  // MARK: 𝕍
+  {
+    const baseWidth = aWidth;
+    const x1 = baseWidth / 2;
+    const dx = doubleStruckDeltaX(left, capitalTop, x1, baseline);
+    const x2 = x1 + dx;
+    const advance = baseWidth + dx;
+
+    const shape = PathBuilder.M(x2, baseline)
+      .L(dx, capitalTop)
+      .L(left, capitalTop)
+      .L(x1, baseline)
+      .L(x2, baseline)
+      .L(advance, capitalTop).pathShape;
+    add("𝕍", shape, advance);
+  }
+  // MARK: W
+  {
+    const advance = aWidth * 1.5;
+    const x1 = advance / 3;
+    const x2 = advance / 2;
+    const x3 = x1 * 2;
+    const shape = PathBuilder.M(left, capitalTop)
+      .L(x1, baseline)
+      .L(x2, capitalMiddle)
+      .L(x3, baseline)
+      .L(advance, capitalTop).pathShape;
+    add("W", shape, advance);
+  }
+  // MARK: 𝕎
+  {
+    const v = result.get("𝕍")!;
+    const advance = v.advance * 2;
+    const shape = PathShape.join([
+      { Δx: 0, Δy: 0, shape: v.shape },
+      { Δx: v.advance, Δy: 0, shape: v.shape },
+    ]);
+    add("𝕎", shape, advance);
+  }
+  // MARK: X
+  {
+    const advance = digitWidth;
+    const shape = PathBuilder.M(advance, capitalTop)
+      .L(left, baseline)
+      .M(left, capitalTop)
+      .L(advance, baseline).pathShape;
+    add("X", shape, advance);
+  }
+  // MARK: 𝕏
+  {
+    const baseWidth = digitWidth;
+    const dx = doubleStruckDeltaX(left, capitalTop, baseWidth, baseline);
+    const advance = baseWidth + dx;
+    const shape = PathBuilder.M(dx, capitalTop)
+      .L(advance, baseline)
+      .H(advance - dx)
+      .L(left, capitalTop)
+      .H(dx)
+      .M(advance, capitalTop)
+      .L(left, baseline).pathShape;
+    add("𝕏", shape, advance);
+  }
+  // MARK: Y
+  {
+    const extra = strokeWidth;
+    const advance = digitWidth + extra;
+    const shape = PathBuilder.M(advance, capitalTop)
+      .L(extra, baseline)
+      .M(left, capitalTop)
+      .L(advance / 2, capitalMiddle).pathShape;
+    add("Y", shape, advance);
+  }
+  // MARK: 𝕐
+  {
+    const extra = strokeWidth;
+    const baseWidth = digitWidth + extra;
+    const dx = doubleStruckDeltaX(baseWidth, capitalTop, extra, baseline);
+    const advance = baseWidth + dx;
+    const shape = PathBuilder.M(baseWidth, capitalTop)
+      .L(extra, baseline)
+      .H(extra + dx)
+      .L(baseWidth + dx, capitalTop)
+      .H(baseWidth)
+      .M(left, capitalTop)
+      .L(baseWidth / 2, capitalMiddle).pathShape;
+    add("𝕐", shape, advance);
+  }
+  // MARK: Z
+  {
+    const advance = digitWidth;
+    const shape = PathBuilder.M(left, capitalTop)
+      .H(advance)
+      .L(left, baseline)
+      .H(advance).pathShape;
+    add("Z", shape, advance);
+  }
+  // MARK: ℤ
+  {
+    const baseWidth = digitWidth;
+    const extraWidth = doubleStruckDeltaX(
+      baseWidth,
+      capitalTop,
+      left,
+      baseline,
+    );
+    const advance = baseWidth + extraWidth;
+
+    const shape = PathBuilder.M(left, capitalTop)
+      .H(advance)
+      .L(left + extraWidth, baseline)
+      .M(baseWidth, capitalTop)
+      .L(left, baseline)
+      .H(advance).pathShape;
+    add("ℤ", shape, advance);
+  }
+  // MARK: %
+  {
+    const radius = digitWidth / 4;
+    const advance = digitWidth * 1.2;
+    // First draw the top circle.
+    const pathBuilder = PathBuilder.M(radius * 2, capitalTop + radius)
+      .Q_VH(radius, capitalTop)
+      .Q_HV(0, capitalTop + radius)
+      .Q_VH(radius, capitalTop + radius * 2)
+      .Q_HV(radius * 2, capitalTop + radius);
+    // Next draw the bottom circle.
+    const topCircle = pathBuilder.pathShape;
+    const bottomCircle = topCircle.translate(
+      advance - radius * 2,
+      fontMetrics.mHeight - radius * 2,
+    );
+    pathBuilder.addCommands(bottomCircle.commands);
+    // Finally the slash.
+    pathBuilder.M(advance, capitalTop).L(left, baseline);
+    const shape = pathBuilder.pathShape;
+    add("%", shape, advance);
+  }
+  // MARK: /
+  {
+    const advance = digitWidth;
+    const shape = PathBuilder.M(advance, capitalTop).L(
+      left,
+      baseline,
+    ).pathShape;
+    add("/", shape, advance);
+  }
+  // MARK: \
+  {
+    const advance = digitWidth;
+    const shape = PathBuilder.M(left, capitalTop).L(
+      advance,
+      baseline,
+    ).pathShape;
+    add("\\", shape, advance);
+  }
+  // MARK: a
+  {
+    const base = digitWidth;
+    /**
+     * This will cause the starting point to touch the curve shortly before the curve turns straight.
+     */
+    const extra = base * 0.05;
+    const advance = base + extra;
+    const center = base / 2;
+    const shape = PathBuilder.M(base, capitalBottomMiddle)
+      .Q_VH(center, capitalMiddle)
+      .Q_HV(left, capitalBottomMiddle)
+      .Q_VH(center, baseline)
+      .Q_HV(advance, capitalMiddle)
+      .V(baseline).pathShape;
+    add("a", shape, advance);
+  }
+  // MARK: b
+  {
+    const base = digitWidth;
+    /**
+     * This will cause the starting point to touch the curve shortly before the curve turns straight.
+     */
+    const extra = base * 0.05;
+    const advance = base + extra;
+    const circleLeft = extra;
+    const circleCenter = extra + base / 2;
+    const circleRight = advance;
+    const shape = PathBuilder.M(circleLeft, capitalBottomMiddle)
+      .Q_VH(circleCenter, baseline)
+      .Q_HV(circleRight, capitalBottomMiddle)
+      .Q_VH(circleCenter, capitalMiddle)
+      .Q_HV(left, baseline)
+      .V(capitalTop).pathShape;
+    add("b", shape, advance);
+  }
+  // MARK: c
+  {
+    const advance = digitWidth * 0.875;
+    const circleLeft = 0;
+    const circleCenter = digitWidth / 2;
+    const circleRight = advance;
+    const yStart = (capitalMiddle + capitalBottomMiddle) / 2;
+    const yEnd = (capitalBottomMiddle + baseline) / 2;
+    const shape = PathBuilder.M(circleRight, yStart)
+      .Q_VH(circleCenter, capitalMiddle)
+      .Q_HV(circleLeft, capitalBottomMiddle)
+      .Q_VH(circleCenter, baseline)
+      .Q_HV(circleRight, yEnd).pathShape;
+    add("c", shape, advance);
+  }
+  // MARK: d
+  {
+    const base = digitWidth;
+    /**
+     * This will cause the starting point to touch the curve shortly before the curve turns straight.
+     */
+    const extra = base * 0.05;
+    const advance = base + extra;
+    const center = base / 2;
+    const shape = PathBuilder.M(advance, capitalTop)
+      .L(advance, baseline)
+      .Q_VH(center, capitalMiddle)
+      .Q_HV(left, capitalBottomMiddle)
+      .Q_VH(center, baseline)
+      .Q_HV(base, capitalBottomMiddle).pathShape;
+    add("d", shape, advance);
+  }
+  // MARK: e
+  const offsetForSmallCurves = digitWidth / 8;
+  {
+    const advance = digitWidth;
+    const center = digitWidth / 2;
+    const right = advance;
+    const xEnd = right - offsetForSmallCurves;
+    const shape = PathBuilder.M(left, capitalBottomMiddle)
+      .H(right)
+      .Q_VH(center, capitalMiddle)
+      .Q_HV(left, capitalBottomMiddle)
+      .Q_VH(center, baseline)
+      .H(xEnd).pathShape;
+    add("e", shape, advance);
+  }
+  // MARK: f
+  {
+    const advance = digitWidth * 0.75;
+    const center = advance / 2;
+    const right = advance;
+    const shape = PathBuilder.M(right, capitalTop)
+      .Q_HV(center, capitalTopMiddle)
+      .V(baseline)
+      .M(right, capitalMiddle)
+      .H(left).pathShape;
+    add("f", shape, advance);
+  }
+  // MARK: g
+  {
+    const base = digitWidth;
+    /**
+     * This will cause the starting point to touch the curve shortly before the curve turns straight.
+     */
+    const extra = base * 0.05;
+    const advance = base + extra;
+    const center = base / 2;
+    const shape = PathBuilder.M(base, capitalBottomMiddle)
+      .Q_VH(center, capitalMiddle)
+      .Q_HV(left, capitalBottomMiddle)
+      .Q_VH(center, baseline)
+      .Q_HV(advance, capitalMiddle)
+      .V(baseline)
+      .Q_VH(center, descender)
+      .H(left + offsetForSmallCurves).pathShape;
+    add("g", shape, advance);
+  }
+  // MARK: h
+  {
+    const advance = digitWidth * 0.85;
+    const center = advance / 2;
+    const shape = PathBuilder.M(left, capitalTop)
+      .V(baseline)
+      .Q_VH(center, capitalMiddle)
+      .Q_HV(advance, capitalBottomMiddle)
+      .V(baseline).pathShape;
+    add("h", shape, advance);
+  }
+  // MARK: i
+  {
+    const advance = 0;
+    // Move straight down.
+    const shape = PathBuilder.M(left, capitalTopMiddle - dotHeightReplacement)
+      .V(capitalTopMiddle)
+      .M(left, capitalMiddle)
+      .V(baseline).pathShape;
+    add("i", shape, advance);
+  }
+  // MARK: j
+  {
+    const advance = Math.abs(baseline - descender);
+    const center = advance / 2;
+    const shape = PathBuilder.M(advance, capitalMiddle)
+      .V(baseline)
+      .Q_VH(center, descender)
+      .Q_HV(left, baseline)
+      .M(advance, capitalTopMiddle)
+      .V(capitalTopMiddle - dotHeightReplacement).pathShape;
+    add("j", shape, advance);
+  }
+  // MARK: .
+  {
+    const advance = 0;
+    const shape = PathBuilder.M(left, baseline).V(
+      baseline - dotHeightReplacement,
+    ).pathShape;
+    add(".", shape, advance);
+  }
+  // MARK: !
+  {
+    const advance = 0;
+    const shape = PathBuilder.M(left, capitalTop)
+      .V(capitalBottomMiddle)
+      .M(left, baseline)
+      .V(baseline - dotHeightReplacement).pathShape;
+    add("!", shape, advance);
+  }
+  // MARK: , Comma
+  {
+    const advance = 0;
+    const drop = (descender - baseline) / 2;
+    const back = drop / 2;
+    const shape = PathBuilder.M(left, baseline - dotHeightReplacement)
+      .V(baseline)
+      .Q_VH(-back, baseline + drop).pathShape;
+    add(",", shape, advance);
+  }
+  // MARK: left single quote
+  {
+    const drop = descender - baseline;
+    const advance = drop / 2;
+    const shape = new PathShape([
+      QCommand.controlPoints(
+        left,
+        capitalTop,
+        advance * 0.35,
+        capitalTop + drop * 0.65,
+        advance,
+        capitalTop + drop,
+      ),
+    ]);
+    add("‘", shape, advance);
+  }
+  // MARK: ’ right single quote
+  // also very commonly used as a typographic apostrophe
+  {
+    const drop = descender - baseline;
+    const advance = drop / 2;
+    const shape = new PathShape([
+      QCommand.controlPoints(
+        advance,
+        capitalTop,
+        advance * 0.65,
+        capitalTop + drop * 0.65,
+        left,
+        capitalTop + drop,
+      ),
+    ]);
+    add("’", shape, advance);
+  }
+  // MARK: left double quote
+  {
+    const drop = descender - baseline;
+    const singleWidth = drop / 2;
+    const spaceBetween = strokeWidth;
+    const startSecond = singleWidth + spaceBetween;
+    const advance = startSecond + singleWidth;
+    const shape = new PathShape([
+      QCommand.controlPoints(
+        left,
+        capitalTop,
+        singleWidth * 0.35,
+        capitalTop + drop * 0.65,
+        singleWidth,
+        capitalTop + drop,
+      ),
+      QCommand.controlPoints(
+        left + startSecond,
+        capitalTop,
+        singleWidth * 0.35 + startSecond,
+        capitalTop + drop * 0.65,
+        singleWidth + startSecond,
+        capitalTop + drop,
+      ),
+    ]);
+    add("“", shape, advance);
+  }
+  // MARK: right double quote
+  {
+    const drop = descender - baseline;
+    const singleWidth = drop / 2;
+    const spaceBetween = strokeWidth;
+    const startSecond = singleWidth + spaceBetween;
+    const advance = startSecond + singleWidth;
+    const shape = new PathShape([
+      QCommand.controlPoints(
+        singleWidth,
+        capitalTop,
+        singleWidth * 0.65,
+        capitalTop + drop * 0.65,
+        left,
+        capitalTop + drop,
+      ),
+      QCommand.controlPoints(
+        singleWidth + startSecond,
+        capitalTop,
+        singleWidth * 0.65 + startSecond,
+        capitalTop + drop * 0.65,
+        left + startSecond,
+        capitalTop + drop,
+      ),
+    ]);
+    add("”", shape, advance);
+  }
+  // MARK: ʻ Hawaiian ʻokina
+  // A.k.a. MODIFIER LETTER TURNED COMMA
+  {
+    // Looks like a small, raised 6.
+    // In some fonts ‘ (single open quote) looks like a 6 and would pass.
+    // The quotes, like most of line font, look more like lines than circles.
+    // This looks similar to some of the Hershey fonts as those have loops in the punctuation.
+    const drop = descender - baseline;
+    const advance = drop / 2;
+    const shape = PathBuilder.M(advance / 2, capitalTop + drop / 2)
+      .Q_HV(advance, capitalTop + (drop * 3) / 4)
+      .Q_VH(advance / 2, capitalTop + drop)
+      .Q_HV(left, capitalTop + (drop * 2) / 3)
+      .Q_VH((advance * 3) / 4, capitalTop).pathShape;
+
+    add("ʻ", shape, advance);
+  }
+  // MARK: ' ASCII apostrophe (neutral / straight)
+  {
+    const advance = 0;
+    const drop = (descender - baseline) / 2;
+    const total = drop + dotHeightReplacement;
+    const shape = new PathShape([
+      new LCommand(left, capitalTop, left, capitalTop + total),
+    ]);
+    add("'", shape, advance);
+  }
+  // MARK: ` Backtick / back quote
+  {
+    const drop = (descender - baseline) / 2;
+    const total = drop + dotHeightReplacement;
+    const advance = total;
+    const right = total;
+    const shape = new PathShape([
+      new LCommand(left, capitalTop, right, capitalTop + total),
+    ]);
+    add("`", shape, advance);
+  }
+  // MARK: ^
+  {
+    const drop = (descender - baseline) / 2;
+    const total = drop + dotHeightReplacement;
+    const center = total;
+    const advance = total * 2;
+    const right = advance;
+    const top = capitalTop;
+    const bottom = capitalTop + total;
+    const shape = PathBuilder.M(left, bottom)
+      .L(center, top)
+      .L(right, bottom).pathShape;
+    add("^", shape, advance);
+  }
+  // MARK: " ASCII double quote (neutral / straight)
+  {
+    const advance = strokeWidth * 2;
+    const drop = (descender - baseline) / 2;
+    const total = drop + dotHeightReplacement;
+    const shape = new PathShape([
+      new LCommand(left, capitalTop, left, capitalTop + total),
+      new LCommand(advance, capitalTop, advance, capitalTop + total),
+    ]);
+    add('"', shape, advance);
+  }
+  // MARK: :
+  {
+    const advance = 0;
+    const topDotTop = capitalMiddle;
+    const shape = PathBuilder.M(left, baseline)
+      .V(baseline - dotHeightReplacement)
+      .M(left, topDotTop - dotHeightReplacement)
+      .V(topDotTop).pathShape;
+    add(":", shape, advance);
+  }
+  // MARK: |
+  {
+    const advance = 0;
+    const shape = new PathShape([
+      new LCommand(left, capitalTop, left, baseline),
+    ]);
+    add("|", shape, advance);
+  }
+  // MARK: ;
+  {
+    const advance = 0;
+    const topDotTop = capitalMiddle;
+    const drop = (descender - baseline) / 2;
+    const back = drop / 2;
+    const shape = PathBuilder.M(left, baseline - dotHeightReplacement)
+      .V(baseline)
+      .Q_VH(-back, baseline + drop)
+      .M(left, topDotTop - dotHeightReplacement)
+      .V(topDotTop).pathShape;
+    add(";", shape, advance);
+  }
+  // MARK: k
+  {
+    const slashHeight = (fontMetrics.xHeight * 2) / 3;
+    const bottomSticksOutBy = digitWidth / 10;
+    const advance = slashHeight + bottomSticksOutBy;
+    const shape = PathBuilder.M(left, capitalTop)
+      .V(baseline)
+      .M(slashHeight, capitalMiddle)
+      .L(left, capitalMiddle + slashHeight)
+      .M(slashHeight / 2, baseline - slashHeight)
+      .L(advance, baseline).pathShape;
+    add("k", shape, advance);
+  }
+  // MARK: l
+  {
+    const advance = 0;
+    const shape = PathBuilder.M(left, capitalTop).V(baseline).pathShape;
+    add("l", shape, advance);
+  }
+  // MARK: m
+  {
+    const advance = digitWidth * 1.5;
+    const leftCenter = advance / 4;
+    const center = advance / 2;
+    const rightCenter = (advance * 3) / 4;
+    const right = advance;
+    const shape = PathBuilder.M(left, capitalMiddle)
+      .V(baseline)
+      .Q_VH(leftCenter, capitalMiddle)
+      .Q_HV(center, capitalBottomMiddle)
+      .V(baseline)
+      .M(center, capitalBottomMiddle)
+      .Q_VH(rightCenter, capitalMiddle)
+      .Q_HV(right, capitalBottomMiddle)
+      .V(baseline).pathShape;
+    add("m", shape, advance);
+  }
+  // MARK: n
+  {
+    const advance = digitWidth * 0.85;
+    const center = advance / 2;
+    const shape = PathBuilder.M(left, capitalMiddle)
+      .V(baseline)
+      .Q_VH(center, capitalMiddle)
+      .Q_HV(advance, capitalBottomMiddle)
+      .V(baseline).pathShape;
+    add("n", shape, advance);
+  }
+  // MARK: o
+  {
+    const advance = digitWidth;
+    const circleLeft = 0;
+    const circleCenter = advance / 2;
+    const circleRight = advance;
+    const shape = PathBuilder.M(circleCenter, capitalMiddle)
+      .Q_HV(circleRight, capitalBottomMiddle)
+      .Q_VH(circleCenter, baseline)
+      .Q_HV(circleLeft, capitalBottomMiddle)
+      .Q_VH(circleCenter, capitalMiddle).pathShape;
+    add("o", shape, advance);
+  }
+  // MARK: p
+  {
+    const base = digitWidth;
+    /**
+     * This will cause the starting point to touch the curve shortly before the curve turns straight.
+     */
+    const extra = digitWidth * 0.05;
+    const advance = base + extra;
+    const circleLeft = extra;
+    const circleCenter = extra + base / 2;
+    const circleRight = advance;
+    const shape = PathBuilder.M(circleLeft, capitalBottomMiddle)
+      .Q_VH(circleCenter, capitalMiddle)
+      .Q_HV(circleRight, capitalBottomMiddle)
+      .Q_VH(circleCenter, baseline)
+      .Q_HV(left, capitalMiddle)
+      .V(descender).pathShape;
+    add("p", shape, advance);
+  }
+  // MARK: q
+  {
+    const circleRight = digitWidth;
+    const circleCenter = circleRight / 2;
+    /**
+     * This will cause the starting point to touch the curve shortly before the curve turns straight.
+     */
+    const extra = digitWidth * 0.05;
+    const lineX = circleRight + extra;
+    const curlyWidth = Math.abs(baseline - descender);
+    const curlyCenter = lineX + curlyWidth / 2;
+    const advance = lineX + curlyWidth;
+    const shape = PathBuilder.M(circleRight, capitalBottomMiddle)
+      .Q_VH(circleCenter, capitalMiddle)
+      .Q_HV(left, capitalBottomMiddle)
+      .Q_VH(circleCenter, baseline)
+      .Q_HV(lineX, capitalMiddle)
+      .V(baseline)
+      .Q_VH(curlyCenter, descender)
+      .Q_HV(advance, (baseline + descender * 2) / 3).pathShape;
+    add("q", shape, advance * 0.667);
+  }
+  // MARK: r
+  {
+    const advance = digitWidth;
+    const center = advance / 2;
+    const shape = PathBuilder.M(left, capitalMiddle)
+      .V(baseline)
+      .Q_VH(center, capitalMiddle)
+      .Q_HV(advance, capitalBottomMiddle).pathShape;
+    // .V(baseline);
+    add("r", shape, advance);
+  }
+  // MARK: s
+  {
+    const advance = (fontMetrics.xHeight * 2) / 3;
+    const center = advance / 2;
+    const y0 = baseline;
+    const y2 = capitalBottomMiddle;
+    const y4 = capitalMiddle;
+    const y1 = (y0 + y2) / 2;
+    const y3 = (y2 + y4) / 2;
+    const yStart = (y3 + y4) / 2;
+    const yEnd = (y0 + y1) / 2;
+    const shape = PathBuilder.M(advance, yStart)
+      .Q_VH(center, y4)
+      .Q_HV(left, y3)
+      .Q_VH(center, y2)
+      .Q_HV(advance, y1)
+      .Q_VH(center, y0)
+      .Q_HV(left, yEnd).pathShape;
+    add("s", shape, advance);
+  }
+  // MARK: t
+  {
+    const advance = digitWidth * 0.75;
+    const center = advance / 2;
+    const right = advance;
+    const shape = PathBuilder.M(center, capitalTopMiddle)
+      .V(capitalBottomMiddle)
+      .Q_VH(right, baseline)
+      .M(right, capitalMiddle)
+      .H(left).pathShape;
+    add("t", shape, advance);
+  }
+  // MARK: u
+  {
+    const advance = digitWidth * 0.85;
+    const center = advance / 2;
+    const shape = PathBuilder.M(left, capitalMiddle)
+      .V(capitalBottomMiddle)
+      .Q_VH(center, baseline)
+      .Q_HV(advance, capitalMiddle)
+      .L(advance, baseline).pathShape;
+    add("u", shape, advance);
+  }
+  // MARK: v
+  {
+    const advance = digitWidth;
+    const center = advance / 2;
+    const shape = PathBuilder.M(left, capitalMiddle)
+      .L(center, baseline)
+      .L(advance, capitalMiddle).pathShape;
+    add("v", shape, advance);
+  }
+  // MARK: w
+  {
+    const advance = fontMetrics.xHeight * 1.5;
+    const x1 = advance / 3;
+    const x2 = advance / 2;
+    const x3 = x1 * 2;
+    const shape = PathBuilder.M(left, capitalMiddle)
+      .L(x1, baseline)
+      .L(x2, capitalBottomMiddle)
+      .L(x3, baseline)
+      .L(advance, capitalMiddle).pathShape;
+    add("w", shape, advance);
+  }
+  // MARK: x
+  {
+    const advance = digitWidth;
+    const shape = PathBuilder.M(advance, capitalMiddle)
+      .L(left, baseline)
+      .M(left, capitalMiddle)
+      .L(advance, baseline).pathShape;
+    add("x", shape, advance);
+  }
+  // MARK: y
+  {
+    const advance = digitWidth;
+    const meetingX = advance / 2;
+    const meetingY = (capitalMiddle + descender) / 2;
+    const shape = PathBuilder.M(advance, capitalMiddle)
+      .L(left, descender)
+      .M(left, capitalMiddle)
+      .L(meetingX, meetingY).pathShape;
+    add("y", shape, advance);
+  }
+  // MARK: z
+  {
+    const advance = digitWidth;
+    const shape = PathBuilder.M(left, capitalMiddle)
+      .H(advance)
+      .L(left, baseline)
+      .H(advance).pathShape;
+    add("z", shape, advance);
+  }
+  /**
+   * Commonly used in Spanish.
+   * Top right to bottom left.
+   * @param advance How wide the character is.
+   * The accent mark will be centered within this space.
+   * @returns A command to add to your path.
+   */
+  function makeAcuteAccent(advance: number) {
+    // Inspired by the ` character.
+    // But a mirror image.
+    const drop = (descender - baseline) / 2;
+    const total = drop + dotHeightReplacement;
+    const top = capitalTop;
+    const bottom = top + total;
+    const right = (advance + total) / 2;
+    const left = (advance - total) / 2;
+    const result = new LCommand(right, top, left, bottom);
+    return result;
+  }
+  function addAccent(baseChar: string, finalChar: string) {
+    const base = result.get(baseChar)!;
+    const baseCommands = PathShape.fromCssString(base.cssPath).commands;
+    const accentCommand = makeAcuteAccent(base.advance);
+    const shape = new PathShape([...baseCommands, accentCommand]);
+    add(finalChar, shape, base.advance);
+  }
+  addAccent("n", "ń");
+  addAccent("a", "á");
+  addAccent("e", "é");
+  addAccent("o", "ó");
+  addAccent("u", "ú");
+  {
+    const base = result.get("i")!;
+    const baseCommands = PathShape.fromCssString(base.cssPath).commands;
+    const accentCommand = makeAcuteAccent(base.advance);
+    const shape = new PathShape([baseCommands[1], accentCommand]);
+    add("í", shape, base.advance);
+  }
+  function rotate(baseChar: string, rotatedChar: string) {
+    const base = result.get(baseChar)!;
+    const offsetX = base.advance / 2;
+    const offsetY = capitalMiddle;
+
+    const basePathShape = PathShape.fromCssString(base.cssPath);
+    const rotated = basePathShape.transform(
+      new DOMMatrixReadOnly()
+        .translate(offsetX, offsetY)
+        .rotate(180)
+        .translate(-offsetX, -offsetY),
+    );
+    add(rotatedChar, rotated, base.advance);
+  }
+  rotate("?", "¿");
+  rotate("!", "¡");
+  // MARK: ∅ (empty set)
+  {
+    const advance = digitWidth;
+    const radius = advance / 2;
+    const shape = PathBuilder.M(radius, -digitWidth)
+      .circle(radius, -radius, "cw")
+      .M(advance, -advance)
+      .L(0, 0).pathShape;
+    add("∅", shape, advance);
+  }
+  // MARK: ° (degrees)
+  {
+    const advance = digitWidth / 2;
+    const radius = advance / 2;
+    const shape = PathBuilder.M(radius, capitalTop).circle(
+      radius,
+      capitalTop + radius,
+      "cw",
+    ).pathShape;
+    add("°", shape, advance);
+  }
+  // MARK: ◯ (large circle)
+  {
+    const advance = -capitalTop;
+    const radius = advance / 2;
+    const shape = PathBuilder.M(radius, capitalTop).circle(
+      radius,
+      capitalTop + radius,
+      "cw",
+    ).pathShape;
+    add("◯", shape, advance);
+  }
+  // MARK: ○ (white circle) — slightly smaller than ◯, centered in cap height
+  {
+    const advance = aWidth;
+    const radius = advance / 2;
+    const center_y = capitalTop / 2;
+    const shape = PathBuilder.M(radius, center_y - radius).circle(
+      radius,
+      center_y,
+      "cw",
+    ).pathShape;
+    add("○", shape, advance);
+  }
+  // MARK: ◎ (bullseye) — concentric double circle, same footprint as ○
+  {
+    const advance = aWidth;
+    const outerRadius = advance / 2;
+    const innerRadius = outerRadius * 0.45;
+    const center_y = capitalTop / 2;
+    const shape = PathBuilder.M(outerRadius, center_y - outerRadius)
+      .circle(outerRadius, center_y, "cw")
+      .M(outerRadius, center_y - innerRadius)
+      .circle(outerRadius, center_y, "cw").pathShape;
+    add("◎", shape, advance);
+  }
+  // MARK: ⚬ (medium small white circle) — half of cap height, centered in cap height
+  {
+    const advance = digitWidth;
+    const radius = advance / 2;
+    const center_y = capitalTop / 2;
+    const shape = PathBuilder.M(radius, center_y - radius).circle(
+      radius,
+      center_y,
+      "cw",
+    ).pathShape;
+    add("⚬", shape, advance);
+  }
+  // MARK: ◦ (white bullet) — same radius as ⚬, but centered in x-height region
+  {
+    const radius = digitWidth / 2;
+    const advance = digitWidth;
+    const center_y = capitalMiddle / 2;
+    const shape = PathBuilder.M(radius, center_y - radius).circle(
+      radius,
+      center_y,
+      "cw",
+    ).pathShape;
+    add("◦", shape, advance);
+  }
+  // MARK: ∘ (ring operator) — small, centered in x-height region
+  {
+    const radius = digitWidth / 4;
+    const advance = digitWidth / 2;
+    const center_y = capitalMiddle / 2;
+    const shape = PathBuilder.M(radius, center_y - radius).circle(
+      radius,
+      center_y,
+      "cw",
+    ).pathShape;
+    add("∘", shape, advance);
+  }
+  // Fill a circle solid by stroking concentric rings spaced strokeWidth apart.
+  // Rings at sw/2, 3·sw/2, 5·sw/2, … fill from the centre out to outerRadius.
+  function blackCircle(cx: number, cy: number, outerRadius: number): PathShape {
+    const sw = strokeWidth;
+    const b = PathBuilder.M(cx, cy - sw / 2).circle(cx, cy, "cw");
+    for (let r = sw * 1.5; r <= outerRadius; r += sw) {
+      b.M(cx, cy - r);
+      b.circle(cx, cy, "cw");
+    }
+    return b.pathShape;
+  }
+  // MARK: ⬤ (black large circle) — filled ◯
+  {
+    const advance = -capitalTop;
+    const radius = advance / 2;
+    const center_y = capitalTop / 2;
+    add("⬤", blackCircle(radius, center_y, radius), advance);
+  }
+  // MARK: ● (black circle) — filled ○
+  {
+    const advance = aWidth;
+    const radius = advance / 2;
+    const center_y = capitalTop / 2;
+    add("●", blackCircle(radius, center_y, radius), advance);
+  }
+  // MARK: ⚫ (medium black circle) — filled ⚬
+  {
+    const advance = digitWidth;
+    const radius = advance / 2;
+    const center_y = capitalTop / 2;
+    add("⚫", blackCircle(radius, center_y, radius), advance);
+  }
+  // MARK: • (bullet) — filled ◦, centred
+  {
+    const radius = digitWidth / 2;
+    const advance = digitWidth;
+    const center_y = capitalMiddle;
+    add("•", blackCircle(radius, center_y, radius), advance);
+  }
+  // MARK: ∙ (bullet operator) — filled ∘, centred
+  {
+    const radius = digitWidth / 4;
+    const advance = digitWidth / 2;
+    const center_y = capitalMiddle;
+    add("∙", blackCircle(radius, center_y, radius), advance);
+  }
+  // MARK: ◠ (upper half circle)
+  {
+    const advance = -capitalTop;
+    const radius = advance / 2;
+    const middle = capitalTop / 2;
+    const shape = PathBuilder.M(0, middle).arc(
+      radius,
+      middle,
+      advance,
+      middle,
+      "cw",
+    ).pathShape;
+    add("◠", shape, advance);
+  }
+  // MARK: ◡ (lower half circle)
+  {
+    const advance = -capitalTop;
+    const radius = advance / 2;
+    const middle = capitalTop / 2;
+    const shape = PathBuilder.M(0, middle).arc(
+      radius,
+      middle,
+      advance,
+      middle,
+      "ccw",
+    ).pathShape;
+    add("◡", shape, advance);
+  }
+  // MARK: ♡ (white heart suit)
+  {
+    // This is a scaled down version of https://developer.mozilla.org/en-US/docs/Web/SVG/Element/path#example
+    const advance = -capitalTop;
+    const radius = advance / 4;
+    const middle = capitalTop + radius;
+    const shape = PathBuilder.M(radius * 2, middle)
+      .arc(radius * 3, middle, advance, middle, "cw")
+      .Q_angles(radius * 2, baseline, dSouthWest, dSouth)
+      .Q_angles(0, middle, dNorth, dNorthWest)
+      .arc(radius, middle, radius * 2, middle, "cw").pathShape;
+    add("♡", shape, advance);
+  }
+
+  //MARK: ↔ ← → ↕ ↑ ↓
+  {
+    const shaftLength = fontMetrics.mHeight;
+    // const headSideLength = shaftLength/3;
+    // const headHalfBase = headSideLength / 2;
+    // const headHeight = Math.sqrt(3)/2*headSideLength;
+    const headHalfBase = shaftLength / 4;
+    const headHeight = headHalfBase;
+    {
+      const advance = shaftLength;
+      const middle = (capitalTop + baseline) / 2;
+      const double = PathBuilder.M(headHeight, middle - headHalfBase)
+        .L(0, middle)
+        .L(headHeight, middle + headHalfBase)
+        .M(0, middle)
+        .L(advance, middle)
+        .M(advance - headHeight, middle - headHalfBase)
+        .L(advance, middle)
+        .L(advance - headHeight, middle + headHalfBase);
+      add("↔", double.pathShape, advance); // LEFT RIGHT ARROW
+      const left = new PathShape(double.commands.slice(0, 3));
+      add("←", left, advance); // LEFTWARDS ARROW
+      const right = new PathShape(double.commands.slice(2, 5));
+      add("→", right, advance); // RIGHTWARDS ARROW
+    }
+    {
+      const left = 0;
+      const center = headHalfBase;
+      const advance = headHalfBase * 2;
+      const right = advance;
+      const double = PathBuilder.M(left, capitalTop + headHeight)
+        .L(center, capitalTop)
+        .L(right, capitalTop + headHeight)
+        .M(center, capitalTop)
+        .L(center, baseline)
+        .M(left, baseline - headHeight)
+        .L(center, baseline)
+        .L(right, baseline - headHeight);
+      add("↕", double.pathShape, advance); // UP DOWN ARROW
+      const up = new PathShape(double.commands.slice(0, 3));
+      add("↑", up, advance); // UPWARDS ARROW
+      const down = new PathShape(double.commands.slice(2, 5));
+      add("↓", down, advance); // DOWNWARDS ARROW
+    }
+  }
+  // MARK: ✧ (white 4 pointed star)
+  {
+    const advance = fontMetrics.mHeight;
+    const left = 0;
+    const center = advance / 2;
+    const right = advance;
+    const top = capitalTop;
+    const bottom = baseline;
+    const middle = (top + bottom) / 2;
+    const angle = Math.PI / 16;
+    const shape = PathBuilder.M(center, top)
+      .Q_angles(right, middle, dEast + angle, dSouth - angle)
+      .Q_angles(center, bottom, dSouth + angle, dWest - angle)
+      .Q_angles(left, middle, dWest + angle, dNorth - angle)
+      .Q_angles(center, top, dNorth + angle, dEast - angle).pathShape;
+    add("✧", shape, advance); //WHITE FOUR POINTED STAR
+  }
+  // MARK: ☆ (white star)
+  {
+    const numberOfVertices = 5;
+    /**
+     * * 1 would be a simple polygon.
+     * * -1 would be a polygon drawn backwards.
+     * * 2 for a simple star.
+     * * If you had 7 vertices, 2 and 3 would give you different stars.
+     */
+    const overlap = 2;
+    const initialAngle = dNorth;
+    const vertices = initializedArray(numberOfVertices, (n) => {
+      const angle =
+        initialAngle + (n * (2 * Math.PI) * overlap) / numberOfVertices;
+      return polarToRectangular(1, angle);
+    });
+    /**
+     * Translate and resize an image to fit into a space.
+     *
+     * This starts with a summary of the image (the bounds of the image)
+     * and returns functions used to convert the individual vertices of the image.
+     * @param initial The bounds of the shape before we start.
+     * We will preserve this aspect ratio.
+     * @param final Something like `{top: capitalTop, bottom:baseline}`.
+     * Left is always 0 and the width is computed to preserve the aspect ratio.
+     * @returns `result.x()` and `result.y()` will convert x and y coordinates from the initial shape to the final shape.
+     * `result.advance` contains the width of the final shape.
+     */
+    function forceFit(
+      initial: { minX: number; maxX: number; minY: number; maxY: number },
+      final: { top: number; bottom: number },
+    ) {
+      const initialHeight = initial.maxY - initial.minY;
+      const finalHeight = final.bottom - final.top;
+      const scaleBy = finalHeight / initialHeight;
+      const initialWidth = initial.maxX - initial.minX;
+      const finalWidth = initialWidth * scaleBy;
+      const finalLeft = 0;
+      const finalRight = finalWidth;
+      const x = makeBoundedLinear(
+        initial.minX,
+        finalLeft,
+        initial.maxX,
+        finalRight,
+      );
+      const y = makeBoundedLinear(
+        initial.minY,
+        final.top,
+        initial.maxY,
+        final.bottom,
+      );
+      return { x, y, advance: finalRight };
+    }
+    /**
+     * Examines and modifies vertices in place.
+     * @returns The information required to translate additional points.
+     */
+    function normalize() {
+      // It seems like I've done this before.
+      // Consider making this a library routine.
+      // TODO check out *.  That appears to have a lot of code that I should have reused.
+      const min = { x: Infinity, y: Infinity };
+      const max = { x: -Infinity, y: -Infinity };
+      vertices.forEach((vertex) => {
+        (["x", "y"] as const).forEach((index) => {
+          min[index] = Math.min(min[index], vertex[index]);
+          max[index] = Math.max(max[index], vertex[index]);
+        });
+      });
+      const initial = { minX: min.x, maxX: max.x, minY: min.y, maxY: max.y };
+      const final = { top: capitalTop, bottom: baseline };
+      const translation = forceFit(initial, final);
+      vertices.forEach((vertex) => {
+        vertex.x = translation.x(vertex.x);
+        vertex.y = translation.y(vertex.y);
+      });
+      return translation;
+    }
+    const translation = normalize();
+    const lines = vertices.map((vertex, index, array) => {
+      const next = array.at(index + 1 - array.length)!;
+      return new LCommand(vertex.x, vertex.y, next.x, next.y);
+    });
+    add("☆", new PathShape(lines), translation.advance); // WHITE STAR
+    const curves = vertices.map((vertex, index, array) => {
+      const next = array.at(index + 1 - array.length)!;
+      const baseAngle = Math.atan2(next.y - vertex.y, next.x - vertex.x);
+      const tweakAngle = 0.175;
+      return QCommand.angles(
+        vertex.x,
+        vertex.y,
+        baseAngle + tweakAngle,
+        next.x,
+        next.y,
+        baseAngle - tweakAngle,
+      );
+    });
+    add("⭒", new PathShape(curves), translation.advance); // WHITE SMALL STAR
+  }
+  // MARK: π Greek small letter pi
+  {
+    /**
+     * Same as capital N.
+     */
+    const advance = digitWidth * 1.2;
+    const offset = advance / 4;
+    const shape = new PathShape([
+      // Top
+      new LCommand(left, capitalMiddle, advance, capitalMiddle),
+      // Left
+      new LCommand(offset, capitalMiddle, offset, baseline),
+      // Right
+      new LCommand(advance - offset, capitalMiddle, advance - offset, -offset),
+      QCommand.controlPoints(
+        advance - offset,
+        -offset,
+        advance - offset,
+        baseline,
+        advance,
+        baseline,
+      ),
+    ]);
+    add("π", shape, advance);
+  }
+  // MARK: τ Greek small letter tau
+  {
+    /**
+     * Start from π
+     * Remove the left leg.
+     * Make the top 3/4 the size.
+     * Center the straight part of the right leg in the new top.
+     */
+    const advance = digitWidth * 1.2 * 0.75;
+    const curveSize = advance / 4;
+    /**
+     * Distance between the left side of the top and the left side of the down part.
+     */
+    const downStrokeLeft = advance / 2;
+    const shape = new PathShape([
+      // Top
+      new LCommand(left, capitalMiddle, advance, capitalMiddle),
+      // Down
+      new LCommand(downStrokeLeft, capitalMiddle, downStrokeLeft, -curveSize),
+      QCommand.controlPoints(
+        downStrokeLeft,
+        -curveSize,
+        downStrokeLeft,
+        baseline,
+        downStrokeLeft + curveSize,
+        baseline,
+      ),
+    ]);
+    add("τ", shape, advance);
+  }
+  /*
+  // MARK: φ Greek small letter phi — circle with vertical line through centre
+  {
+    const advance = aWidth;
+    const center_x = advance / 2;
+    const radius = advance / 2;
+    const center_y = capitalTop / 2; // midpoint of cap height = capitalMiddle
+    const tipHeight = fontMetrics.mHeight / 8;
+    const shape = PathBuilder.M(center_x, center_y - radius)
+      .circle(center_x, center_y, "cw")
+      .M(center_x, capitalTop - tipHeight)
+      .V(baseline + tipHeight).pathShape;
+    add("φ", shape, advance);
+  }
+  */
+  // MARK: ∑ Summation
+  {
+    const advance = digitWidth;
+    /**
+     * "Center" is always horizontal.  "Left, center, right"
+     */
+    const center = (advance * 3) / 5;
+    const top = capitalTop;
+    const bottom = descender;
+    /**
+     * "Middle" is always vertical.
+     * "Top, middle, bottom"
+     */
+    const middle = (top + bottom) / 2;
+    const shape = new PathShape([
+      new LCommand(advance, top, left, top),
+      new LCommand(left, top, center, middle),
+      new LCommand(center, middle, left, bottom),
+      new LCommand(left, bottom, advance, bottom),
+    ]);
+    add("∑", shape, advance);
+  }
+  // MARK: ⅀ Double Struck n-ary Summation
+  {
+    const baseWidth = digitWidth;
+    const dx = doubleStruckVerticalSpace;
+
+    const advance = baseWidth + dx;
+    /**
+     * "Center" is always horizontal.  "Left, center, right"
+     */
+    const center = (baseWidth * 3) / 5;
+    const top = capitalTop;
+    const bottom = descender;
+    /**
+     * "Middle" is always vertical.
+     * "Top, middle, bottom"
+     */
+    const middle = (top + bottom) / 2;
+    const shape = new PathShape([
+      new LCommand(advance, top, left, top),
+      new LCommand(left, top, center, middle),
+      new LCommand(center, middle, left, bottom),
+      new LCommand(left, bottom, advance, bottom),
+      new LCommand(left + dx, top, center + dx, middle),
+      new LCommand(center + dx, middle, left + dx, bottom),
+    ]);
+    add("⅀", shape, advance);
+  }
+  // MARK: φ Phi
+  {
+    const flatWidth = strokeWidth * 2;
+    const advance = digitWidth + flatWidth;
+    const flatStart = digitWidth / 2;
+    const flatEnd = flatStart + flatWidth;
+    /**
+     * "Center" is always horizontal.  "Left, center, right"
+     */
+    const center = advance / 2;
+    const shape = new PathShape([
+      new LCommand(flatStart, capitalMiddle, flatEnd, capitalMiddle),
+      QCommand.controlPoints(
+        flatEnd,
+        capitalMiddle,
+        advance,
+        capitalMiddle,
+        advance,
+        capitalBottomMiddle,
+      ),
+      QCommand.controlPoints(
+        advance,
+        capitalBottomMiddle,
+        advance,
+        baseline,
+        flatEnd,
+        baseline,
+      ),
+      new LCommand(flatEnd, baseline, flatStart, baseline),
+      QCommand.controlPoints(
+        flatStart,
+        baseline,
+        left,
+        baseline,
+        left,
+        capitalBottomMiddle,
+      ),
+      QCommand.controlPoints(
+        left,
+        capitalBottomMiddle,
+        left,
+        capitalMiddle,
+        flatStart,
+        capitalMiddle,
+      ),
+      new LCommand(center, capitalMiddle - descender, center, descender),
+    ]);
+    add("φ", shape, advance);
+  }
+  // MARK: ∞ Infinity
+  {
+    // Left to right we have 3/4 of a circle, and x, and another 3/4 of a circle.
+    const bottom = capitalMiddle / 4;
+    const top = capitalMiddle;
+    /**
+     * "Middle" is always vertical.
+     * "Top, middle, bottom"
+     */
+    const middle = (top + bottom) / 2;
+    const radius = (bottom - top) / 2;
+    /**
+     * "Center" is always horizontal.  "Left, center, right"
+     */
+    const xLeft = radius + radius * Math.SQRT1_2;
+    const xRight = xLeft + radius * Math.SQRT2;
+    const center = (xLeft + xRight) / 2;
+    const advance = center * 2;
+    const xTop = middle - radius * Math.SQRT1_2;
+    const xBottom = middle + radius * Math.SQRT1_2;
+    const shape = PathBuilder.M(xLeft, xTop)
+      .L(xRight, xBottom)
+      .arc(advance - radius, middle, xRight, xTop, "ccw")
+      .L(xLeft, xBottom)
+      .arc(radius, middle, xLeft, xTop, "cw").pathShape;
+    add("∞", shape, advance);
+  }
+  // MARK: ∫ Integral
+  {
+    const advance = digitWidth;
+    const bottom = descender / 2;
+    const top = capitalTop - bottom;
+    const curveRadius = (advance * 2) / 5;
+    const diagonal = new LCommand(
+      left + curveRadius,
+      bottom - curveRadius,
+      advance - curveRadius,
+      top + curveRadius,
+    );
+    const before = QCommand.angles(
+      left,
+      bottom,
+      0,
+      left + curveRadius,
+      bottom - curveRadius,
+      diagonal.incomingAngle,
+    );
+    const after = QCommand.angles(
+      advance - curveRadius,
+      top + curveRadius,
+      diagonal.outgoingAngle,
+      advance,
+      top,
+      0,
+    );
+    const shape = new PathShape([before, diagonal, after]);
+    add("∫", shape, advance);
+  }
+  {
+    const advance = digitWidth * 0.75;
+    const left = 0;
+    const center = digitWidth / 2;
+    const right = advance;
+    const top = capitalMiddle;
+    const middle = capitalBottomMiddle;
+    const bottom = baseline;
+    const shape = new PathShape([
+      new LCommand(right, top, center, top),
+      QCommand.controlPoints(center, top, left, top, left, middle),
+      QCommand.controlPoints(left, middle, left, bottom, center, bottom),
+      new LCommand(center, bottom, right, bottom),
+      new LCommand(left, middle, right, middle),
+    ]);
+    add("∈", shape, advance);
+  }
+  // MARK: EPILOG
+  // Sort the map by key.
+  return new Map(
+    [...result.entries()].sort(([a], [b]) => {
+      if (a < b) {
+        return -1;
+      } else if (a == b) {
+        return 1;
+      } else {
+        return 0;
+      }
+    }),
+  );
+}
+
+export class LineFontMetrics implements FontMetrics {
+  /**
+   * The height of a capital M.  1em in css.
+   */
+  get mHeight() {
+    return this.fontSize;
+  }
+  /**
+   * The height of a lower case x.
+   */
+  get xHeight() {
+    return this.fontSize * 0.5;
+  }
+  /**
+   * The width of a capital A.
+   */
+  get aWidth() {
+    return this.fontSize * 0.75;
+  }
+  /**
+   * The width of a 0, 1, ..., or 9.
+   *
+   * A lot of other characters use this same width because they are designed the same way as the digits.
+   */
+  get digitWidth() {
+    return this.fontSize * 0.5;
+  }
+  /**
+   * Put this much space between adjacent characters.
+   */
+  get defaultKerning() {
+    return this.strokeWidth * 2.5;
+  }
+  /**
+   * The recommended width for a normal space.
+   */
+  get spaceWidth() {
+    return this.strokeWidth + this.digitWidth / 2;
+  }
+  get top() {
+    return this.capitalTop - this.mHeight / 4;
+  }
+  /**
+   * The y coordinate for the top of most capital letters.
+   */
+  get capitalTop() {
+    return this.baseline - this.mHeight;
+  }
+  /**
+   * Exactly half way between capitalTop and capitalMiddle.
+   */
+  get capitalTopMiddle() {
+    return (this.capitalTop + this.capitalMiddle) / 2;
+  }
+  /**
+   * The y coordinate for the mid line for E, F, G, H, etc.
+   */
+  get capitalMiddle() {
+    return this.baseline - this.xHeight;
+  }
+  /**
+   * Exactly half way between capitalMiddle  and baseline.
+   */
+  get capitalBottomMiddle() {
+    return (this.baseline + this.capitalMiddle) / 2;
+  }
+  /**
+   * The bottom of most letters, but not the descenders.
+   *
+   * The baseline is often used to line up different elements.
+   */
+  get baseline() {
+    return 0;
+  }
+  /**
+   * The y coordinate for the bottom of letters like g, y, p, q, and j.
+   */
+  get descender() {
+    return this.mHeight / 4;
+  }
+  get bottom() {
+    return this.descender + this.mHeight / 4;
+  }
+
+  /**
+   *
+   * @param fontSize How tall to make the font.
+   * This is measured in svg units.
+   * This is typically (but not always) the same as the mHeight.
+   * @param strokeWidth The expected stroke width.
+   * This is mostly ignored, by choice, but that's not always possible.
+   */
+  constructor(
+    public readonly fontSize: number,
+    public readonly strokeWidth = LineFontMetrics.defaultStrokeWidth(fontSize),
+  ) {
+    if (fontSize <= 0 || !isFinite(fontSize)) {
+      throw new Error("wtf");
+    }
+  }
+  static defaultStrokeWidth(fontSize: number) {
+    return fontSize / 10;
+  }
+  static maxRecommendedStrokeWidth(fontSize: number) {
+    return fontSize / 5;
+  }
+}

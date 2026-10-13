@@ -1,0 +1,407 @@
+import { sum } from "phil-lib/misc";
+import { DescriptionOfLetter, Font } from "./letters-base";
+import { Command, PathShape } from "./path-shape";
+
+class WordInfo {
+  readonly top: number;
+  readonly bottom: number;
+  readonly width: number;
+  readonly letters: readonly { x: number; description: DescriptionOfLetter }[];
+  readonly spaceAfter: number;
+  constructor(
+    /**
+     * The characters this word was made from, including any spaces after it.
+     * There may be fewer `letters`:  characters the font doesn't have are skipped.
+     */
+    readonly text: string,
+    font: Font,
+    readonly tag: unknown,
+  ) {
+    const word = text;
+    const letters = font.getWord(word);
+    let x = 0;
+    this.letters = letters.map((description) => {
+      const result = { x, description };
+      x += description.advance + font.kerning;
+      return result;
+    });
+    const lastLetter = this.letters.at(-1);
+    this.width = lastLetter ? lastLetter.x + lastLetter.description.advance : 0;
+    this.top = font.top;
+    this.bottom = font.bottom;
+    let spaceCount = 0;
+    [...word].forEach((char) => {
+      if (char == " ") {
+        spaceCount++;
+      }
+    });
+    this.spaceAfter = spaceCount * font.spaceWidth + font.kerning;
+  }
+}
+
+export type WordInPlace = {
+  readonly x: number;
+  readonly baseline: number;
+  readonly wordInfo: WordInfo;
+  /**
+   * Which line this word is on, counting only hard line breaks ("\n" or
+   * `addLineBreak()`), not word wrap.  0 for the first line.
+   *
+   * Blank lines still count, so this can skip numbers.
+   */
+  readonly hardLineIndex: number;
+};
+
+class LinkBreak {}
+
+export type LaidOut = ReturnType<ParagraphLayout["align"]>;
+
+/**
+ * This is a good way to use my strokable fonts.
+ *
+ * This layout is intended to be used with a lot of special effects, not just drawing on a canvas or SVG.
+ * It returns a lot of detail about the layout.
+ * In particular, it's easy to match parts of the input with parts of the path.
+ * Maybe a few words are drawn in red and the rest in black.
+ *
+ * This is a successor to the TextLayout and Writer classes from random-svg-tests:
+ * https://github.com/TradeIdeasPhilip/random-svg-tests/blob/6232bae17d7eb9550df86d635803c2a275c34f74/src/letters-more.ts#L12
+ */
+export class ParagraphLayout {
+  readonly #items: (WordInfo | LinkBreak)[] = [];
+  constructor(readonly font: Font) {}
+  /**
+   * Skip the word breaking algorithm and add an individual word.
+   * See addText() for a higher level way to do this.
+   * @param word To display.
+   * @param font
+   * @returns This `WordInfo` directly contains some layout information about the word.
+   * When the complete layout is produced, it will return these same objects.
+   * You can use these objects to trace parts of the combined result back to this call.
+   */
+  addWord(word: string, font = this.font, tag?: unknown): WordInfo {
+    // TODO what if word contains spaces?  These should be treated like non-breaking spaces.
+    const result = new WordInfo(word, font, tag);
+    this.#items.push(result);
+    return result;
+  }
+  /**
+   * Add text to be formatted.
+   * @param text What to display.
+   * " " and "\n" have their normal special meanings.
+   * All other characters are displayed as is.
+   * @param font
+   * @returns These `WordInfo` directly contain some layout information about the individual words in your `text`.
+   * When the complete layout is produced, it will return these same objects.
+   * You can use these objects to trace parts of the combined result back to this call.
+   */
+  addText(text: string, font = this.font, tag?: unknown): WordInfo[] {
+    const result: WordInfo[] = [];
+    for (const match of text.matchAll(/(\n)|([^ \n]*(( +)|$|(?=\n)))/gms)) {
+      const word = match[0];
+      if (word[0] == "\n") {
+        for (let i = 0; i < word.length; i++) {
+          this.addLineBreak();
+        }
+      } else if (word != "") {
+        result.push(this.addWord(word, font, tag));
+      }
+    }
+    return result;
+  }
+  /**
+   * Force a line break here.
+   *
+   * Like hitting shift-enter in some programs, this will move you to the start of the next line without starting a new paragraph.
+   */
+  addLineBreak() {
+    // TODO This should really include a font.
+    // Maybe that defaults to this.font, but in MultiTextComponent and other places, the default font means nothing.
+    // If this comes from a \n in a string, we should record the current font, as with any other character.
+    // Currently the workaround is to use " \n" instead of "\n" for blank lines.
+    this.#items.push(new LinkBreak());
+  }
+  /**
+   * Finish the layout.
+   * @param width At what point to automatically word wrap.
+   * This defaults to Infinity which does no automatic word wrapping.
+   * That will give you one long line unless you use a "\n" or an explicit call to `addLineBreak()`.
+   * @param alignment
+   * @returns A detailed description of where to draw each path.
+   */
+  align(
+    width = Infinity,
+    alignment: "left" | "center" | "right" | "justify" = "left",
+    additionalLineHeight = 0,
+  ) {
+    const lines: WordInfo[][] = [[]];
+    const hardLineBreakAt = new Set<number>();
+    let x = 0;
+    this.#items.forEach((item) => {
+      if (item instanceof WordInfo) {
+        if (x > 0 && x + item.width > width) {
+          x = 0;
+          lines.push([]);
+        }
+        x += item.width + item.spaceAfter;
+        lines.at(-1)!.push(item);
+      } else {
+        const currentLineIndex = lines.length - 1;
+        hardLineBreakAt.add(currentLineIndex);
+        x = 0;
+        lines.push([]);
+      }
+    });
+    // Remove any blank lines from the bottom.
+    while (lines.length > 0) {
+      if (lines.at(-1)!.length == 0) {
+        lines.pop();
+      } else {
+        break;
+      }
+    }
+    let y = 0;
+    const allRowMetrics = new Array<{
+      top: number;
+      baseline: number;
+      bottom: number;
+      minWidth: number;
+    }>();
+    lines.forEach((line) => {
+      if (line.length == 0) {
+        const top = y;
+        // TODO Hmm.  Why are we using this.font?
+        // The rest of the code looks at all of the fonts actually used.
+        // this.font is just a default that can be override on each call to add text.
+        // slide-components.ts, for example, calls `new ParagraphLayout(baseFont)` with a completely arbitrary baseFont because we don't know the font until we add the text.
+        // What does this affect?
+        // Maybe it only matters if code uses allRowMetrics.
+        // But it should be fixed.
+        const baseline = top - this.font.top;
+        const bottom = baseline + this.font.bottom;
+        const minWidth = 0;
+        allRowMetrics.push({ top, baseline, bottom, minWidth });
+        y = bottom;
+      } else {
+        const top = y;
+        const baseline =
+          top - Math.min(...line.map((wordInfo) => wordInfo.top));
+        const bottom =
+          baseline + Math.max(...line.map((wordInfo) => wordInfo.bottom));
+        const minWidth =
+          sum(line.map((wordInfo) => wordInfo.width + wordInfo.spaceAfter)) -
+          line.at(-1)!.spaceAfter;
+        allRowMetrics.push({ top, baseline, bottom, minWidth });
+        y = bottom;
+      }
+      y += additionalLineHeight;
+    });
+    const words = new Array<WordInPlace>();
+    if (width == Infinity) {
+      width = Math.max(...allRowMetrics.map(({ minWidth }) => minWidth));
+    }
+    let hardLineIndex = 0;
+    lines.forEach((line, index) => {
+      const rowMetrics = allRowMetrics[index];
+      const baseline = rowMetrics.baseline;
+      function center() {
+        let x = (width - rowMetrics.minWidth) / 2;
+        line.forEach((wordInfo) => {
+          words.push({ x, baseline, wordInfo, hardLineIndex });
+          x += wordInfo.width + wordInfo.spaceAfter;
+        });
+      }
+      function left() {
+        let x = 0;
+        line.forEach((wordInfo) => {
+          words.push({ x, baseline, wordInfo, hardLineIndex });
+          x += wordInfo.width + wordInfo.spaceAfter;
+        });
+      }
+      function right() {
+        let x = width - rowMetrics.minWidth;
+        line.forEach((wordInfo) => {
+          words.push({ x, baseline, wordInfo, hardLineIndex });
+          x += wordInfo.width + wordInfo.spaceAfter;
+        });
+      }
+      function justify() {
+        const padding = (width - rowMetrics.minWidth) / (line.length - 1);
+        let x = 0;
+        line.forEach((wordInfo) => {
+          words.push({ x, baseline, wordInfo, hardLineIndex });
+          x += wordInfo.width + wordInfo.spaceAfter + padding;
+        });
+      }
+      switch (alignment) {
+        case "center": {
+          center();
+          break;
+        }
+        case "left": {
+          left();
+          break;
+        }
+        case "right": {
+          right();
+          break;
+        }
+        case "justify": {
+          const lastLine = index == lines.length - 1;
+          if (lastLine || hardLineBreakAt.has(index)) {
+            left();
+          } else {
+            justify();
+          }
+          break;
+        }
+        default: {
+          throw new Error("wtf");
+        }
+      }
+      if (hardLineBreakAt.has(index)) {
+        hardLineIndex++;
+      }
+    });
+    function* getAllLetters(left = 0, top = 0) {
+      for (const word of words) {
+        for (const letter of word.wordInfo.letters) {
+          const x = left + word.x + letter.x;
+          const baseline = top + word.baseline;
+          yield {
+            x,
+            baseline,
+            letter: letter.description,
+            translatedShape: letter.description.shape.translate(x, baseline),
+            word,
+          };
+        }
+      }
+    }
+    /**
+     * This will stroke **all** of the text
+     *
+     * Be sure to set the `strokeStyle` and `lineWidth` of the context before calling this.
+     * @param context Where to draw.
+     * @param left Where to start drawing.  The default of 0 leaves no margin.
+     * @param top Where to start drawing.  The default of 0 leaves no margin.
+     */
+    function drawAll(context: CanvasRenderingContext2D, left = 0, top = 0) {
+      context.lineCap = "round";
+      context.lineJoin = "round";
+      for (const info of getAllLetters(left, top)) {
+        const path = info.translatedShape.canvasPath;
+        context.stroke(path);
+      }
+    }
+    /**
+     * Create a function that will let you draw the animation at a given state.
+     * @param left Where to start drawing.  The default of 0 leaves no margin.
+     * @param top Where to start drawing.  The default of 0 leaves no margin.
+     * @returns
+     * @deprecated See PathShapeSplitter.  It generally works better than dashes.
+     * Also see fancy-text.ts PathElement.handwriting()
+     */
+    function drawPartial(left = 0, top = 0) {
+      // See createHandwriting in handwriting.ts.
+      // TODO use that to implement this.
+      let start = 0;
+      //const shapesToAnimate = getAllLetters(left, top).map(({translatedShape}) => translatedShape);
+      const allShapeInfo = [...getAllLetters(left, top)]
+        .flatMap(({ translatedShape }) => translatedShape.splitOnMove())
+        .map((shape) => {
+          const length = shape.getLength();
+          const end = start + length;
+          const path = shape.canvasPath;
+          const result = { path, start, length, end };
+          start = end;
+          return result;
+        });
+      const totalLength = start;
+      /**
+       *
+       * @param length
+       * @param context
+       * @deprecated See PathShapeSplitter.  It generally works better than dashes.
+       */
+      function drawTo(length: number, context: CanvasRenderingContext2D) {
+        // TODO This doesn't work perfectly.
+        // It's like PathShape.getLength() doesn't match perfectly with the canvas's idea of the path length.
+        // TODO fix it!  It jumps a little but generally works.
+        // Q commands are much worse than L commands, but they both fail.
+        context.lineCap = "round";
+        context.lineJoin = "round";
+        for (const shapeInfo of allShapeInfo) {
+          if (length <= shapeInfo.start) {
+            break;
+          }
+          if (length >= shapeInfo.end) {
+            context.setLineDash([]);
+          } else {
+            context.setLineDash([length - shapeInfo.start, totalLength]);
+          }
+          context.stroke(shapeInfo.path);
+        }
+        context.setLineDash([]);
+      }
+      return { totalLength, drawTo };
+    }
+    function singlePathShape() {
+      const allCommands = [...getAllLetters()].flatMap(
+        ({ translatedShape }) => translatedShape.commands,
+      );
+      return new PathShape(allCommands);
+    }
+    function pathShapeByTag() {
+      const allCommands = new Map<unknown, Command[]>();
+      for (const letter of getAllLetters()) {
+        const tag = letter.word.wordInfo.tag;
+        let commandsForTag = allCommands.get(tag);
+        if (!commandsForTag) {
+          commandsForTag = [];
+          allCommands.set(tag, commandsForTag);
+        }
+        commandsForTag.push(...letter.translatedShape.commands);
+      }
+      const result = new Map<unknown, PathShape>();
+      allCommands.forEach((commands, tag) => {
+        result.set(tag, new PathShape(commands));
+      });
+      return result;
+    }
+    const height = allRowMetrics.at(-1)?.bottom ?? 0;
+    return {
+      height,
+      width,
+      words,
+      allRowMetrics,
+      getAllLetters,
+      drawAll,
+      drawPartial,
+      singlePathShape,
+      pathShapeByTag,
+    };
+  }
+  static singlePathShape(options: {
+    font: Font;
+    text: string | ReadonlyArray<string>;
+    width?: number;
+    alignment?: "left" | "center" | "right" | "justify";
+    additionalLineHeight?: number;
+  }) {
+    const layout = new this(options.font);
+    if (typeof options.text === "string") {
+      layout.addText(options.text);
+    } else {
+      options.text.forEach((value) => {
+        layout.addText(value);
+      });
+    }
+    const laidOut = layout.align(
+      options.width ?? Infinity,
+      options.alignment ?? "left",
+      options.additionalLineHeight ?? 0,
+    );
+    return laidOut.singlePathShape();
+  }
+}
