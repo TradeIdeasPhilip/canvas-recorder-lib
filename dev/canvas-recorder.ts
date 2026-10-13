@@ -108,7 +108,7 @@ import {
 } from "./transcripts.ts";
 import { transcriptFileName, transcriptJson } from "./transcript-export.ts";
 import type { Device } from "./transcribe-core.ts";
-import { showableOptions } from "../src/dynamic-exports.ts";
+import { canvasRecorder } from "../lib/main-control.ts";
 import { watchServiceWorkerReady } from "./delay-files.ts";
 import { DurationAgnosticComponent } from "../src/slide-components/duration-agnostic.ts";
 import {
@@ -142,58 +142,17 @@ import { PaddingComponent } from "../src/slide-components/in-parallel.ts";
 watchServiceWorkerReady();
 
 /**
- * Reads the `?toShow=` query parameter and returns the matching {@link Showable}.
- *
- * Strings are NFC-normalized before comparison so that characters like "ń"
- * match regardless of how the browser percent-encodes them.
- *
- * If the parameter is missing or unrecognized, the page body is replaced with
- * a minimal link list and this function throws, halting the rest of the module.
+ * What the main program asked us to show.  See {@link canvasRecorder.start}.
  */
-async function resolveToShow(): Promise<Showable> {
-  const request = new URLSearchParams(location.search).get("toShow");
-  if (request !== null) {
-    const record = showableOptions.get(request);
-    if (record) {
-      return record.create();
-    }
-  }
-
-  const h1 = document.createElement("h1");
-  h1.textContent = "Select a video";
-  const ul = document.createElement("ul");
-  for (const [key, { description }] of showableOptions) {
-    const url = new URL(location.href);
-    url.searchParams.set("toShow", key);
-    const a = document.createElement("a");
-    a.href = url.href;
-    a.textContent = description ? `${key} — ${description}` : key;
-    const li = document.createElement("li");
-    li.append(a);
-    ul.append(li);
-  }
-  document.body.replaceChildren(h1, ul);
-  throw new Error(
-    "Showing video selection — no valid 'toShow' query parameter.",
-  );
+const startRequest = canvasRecorder.startRequest;
+if (!startRequest) {
+  throw new Error("The player was loaded without canvasRecorder.start().");
 }
-
-// resolveToShow() throws to halt module execution when showing the menu, so that
-// subsequent code referencing now-removed DOM nodes never runs.  Register a
-// one-shot onerror handler here (before the call) to suppress that expected
-// throw from appearing as a red error in the console.
-window.onerror = (msg) => {
-  if (typeof msg === "string" && msg.includes("no valid 'toShow'")) {
-    window.onerror = null;
-    return true; // suppress console output
-  }
-  return false;
-};
 
 /**
  * The top level item that we are viewing and/or saving.
  */
-const toShow = await resolveToShow();
+const toShow = startRequest.showable;
 
 const canvas = getById("main", HTMLCanvasElement);
 const context = assertNonNullable(canvas.getContext("2d"));
@@ -211,7 +170,10 @@ const timelineDisplay = new TimelineDisplay(
  * @returns A matrix converting from the 16x9 ideal coordinates to the actual canvas coordinates.
  */
 function mainTransform() {
-  return new DOMMatrixReadOnly().scale(canvas.width / 16, canvas.height / 9);
+  return new DOMMatrixReadOnly().scale(
+    canvas.width / canvasRecorder.width,
+    canvas.height / canvasRecorder.height,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -266,8 +228,8 @@ function applyZoom(zoom: number, px = panX, py = panY) {
   if (isRecording) return;
   currentZoomFactor = zoom;
   const dpr = devicePixelRatio;
-  const physW = Math.round(3840 * zoom);
-  const physH = Math.round(2160 * zoom);
+  const physW = Math.round(canvasRecorder.pixelWidth * zoom);
+  const physH = Math.round(canvasRecorder.pixelHeight * zoom);
   const cssW = physW / dpr;
   const cssH = physH / dpr;
   if (canvas.width !== physW || canvas.height !== physH) {
@@ -293,8 +255,14 @@ function zoomToFit() {
   const vpH = viewport.clientHeight;
   if (vpW === 0 || vpH === 0) return;
   const dpr = devicePixelRatio;
-  const cssW = Math.min(vpW, (vpH * 16) / 9);
-  const cssH = Math.min(vpH, (vpW * 9) / 16);
+  const cssW = Math.min(
+    vpW,
+    (vpH * canvasRecorder.pixelWidth) / canvasRecorder.pixelHeight,
+  );
+  const cssH = Math.min(
+    vpH,
+    (vpW * canvasRecorder.pixelHeight) / canvasRecorder.pixelWidth,
+  );
   const newW = Math.round(cssW * dpr);
   const newH = Math.round(cssH * dpr);
   canvas.style.transform = "";
@@ -842,7 +810,7 @@ getById("back5s", HTMLButtonElement).addEventListener("click", () => {
  * This is only used when saving.  We rely on chrome to tell us when to draw frames
  * for the live/realtime display.  Than can vary significantly.
  */
-const FPS = 60;
+const FPS = canvasRecorder.fps;
 
 /**
  * This is the status of the save.  It has no purpose during live / realtime operation
@@ -893,8 +861,8 @@ async function startRecording(saveStartMs = 0, saveEndMs = toShow.duration) {
   isRecording = true;
   viewportResizeObserver.disconnect();
   zoomControls.inert = true;
-  canvas.width = 3840;
-  canvas.height = 2160;
+  canvas.width = canvasRecorder.pixelWidth;
+  canvas.height = canvasRecorder.pixelHeight;
   canvas.style.width = "";
   canvas.style.height = "";
   canvas.style.maxWidth = "100%";
@@ -2195,7 +2163,7 @@ type ScheduleInfo = NonNullable<Showable["schedules"]>[number];
 
 // MARK: Schedule persistence (IndexedDB)
 
-const toShowKey = new URLSearchParams(location.search).get("toShow") ?? "";
+const toShowKey = startRequest.name;
 
 /** Marker written when the user deliberately chooses TypeScript defaults. */
 type MarkerHistoryEntry = {
@@ -5665,8 +5633,8 @@ function buildMultiTextFrame(text: MultiTextComponent): HTMLElement {
 function clientToLogical(clientX: number, clientY: number) {
   const rect = canvas.getBoundingClientRect();
   return {
-    x: ((clientX - rect.left) / rect.width) * 16,
-    y: ((clientY - rect.top) / rect.height) * 9,
+    x: ((clientX - rect.left) / rect.width) * canvasRecorder.width,
+    y: ((clientY - rect.top) / rect.height) * canvasRecorder.height,
   };
 }
 

@@ -254,7 +254,9 @@ function runWorker(
   device?: Device,
 ): Promise<Extract<TranscribeReply, { kind: "done" }>> {
   if (!worker) {
-    worker = new Worker(new URL("./transcribe-worker.ts", import.meta.url), {
+    // The library ships compiled JavaScript.  tsc rewrites import paths ending in .ts, but not
+    // this string, so it has to name the compiled file.
+    worker = new Worker(new URL("./transcribe-worker.js", import.meta.url), {
       type: "module",
     });
     worker.addEventListener("message", (event: MessageEvent<TranscribeReply>) => {
