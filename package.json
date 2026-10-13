@@ -1,0 +1,52 @@
+{
+  "name": "canvas-recorder-lib",
+  "version": "0.1.0",
+  "description": "Preview, edit, annotate and record HTML canvas animations.  The tooling from canvas-recorder, as a library.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/lib/index.d.ts",
+      "import": "./dist/lib/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist",
+    "lib",
+    "dev",
+    "src",
+    "internals.md",
+    "imported-files.txt"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc && node scripts/copy-assets.mjs",
+    "watch": "rm -rf dist && node scripts/copy-assets.mjs && tsc --watch",
+    "import": "node scripts/import-from-canvas-recorder.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TradeIdeasPhilip/canvas-recorder-lib.git"
+  },
+  "author": "Philip Smolen",
+  "license": "ISC",
+  "peerDependencies": {
+    "phil-lib": "^1.8.1"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.3.1",
+    "@types/bezier-js": "^4.1.3",
+    "@types/wicg-file-system-access": "^2023.10.7",
+    "bezier-js": "^6.1.4",
+    "colorizr": "^5.0.1",
+    "fft-js": "^0.0.12",
+    "mediabunny": "^1.27.1"
+  },
+  "devDependencies": {
+    "phil-lib": "^1.8.1",
+    "typescript": "^6.0.2",
+    "vite": "^7.3.0"
+  }
+}
