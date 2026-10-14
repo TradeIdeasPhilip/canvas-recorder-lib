@@ -21,12 +21,14 @@ export * from "./main-control.ts";
 export * from "../src/showable.ts";
 export * from "../src/interpolate.ts";
 export * from "../src/schedule-helper.ts";
+export * from "../src/stroke-colors.ts";
 
 // MARK: Components
 // Everything the Visual Editor knows how to create, save and load.
 // Register your own components in componentRegistry to get the same treatment.
 export * from "../src/slide-components/registry.ts";
 export * from "../src/slide-components/duration-agnostic.ts";
+export * from "../src/slide-components/fixed-duration.ts";
 export * from "../src/slide-components/live-duration.ts";
 export * from "../src/slide-components/in-parallel.ts";
 export * from "../src/slide-components/in-series.ts";
