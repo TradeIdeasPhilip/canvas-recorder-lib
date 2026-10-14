@@ -32,6 +32,7 @@ dev/transcripts.ts
 dev/video-clip-panel.ts
 internals.md
 src/binary-search.ts
+src/cross-fade.ts
 src/debug-log.ts
 src/glib/Cursive.json
 src/glib/Futura L.json
@@ -45,6 +46,7 @@ src/glib/path-shape.ts
 src/glib/transforms.ts
 src/interpolate.ts
 src/lattice.ts
+src/morph-animation.ts
 src/peano-fourier/fft-js.d.ts
 src/peano-fourier/fourier-shared.ts
 src/schedule-helper.ts
@@ -52,6 +54,7 @@ src/showable.ts
 src/slide-components/arrow.ts
 src/slide-components/cross-fade-transition.ts
 src/slide-components/duration-agnostic.ts
+src/slide-components/fixed-duration.ts
 src/slide-components/fourier.ts
 src/slide-components/frame-counter.ts
 src/slide-components/function-graph.ts
@@ -77,5 +80,6 @@ src/slide-components/video-clip.ts
 src/slide-components/video-info.ts
 src/slow-image-sources.ts
 src/snapshot.ts
+src/stroke-colors.ts
 src/utility.ts
 src/zipper.ts
