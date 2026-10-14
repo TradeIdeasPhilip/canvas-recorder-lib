@@ -244,7 +244,7 @@ export const playerBodyHtml = `
             title="Show the sound clips' transcripts as text you can read, search and copy, in place of the timeline.  Click a word to jump to it.  Select words to cut them out."
           >
             <input type="checkbox" id="transcriptViewCheckbox" />
-            📖 Read
+            📖 Text
           </label>
         </div>
         <canvas
