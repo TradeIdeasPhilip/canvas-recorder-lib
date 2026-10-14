@@ -87,7 +87,7 @@ import {
   startWithin,
   tidyMs,
 } from "./sound-clips.ts";
-import { askHowToSplit } from "./split-dialog.ts";
+import { askHowToSplit, askHowToSplitSound } from "./split-dialog.ts";
 import { SyncedFile, type SyncedFileOptions } from "./synced-file.ts";
 import {
   TimelineDisplay,
@@ -106,6 +106,7 @@ import {
   transcriptStatus,
   transcriptsSummary,
 } from "./transcripts.ts";
+import { transcriptFileName, transcriptJson } from "./transcript-export.ts";
 import type { Device } from "./transcribe-core.ts";
 import { showableOptions } from "../src/dynamic-exports.ts";
 import { watchServiceWorkerReady } from "./delay-files.ts";
@@ -129,7 +130,10 @@ import { buildHandwritingPanel } from "./handwriting-panel.ts";
 import { SingleImageComponent } from "../src/slide-components/image.ts";
 import { buildStaticImagePanel } from "./static-image-panel.ts";
 import { InSeriesComponent } from "../src/slide-components/in-series.ts";
-import { splitVideoClip } from "../src/slide-components/split-video-clip.ts";
+import {
+  splitSoundClip,
+  splitVideoClip,
+} from "../src/slide-components/split-video-clip.ts";
 import { TraditionalTextComponent } from "../src/slide-components/traditional-text.ts";
 import { PaddingComponent } from "../src/slide-components/in-parallel.ts";
 
@@ -1014,6 +1018,9 @@ async function startRecording(saveStartMs = 0, saveEndMs = toShow.duration) {
     }
 
     // Trim audio to match actual recorded frames, then send.
+    // add() has to be awaited.  It feeds the encoder one small piece at a time, and
+    // finalize() closes the encoder wherever add() happens to be.  Without the await,
+    // only the first few seconds of a long soundtrack made it into the file.
     const actualAudioMs = frameNumber * frameDuration;
     const sr = audioBuffer.sampleRate;
     const samplesNeeded = Math.min(
@@ -1021,7 +1028,7 @@ async function startRecording(saveStartMs = 0, saveEndMs = toShow.duration) {
       audioBuffer.length,
     );
     if (samplesNeeded >= audioBuffer.length) {
-      audioSource.add(audioBuffer);
+      await audioSource.add(audioBuffer);
     } else {
       const trimmedAudio = new AudioBuffer({
         numberOfChannels: audioBuffer.numberOfChannels,
@@ -1034,7 +1041,7 @@ async function startRecording(saveStartMs = 0, saveEndMs = toShow.duration) {
           ch,
         );
       }
-      audioSource.add(trimmedAudio);
+      await audioSource.add(trimmedAudio);
     }
 
     infoDiv.innerHTML = "Frames complete.  Finalizing video.";
@@ -5007,7 +5014,86 @@ function buildSoundClipSection(selectable: Showable): HTMLElement {
       _onClipValueChanged();
     });
 
-    row1.append(notesInput, fromTranscriptBtn, upBtn, downBtn, delBtn);
+    const saveTranscriptBtn = document.createElement("button");
+    saveTranscriptBtn.type = "button";
+    saveTranscriptBtn.textContent = "💾";
+    saveTranscriptBtn.title =
+      "Save this file's whole transcript as JSON, with times for every word, " +
+      "and where this clip starts and stops in it.";
+    saveTranscriptBtn.addEventListener("click", () => {
+      const transcript = readyTranscript(clip.source);
+      if (!transcript) {
+        alert(
+          transcriptsEnabled()
+            ? "This clip's transcript isn't ready yet.  Its progress shows on the timeline."
+            : "Transcripts are off.  Turn on 🗣 Transcripts above the timeline.",
+        );
+        return;
+      }
+      const json = transcriptJson(transcript, {
+        clip,
+        ownerName: selectable.userEditableDescription ?? selectable.description,
+        startsInVideoMs: selfStartMs + clip.startMsIntoScene,
+        lengthMs: soundClipLengthMs(clip),
+      });
+      downloadBlob(
+        transcriptFileName(clip.source),
+        new Blob([json], { type: "application/json" }),
+      );
+    });
+
+    const splitBtn = document.createElement("button");
+    splitBtn.type = "button";
+    splitBtn.textContent = "✂";
+    splitBtn.title =
+      "Split this clip in two at the playhead.  You choose whether to keep both pieces " +
+      "(keeping one is a trim), and can snap to the quiet moment between two words.";
+    splitBtn.addEventListener("click", async () => {
+      const transcript = readyTranscript(clip.source);
+      const choice = await askHowToSplitSound({
+        label:
+          clip.notes ||
+          decodeURIComponent(clip.source.split("/").pop() ?? "") ||
+          "sound clip",
+        lengthMs: soundClipLengthMs(clip) ?? Infinity,
+        atMs: playheadInOwner() - clip.startMsIntoScene,
+        startMsIntoClip: clip.startMsIntoClip ?? 0,
+        words: transcript?.words,
+      });
+      if (!choice) return;
+      // The dialog is modal, but make sure nothing moved underneath it.
+      const index = clips.indexOf(clip);
+      if (index < 0) return;
+      const { first, second } = splitSoundClip(
+        clip,
+        clip.startMsIntoScene + choice.atMs,
+      );
+      // Notes that 📝 filled in describe the whole clip.  Give each piece its own.
+      if (clip.notes !== undefined && clip.notes === clipText(clip)) {
+        for (const piece of [first, second]) {
+          piece.notes = clipText(piece) || undefined;
+        }
+      }
+      const kept =
+        choice.keep === "both"
+          ? [first, second]
+          : choice.keep === "first"
+            ? [first]
+            : [second];
+      clips.splice(index, 1, ...kept);
+      selectedSoundClip = kept[0];
+      afterStructureChange();
+    });
+
+    row1.append(
+      notesInput,
+      fromTranscriptBtn,
+      saveTranscriptBtn,
+      splitBtn,
+      upBtn,
+      downBtn,
+      delBtn,
+    );
 
     // Row 2: source URL
     const row2 = document.createElement("div");
