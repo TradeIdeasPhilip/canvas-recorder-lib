@@ -30,8 +30,17 @@ import { fileURLToPath } from "node:url";
 const here = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const source = resolve(here, process.argv[2] ?? "../canvas-recorder");
 
-/** Where to start following imports. */
-const ROOTS = ["dev/canvas-recorder.ts"];
+/**
+ * Where to start following imports.
+ * The player, plus shared modules that videos use but the player doesn't.
+ */
+const ROOTS = [
+  "dev/canvas-recorder.ts",
+  "src/stroke-colors.ts",
+  "src/cross-fade.ts",
+  "src/morph-animation.ts",
+  "src/slide-components/fixed-duration.ts",
+];
 /** Never copy these, and never follow their imports. */
 const EXCLUDE = new Set(["src/dynamic-exports.ts"]);
 /** Copied as is, even though nothing imports them. */
