@@ -31,6 +31,69 @@ Imports:
 
 The package includes the TypeScript source next to the compiled JavaScript, and Go to Definition takes you to the source.
 
+## Notes for a project that uses this library
+
+Things the first project to use this library ([riemann-surfaces-3d](https://github.com/TradeIdeasPhilip/riemann-surfaces-3d)) ran into.
+
+### Vite setup
+
+While both projects are on your disk, link the library with `"canvas-recorder-lib": "file:../canvas-recorder-lib"` in package.json.
+Then add this to your `vite.config.js`:
+
+```js
+import { defineConfig, searchForWorkspaceRoot } from "vite";
+
+export default defineConfig({
+  server: {
+    port: 5174, // Pick one per project, and keep it.
+    strictPort: true,
+    fs: {
+      allow: [searchForWorkspaceRoot(process.cwd()), "../canvas-recorder-lib"],
+    },
+  },
+});
+```
+
+- **`fs.allow`:** without it, the server console says the transcription worker is "outside of Vite serving allow list", and transcripts fail.
+  A linked library lives outside your project. Vite serves files that are imported, but the worker is loaded by URL.
+  Setting `allow` turns off Vite's default, so your own folder has to be listed too; that's what `searchForWorkspaceRoot()` is for.
+- **A fixed port:** the editor saves your work in the browser (IndexedDB), and the browser keeps a separate copy for each origin.
+  If another project already has the port, Vite quietly moves to the next one (5173 → 5174), and the editor seems to forget everything.
+  `strictPort` makes that an error instead.
+- **`npm run watch`:** your project uses the library's compiled `dist/`, so keep this running in the library while you change it.
+
+### Starting the editor
+
+- **Load the library only when you need it,** e.g. `await import("./video-editor")` from a button.
+  The rest of your program never pays for it.
+- **Don't `await canvasRecorder.start()` at the top level of a module.** The page hangs with no error message.
+- **Turn off your own CSS first.** `start()` replaces your `<body>`, but your stylesheets are still there, and they restyle the editor.
+  Disabling every sheet that has more than `@font-face` rules works (see `hideOurStyles()` in riemann-surfaces-3d's `src/video-editor.ts`).
+- **Stop your own animation loop and keyboard handlers.** Otherwise typing in the Visual Editor's text boxes drives your program.
+- **Put sound files in your `public/` folder** and refer to them as `"./name.m4a"`.
+- **Register your own components** with `componentRegistry.set(key, { create })`.
+  Then the Visual Editor can add, save and load them, and "TypeScript defaults" can rebuild them.
+
+### Recording a program that has its own state
+
+Most of canvas-recorder's components draw any time you ask, in any order.
+A program that steps its own animation forward (physics, a game loop, three.js robots with smooth walking) can't do that.
+riemann-surfaces-3d's `src/full-screen-component.ts` handles this, and it's meant to be copied as is. What it learned:
+
+- **Step with a fixed dt** (1 / `canvasRecorder.fps`), never the clock. Then recording, preview and every re-run match.
+- **Going backwards means restart and replay.** Recording always moves forward, so it's always exact.
+  The live preview spends a few milliseconds per frame catching up, and shows a warning light until it does.
+- **Take one step right after a restart.** Many programs only update their scene (camera, headings) when they step.
+  Without that step, frame 0 shows whatever was on screen before the restart, and jumps to frame 1.
+- **Parents call `getFramePromises()` on every child, even ones that aren't on screen.**
+  A component that steps a program there must ignore times outside `0` to `duration`, or two of them in a series will keep restarting each other.
+- **Only the player calls `show()`.** There are no thumbnails or other random-time calls.
+
+### Size
+
+The transcription feature brings a 27 MB speech-recognition file (`ort-wasm…wasm`) into your production build.
+It is only downloaded if someone uses transcription.
+
 ## How this library is made
 
 canvas-recorder is the source of truth.
