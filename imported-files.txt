@@ -1,5 +1,5 @@
 Copied from /Users/philipsmolen/Documents/fun-git/canvas-recorder
-Commit 1af8ae5dda883920da82b870c5b5cddd2093de32
+Commit 75782117fef99242247468c36bba074917508e63
 
 dev/audio-builder.ts
 dev/canvas-recorder.css
@@ -27,6 +27,7 @@ dev/transcribe-core.ts
 dev/transcribe-worker.ts
 dev/transcript-align.ts
 dev/transcript-export.ts
+dev/transcript-view.ts
 dev/transcripts.ts
 dev/video-clip-panel.ts
 internals.md
