@@ -71,6 +71,10 @@ export default defineConfig({
   Disabling every sheet that has more than `@font-face` rules works (see `hideOurStyles()` in riemann-surfaces-3d's `src/video-editor.ts`).
 - **Stop your own animation loop and keyboard handlers.** Otherwise typing in the Visual Editor's text boxes drives your program.
 - **Put sound files in your `public/` folder** and refer to them as `"./name.m4a"`.
+- **Save the editor's state into your project, so it's in git.** The editor always saves inside the browser (IndexedDB), which git can't see.
+  Make a `properties/` folder, and point **💾 Save As**, the **Save defaults** checkbox, and **Save Diffs** at it.
+  The browser remembers each choice, so after the first time they keep saving there.
+  Add a `properties/README.md` explaining the three files; copy [riemann-surfaces-3d's](https://github.com/TradeIdeasPhilip/riemann-surfaces-3d/blob/master/properties/README.md).
 - **Register your own components** with `componentRegistry.set(key, { create })`.
   Then the Visual Editor can add, save and load them, and "TypeScript defaults" can rebuild them.
 
