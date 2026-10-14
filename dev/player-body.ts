@@ -182,20 +182,6 @@ export const playerBodyHtml = `
           to jump to the start of the current section. Alt instead of ⌥ on a PC.
         </p>
         <br />
-        <h1>Assets</h1>
-        <img
-          id="Peano"
-          src="./Giuseppe_Peano.jpg"
-          style="width: 10em"
-          title="Giuseppe Peano"
-        />
-        <img
-          id="Fourier"
-          src="./Fourier2_-_restoration1.jpg"
-          style="width: 10em"
-          title="Joseph Fourier"
-        />
-        <br />
         <h1>Debug Log</h1>
         <button id="debugLogClearBtn" type="button">Clear</button>
         <pre
