@@ -106,8 +106,11 @@ The library's own code lives in `lib/`.
 
 To pick up newer code from canvas-recorder:
 
-1. Make a branch, run `npm run import`, and commit: "Verbatim import from canvas-recorder <hash>".
-2. Rebase the hand edits (the commits after the previous verbatim import) onto it.
+1. Make a branch from the previous "Verbatim import from canvas-recorder …" commit.
+2. Run `npm run import`, and commit: "Verbatim import from canvas-recorder <hash>".
+3. Merge that branch into master.
+   The library's hand edits stay as they are, and history only grows, so a plain `git push` works.
+4. `npm run build`, and bump the version in package.json.
 
 `imported-files.txt` lists what was copied, and from which commit.
 
