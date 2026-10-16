@@ -1,0 +1,24 @@
+{
+  // API docs, built from the JSDoc comments.  `npm run docs` → docs/.
+  // GitHub Actions builds and publishes them on every push to master; see .github/workflows/docs.yml.
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "canvas-recorder-lib",
+  // One page per module, named by its import path, e.g. src/glib/path-shape.
+  // lib/index.ts is what `import … from "canvas-recorder-lib"` gets.
+  // dev/ is the player GUI, which consumers don't import, so it's left out.
+  "entryPoints": ["lib/index.ts", "src/**/*.ts"],
+  "out": "docs",
+  "readme": "README.md",
+  "projectDocuments": ["internals.md"],
+  "navigation": {
+    "includeFolders": true
+  },
+  "sourceLinkTemplate": "https://github.com/TradeIdeasPhilip/canvas-recorder-lib/blob/{gitRevision}/{path}#L{line}",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  // Document what's there, and don't fail the build over what isn't.
+  "treatWarningsAsErrors": false,
+  "validation": {
+    "notExported": false
+  }
+}

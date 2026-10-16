@@ -24,7 +24,8 @@
   "scripts": {
     "build": "rm -rf dist && tsc && node scripts/copy-assets.mjs",
     "watch": "rm -rf dist && node scripts/copy-assets.mjs && tsc --watch",
-    "import": "node scripts/import-from-canvas-recorder.mjs"
+    "import": "node scripts/import-from-canvas-recorder.mjs",
+    "docs": "typedoc"
   },
   "repository": {
     "type": "git",
@@ -46,6 +47,7 @@
   },
   "devDependencies": {
     "phil-lib": "^1.8.1",
+    "typedoc": "^0.28.20",
     "typescript": "^6.0.2",
     "vite": "^7.3.0"
   }

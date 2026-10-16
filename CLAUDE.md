@@ -17,7 +17,11 @@ It came from [canvas-recorder](../canvas-recorder), which is now historical: loo
 ```bash
 npm run build   # tsc → dist/, plus CSS copied by scripts/copy-assets.mjs
 npm run watch   # the same, continuously
+npm run docs    # TypeDoc → docs/ (gitignored).  Config in typedoc.json.
 ```
+
+The API docs publish themselves:  `.github/workflows/docs.yml` runs TypeDoc on every push to master and deploys to https://tradeideasphilip.github.io/canvas-recorder-lib/.
+They come from the JSDoc comments, so a `{@link}` should name something TypeDoc can resolve; `npm run docs` lists the ones it can't.
 
 **Don't run `npm run import`.** It copies `dev/` and `src/` from canvas-recorder, replacing everything there, which only made sense while canvas-recorder was the master.
 

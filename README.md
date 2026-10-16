@@ -5,6 +5,8 @@ This is the tooling from [canvas-recorder](https://github.com/TradeIdeasPhilip/c
 
 **Status:** version 0.x, a first version. Expect breaking changes.
 
+**API docs:** https://tradeideasphilip.github.io/canvas-recorder-lib/
+
 ## Use
 
 ```ts
