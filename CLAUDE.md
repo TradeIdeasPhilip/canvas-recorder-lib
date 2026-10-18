@@ -44,9 +44,15 @@ So run `npm run build` (or keep `npm run watch` going) here, then reload the pag
 
 ## Releasing a change
 
-1. `npm run build`, then bump the version: `npm version minor --no-git-tag-version` (or `patch`).  Commit.
-2. In each project that uses the library:  `npm install`, `npx tsc --noEmit`, and commit `package-lock.json`.
-3. Plain `git push`.
+1. Bump the version: `npm version minor --no-git-tag-version` (or `patch`).  Commit and `git push`.
+2. `npm publish`.  `prepublishOnly` rebuilds `dist/` first.  (The user runs this:  it needs their npm login and 2FA.)
+3. In each project that uses the library:  `npm install canvas-recorder-lib@<new version>`, `npx tsc --noEmit`, and commit `package.json` and `package-lock.json`.
+
+Projects depend on the published version, so their GitHub Pages builds work.
+To try unpublished library changes in a project, run `npm link ../canvas-recorder-lib` there.
+That replaces `node_modules/canvas-recorder-lib` with a symlink, without touching `package.json` or the lock file.
+`npm ls canvas-recorder-lib` shows `-> ./../canvas-recorder-lib` while the link is active.
+Any later `npm install` or `npm ci` quietly puts the published copy back.
 
 ## Layout
 

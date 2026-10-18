@@ -23,7 +23,7 @@ three.js keeps its `examples/` in the library's repo, with an index page; many s
 Here, the same repo wins:
 
 - **GitHub Pages works.** A separate project depends on `"file:../canvas-recorder-lib"`, which doesn't exist on GitHub's build machine.
-  (See [The consumers' CI problem](#the-consumers-ci-problem).)
+  (See [new-project-lessons.md](new-project-lessons.md#filecanvas-recorder-lib-breaks-github-pages-2026-10-14).)
   Inside this repo, the library is right there.
 - **It's a regression test.** One push builds the library and every test page together.
 - **One website.** The API docs and the live test pages share one URL, so the docs can link to working examples.
@@ -140,30 +140,7 @@ This folder is the tools project.
 
 ## Open items
 
-### The consumers' CI problem
-
-**riemann-surfaces-3d's GitHub Pages deploy has been failing since 2026-10-14.**
-`npm ci` passes, because a `file:` dependency just becomes a symlink, even a broken one.
-Then `npm run build` fails, because `../canvas-recorder-lib` isn't on GitHub's build machine, and the library isn't on npm.
-affine-transforms has the same dependency, but no deploy workflow yet.
-
-The test project dodges this, but the separate projects need a fix.  Options:
-
-- **Publish the library to npm.**  The normal way.  Each project depends on `"^0.5.0"`, and local development switches to `file:` (the switching is the annoying part; see library-split.md's [Why npm link kept failing](from-previous-project/library-split.md#why-npm-link-kept-failing)).
-- **A GitHub dependency:** `"github:TradeIdeasPhilip/canvas-recorder-lib#v0.5.0"`.
-  `dist/` isn't committed, so the library needs a `prepare` script that builds it; npm runs `prepare` when it installs from git.
-- **Check out both repos in the workflow,** side by side, so `file:../canvas-recorder-lib` resolves.
-  No changes to the projects, but every project's workflow needs the extra steps.
-
-### The README's new-project instructions
-
-They grew from what riemann-surfaces-3d ran into, so they're not a checklist yet.
-Fix these while we build the next few projects:
-
-- No list of the files a new project needs:  `package.json` (with phil-lib), `tsconfig.json`, `index.html`, `src/main.ts`, `.gitignore`, `public/icon.png`, `CLAUDE.md`.
-- Missing Vite settings that affine-transforms has: `base: "./"`, `build.outDir`, `resolve.dedupe: ["phil-lib"]`, and `rollupOptions.input` for more than one page.
-- No deploy workflow, and nothing about [the CI problem](#the-consumers-ci-problem).
-- "How this library is made" is stale:  it still says canvas-recorder is the source of truth, and describes `npm run import`, which we don't run any more.
+Problems that affect every project using the library, like the separate projects' broken deploys and the gaps in the README's new-project instructions, are tracked in [new-project-lessons.md](new-project-lessons.md).
 
 ## Questions
 
