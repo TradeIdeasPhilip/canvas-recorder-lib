@@ -64,6 +64,19 @@ export default defineConfig({
   `strictPort` makes that an error instead.
 - **`npm run watch`:** your project uses the library's compiled `dist/`, so keep this running in the library while you change it.
 
+### Ports
+
+Each project that uses this library gets its own port, forever.
+Changing the port loses the editor's saved work, because IndexedDB belongs to the origin, and the port is part of the origin.
+For a new project, take the next number and add it here.
+
+| Port | Project |
+| --- | --- |
+| 5173 | [canvas-recorder](https://github.com/TradeIdeasPhilip/canvas-recorder) (Vite's default; historical) |
+| 5174 | [riemann-surfaces-3d](https://github.com/TradeIdeasPhilip/riemann-surfaces-3d) |
+| 5175 | [affine-transforms](https://github.com/TradeIdeasPhilip/affine-transforms) |
+| 5176 | `test-project/` in this repo (planned; see [development-plans/test-project.md](development-plans/test-project.md)) |
+
 ### Starting the editor
 
 - **Load the library only when you need it,** e.g. `await import("./video-editor")` from a button.

@@ -35,6 +35,9 @@ There's no page in this repo.  Run a project that uses the library (add it with 
 | --- | --- | --- |
 | `../affine-transforms` | 5175 | The video in active development (formerly canvas-recorder's `some5`) |
 | `../riemann-surfaces-3d` | 5174 | three.js robots, recorded with `src/full-screen-component.ts` |
+| `test-project/` | 5176 | Planned:  test and tool pages, in this repo.  See `development-plans/test-project.md` |
+
+Every project gets its own fixed port.  README.md's "Ports" table is the master list; add new projects there.
 
 Each links the library with `"canvas-recorder-lib": "file:../canvas-recorder-lib"` and uses its compiled `dist/`.
 So run `npm run build` (or keep `npm run watch` going) here, then reload the page there.
