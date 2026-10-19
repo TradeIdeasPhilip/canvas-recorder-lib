@@ -3,7 +3,9 @@
 We are currently storing video clips in the /public directory so they are convenient and available to the software.
 But we don't want to store big files in git.
 
-See also development-plans/ci-pages-deploy.md -- that's the other half of "stop putting large files in git" (the `docs/` build output instead of source video). Different problem, same motivation.
+Also, what about people running from a github hosted solution?
+They can't easily add a new file to the web server.
+They would want to use a local file so they have full control with almost no effort.
 
 ## Alternative: Local Files
 
@@ -56,7 +58,7 @@ At the same time we could check if files have been moved or deleted.
 This is "on my radar" as a possible problem.
 For the moment, let's just see if it comes up as a common problem or not.
 
-One concrete idea for this, since it comes up again above: once "Our Internal List of Files" exists, a "verify everything before you start" pre-flight becomes cheap -- walk that list and call `queryPermission()` (escalating to `requestPermission()` only if needed) on every entry *before* kicking off a long unattended render, instead of finding out a handle went stale when the render loop happens to reach that clip. That reuses the same list this doc already wants for lookup, it doesn't need its own separate bookkeeping.
+One concrete idea for this, since it comes up again above: once "Our Internal List of Files" exists, a "verify everything before you start" pre-flight becomes cheap -- walk that list and call `queryPermission()` (escalating to `requestPermission()` only if needed) on every entry _before_ kicking off a long unattended render, instead of finding out a handle went stale when the render loop happens to reach that clip. That reuses the same list this doc already wants for lookup, it doesn't need its own separate bookkeeping.
 
 ## A few more notes, from the assistant's side (9/6/2026)
 
@@ -64,7 +66,7 @@ Confirmed feasible independently, and the design above holds up -- `BlobSource` 
 
 - **Portability**: a `FileSystemFileHandle` only means something in the browser profile that granted it. It won't follow a project to another machine or another browser profile the way a URL does. Worth treating local-file references as a personal/this-machine convenience, not something a finished, shareable project config can lean on.
 - **CORS is a non-issue here** -- actually a small win over URLs. Local files have no origin at all, so none of the `crossOrigin="anonymous"` / canvas-tainting handling that `UrlSource` needed applies.
-- **Drag-and-drop** could be a nice, lower-friction *addition* alongside the "normal, simple" file-picker button (`DataTransferItem.getAsFileSystemHandle()` in Chromium gives a real, storable handle from a drop, not just a one-shot `File`). Not a replacement for the picker -- a drop can't be silently reopened next session without a stored handle -- just a quicker path for the common case of dragging something straight from a Finder window that's already open.
+- **Drag-and-drop** could be a nice, lower-friction _addition_ alongside the "normal, simple" file-picker button (`DataTransferItem.getAsFileSystemHandle()` in Chromium gives a real, storable handle from a drop, not just a one-shot `File`). Not a replacement for the picker -- a drop can't be silently reopened next session without a stored handle -- just a quicker path for the common case of dragging something straight from a Finder window that's already open.
 - **Node side (`record/cli-record.ts`, `cli-info.ts`) is unaffected** -- `FileSystemFileHandle`/`BlobSource` are browser-only concepts. Node already has its own, separate local-file story via Mediabunny's `FilePathSource`, no conflict, nothing to unify.
 
 ## Status 9/9/2026

@@ -37,10 +37,41 @@ The package includes the TypeScript source next to the compiled JavaScript, and 
 
 Things the first project to use this library ([riemann-surfaces-3d](https://github.com/TradeIdeasPhilip/riemann-surfaces-3d)) ran into.
 
+### Installing
+
+```bash
+npm install canvas-recorder-lib
+npm install-scripts deny onnxruntime-node protobufjs
+npm install-scripts ls     # should say "No packages with unreviewed install scripts."
+```
+
+- **Depend on the published version,** not `"file:../canvas-recorder-lib"`.
+  A `file:` dependency works on your machine, but GitHub's build machine has no `../canvas-recorder-lib`, so your GitHub Pages deploy fails.
+  `npm ci` doesn't notice; `tsc` stops with "Cannot find module 'canvas-recorder-lib'."
+- **Deny those two install scripts.** npm 11 skips dependencies' install scripts until your project approves or denies them, and warns about each one.
+  Both come from `@huggingface/transformers`, which the library uses for transcription, and neither is needed in a browser.
+  `deny` records that in your `package.json`'s `allowScripts`.
+  - That field replaces any `allow-scripts` setting in your `~/.npmrc`.
+    If your `~/.npmrc` approves `fsevents` (Vite's file watcher on macOS), approve it again here:  `npm install-scripts approve fsevents --no-allow-scripts-pin`.
+- **Expect a big `package-lock.json`.** The library's dependencies are installed in your project, including some that only Node.js uses.
+
+### Working on the library at the same time
+
+```bash
+npm link ../canvas-recorder-lib    # in your project
+npm run watch                      # in canvas-recorder-lib
+```
+
+- `npm link` replaces `node_modules/canvas-recorder-lib` with a symlink to your copy, without touching `package.json` or `package-lock.json`.
+  So your deploy keeps using the published version.
+- `npm ls canvas-recorder-lib` shows `-> ./../canvas-recorder-lib` while the link is active.
+- Any later `npm install` or `npm ci` quietly puts the published copy back.
+- Your project uses the library's compiled `dist/`, so keep `npm run watch` running in the library.
+- When the library change is ready, publish a new version, then `npm install canvas-recorder-lib@<version>` in your project and commit both package files.
+
 ### Vite setup
 
-While both projects are on your disk, link the library with `"canvas-recorder-lib": "file:../canvas-recorder-lib"` in package.json.
-Then add this to your `vite.config.js`:
+Add this to your `vite.config.js`:
 
 ```js
 import { defineConfig, searchForWorkspaceRoot } from "vite";
@@ -56,13 +87,13 @@ export default defineConfig({
 });
 ```
 
-- **`fs.allow`:** without it, the server console says the transcription worker is "outside of Vite serving allow list", and transcripts fail.
+- **`fs.allow`:** needed while the library is linked.
+  Without it, the server console says the transcription worker is "outside of Vite serving allow list", and transcripts fail.
   A linked library lives outside your project. Vite serves files that are imported, but the worker is loaded by URL.
   Setting `allow` turns off Vite's default, so your own folder has to be listed too; that's what `searchForWorkspaceRoot()` is for.
 - **A fixed port:** the editor saves your work in the browser (IndexedDB), and the browser keeps a separate copy for each origin.
   If another project already has the port, Vite quietly moves to the next one (5173 → 5174), and the editor seems to forget everything.
   `strictPort` makes that an error instead.
-- **`npm run watch`:** your project uses the library's compiled `dist/`, so keep this running in the library while you change it.
 
 ### Ports
 
@@ -115,27 +146,26 @@ It is only downloaded if someone uses transcription.
 
 ## How this library is made
 
-canvas-recorder is the source of truth.
-`npm run import` copies the player, and everything it imports, from `../canvas-recorder` into `dev/` and `src/`, verbatim.
-The library's own code lives in `lib/`.
-
-To pick up newer code from canvas-recorder:
-
-1. Make a branch from the previous "Verbatim import from canvas-recorder …" commit.
-2. Run `npm run import`, and commit: "Verbatim import from canvas-recorder <hash>".
-3. Merge that branch into master.
-   The library's hand edits stay as they are, and history only grows, so a plain `git push` works.
-4. `npm run build`, and bump the version in package.json.
-
-`imported-files.txt` lists what was copied, and from which commit.
+The code came from [canvas-recorder](https://github.com/TradeIdeasPhilip/canvas-recorder), which is now historical.
+Since 2026-10-14, this library is the master copy:  new features and fixes start here.
+`imported-files.txt` lists what was copied, and from which canvas-recorder commit.
 
 ## Build
 
 ```
 npm install
 npm run build    # or:  npm run watch
+npm run docs     # API docs, in docs/
 ```
 
 Output goes to `dist/`: `.js`, `.d.ts`, source maps, plus the CSS and JSON files the JavaScript imports.
 
-A project that depends on this library through `"canvas-recorder-lib": "file:../canvas-recorder-lib"` sees a change as soon as `npm run watch` recompiles it.
+A project that has linked this library (see [Working on the library at the same time](#working-on-the-library-at-the-same-time)) sees a change as soon as `npm run watch` recompiles it.
+
+## Releasing
+
+1. Bump the version:  `npm version minor --no-git-tag-version` (or `patch`).  Commit and push.
+2. `npm publish`.  `prepublishOnly` rebuilds `dist/` first.
+3. In each project:  `npm install canvas-recorder-lib@<version>`, `npx tsc --noEmit`, and commit `package.json` and `package-lock.json`.
+
+The API docs publish themselves on every push to master.
