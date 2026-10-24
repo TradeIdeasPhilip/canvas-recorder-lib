@@ -25,7 +25,7 @@ The video still draws, without its sound.
 - `"canvas-recorder-lib": "file:.."` works on GitHub too, because the library is in the same checkout.  The workflow builds the library first.
 - `npm install-scripts ls` lists the *library's* dependencies (`onnxruntime-node`, `protobufjs`, `esbuild`), found through the link.
   They're installed by the library's own `npm ci`, so the project denies all three.
-  `fsevents` didn't need an approval here.
+  It also needs `fsevents` approved, like riemann.  I first wrote that it didn't:  `ls` said so before the project's own `npm install` added it.
 - `fs.allow: [".."]` covers both the library and the project.
 - Untested so far:  whether a test project (see [test-project.md](test-project.md)) should copy this exactly.  Probably.
 
@@ -55,6 +55,27 @@ Found while planning the [test project](test-project.md).  The instructions grew
   riemann doesn't import it, and npm installs it anyway as the library's peer dependency.
 
 ## Done
+
+### The first Import audio reloads the page (2026-10-24)
+
+**Symptom.**  In simple-video-editor under `npm run dev`, clicking Import audio reloaded the page.
+Chrome forgot the local file's permission, so 🔓 appeared.  Later reloads were fine.
+
+**Cause.**  Only the transcription worker imports `@huggingface/transformers`.  (transcribe-core.ts imports it for types only, and those imports vanish.)
+Vite doesn't look inside workers when it starts, so it found the package the first time a transcript started, prepared it, and reloaded:
+
+```
+[vite] (client) dependency optimized: @huggingface/transformers
+[vite] (client) optimized dependencies changed. reloading
+```
+
+Reproduced with a second dev server and a fresh cache, by requesting the worker module the way the browser does.
+
+**Fix.**  `optimizeDeps.include: ["canvas-recorder-lib > @huggingface/transformers"]` in vite.config.js.  The same test then logs nothing.
+`npm run dev` only; production builds were never affected.
+affine-transforms links the library the same way and probably needs the same line.
+
+**README:**  [Vite setup](../README.md#vite-setup).
 
 ### affine-transforms used `file:` (2026-10-14 → 2026-10-19)
 

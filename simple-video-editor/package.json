@@ -19,6 +19,7 @@
   "allowScripts": {
     "onnxruntime-node": false,
     "protobufjs": false,
-    "esbuild": false
+    "esbuild": false,
+    "fsevents": true
   }
 }

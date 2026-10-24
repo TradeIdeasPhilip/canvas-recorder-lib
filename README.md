@@ -95,6 +95,9 @@ export default defineConfig({
       allow: [searchForWorkspaceRoot(process.cwd()), "../canvas-recorder-lib"],
     },
   },
+  optimizeDeps: {
+    include: ["canvas-recorder-lib > @huggingface/transformers"],
+  },
 });
 ```
 
@@ -102,6 +105,8 @@ export default defineConfig({
   Without it, the server console says the transcription worker is "outside of Vite serving allow list", and transcripts fail.
   A linked library lives outside your project. Vite serves files that are imported, but the worker is loaded by URL.
   Setting `allow` turns off Vite's default, so your own folder has to be listed too; that's what `searchForWorkspaceRoot()` is for.
+- **`optimizeDeps.include`:** without it, the first Import audio or transcript reloads the page, under `npm run dev` only.
+  Only the transcription worker imports that package, and Vite doesn't look inside workers when it starts, so it finds the package late and reloads to use it.
 - **A fixed port:** the editor saves your work in the browser (IndexedDB), and the browser keeps a separate copy for each origin.
   If another project already has the port, Vite quietly moves to the next one (5173 → 5174), and the editor seems to forget everything.
   `strictPort` makes that an error instead.

@@ -183,8 +183,26 @@ export function buildVideoClipPanel(
       startIn: "videos",
       currentUrl: () => clip.urlScalar.value,
       choose(url) {
+        // Start and End still at a brand new clip's 0 and 1000 means nobody has chosen what to show.
+        // Then show the whole file at 1×, so it plays normally and Import audio works right away.
+        const untouched =
+          clip.startMsIntoClipScalar.value === 0 &&
+          clip.endMsIntoClipScalar.value === 1000;
         clip.urlScalar.value = url;
         hooks.urlChanged();
+        if (!untouched) return;
+        clip.videoInfo()?.then(
+          (info) => {
+            // The user may have picked another file while this one opened.
+            if (clip.urlScalar.value !== url) return;
+            clip.endMsIntoClipScalar.value = info.durationMs;
+            // Bubbles up through scheduleHasChanged(), like the Whole file button.
+            clip.setDuration(info.durationMs);
+            hooks.scalarsChanged();
+          },
+          // The panel shows why the file didn't open.
+          () => {},
+        );
       },
     }),
   );

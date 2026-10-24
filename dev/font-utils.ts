@@ -156,7 +156,14 @@ export function _fetchLocalFonts() {
         localFontStylesMap.set(fam, [...styles].join(", "));
       }
     })
-    .catch((e: unknown) => console.warn("queryLocalFonts():", e));
+    .catch((e: unknown) => {
+      // At startup this is expected:  until the user has clicked something, the browser
+      // refuses with "SecurityError: User activation is required."  That costs very little.
+      // The font picker asks again inside its own click, and only the Traditional Text
+      // panel's style words for system fonts depend on this call.  So say nothing.
+      if (e instanceof DOMException && e.name === "SecurityError") return;
+      console.warn("queryLocalFonts():", e);
+    });
 }
 
 // MARK: Font coverage utilities
