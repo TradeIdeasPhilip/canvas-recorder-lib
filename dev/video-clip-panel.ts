@@ -1,6 +1,7 @@
 import { ReadOnlyRect } from "phil-lib/misc";
 import { Keyframe } from "../src/interpolate.ts";
 import { SoundClip } from "../src/showable.ts";
+import { canvasRecorder, type VideoSize } from "../lib/main-control.ts";
 import { VideoClipComponent } from "../src/slide-components/video-clip.ts";
 import {
   centeredOnCanvas,
@@ -29,6 +30,11 @@ const IMPORTED_AUDIO_NOTE = "imported from video";
 
 /** What the panel needs from the Visual Editor.  It never reaches into canvas-recorder.ts directly. */
 export type VideoClipPanelHooks = {
+  /**
+   * Change the whole video's size, and remember it, as if the user had typed it in the size fields.
+   * @returns False if the size is locked, or not usable.
+   */
+  readonly setVideoSize: (size: VideoSize) => boolean;
   /** The URL was changed by a button here.  Save, and rebuild the schedule editor so the URL field shows it. */
   readonly urlChanged: () => void;
   /**
@@ -98,6 +104,14 @@ function playbackSpeed(clip: VideoClipComponent): number {
 }
 
 const isRealTime = (speed: number) => Math.abs(speed - 1) < 0.0005;
+
+/**
+ * The largest even number of pixels that fits in `pixels`.
+ * HEVC stores color at half resolution (4:2:0), so the saved file's sides must be even.
+ */
+function evenSize(pixels: number): number {
+  return Math.max(2, Math.floor(pixels / 2) * 2);
+}
 
 /**
  * Output pixels per source pixel, for one Dest Rect keyframe.  1 is native
@@ -213,6 +227,10 @@ export function buildVideoClipPanel(
   splitBtn.addEventListener("click", () => hooks.split());
 
   const rectRow = line(panel, "margin-top:0.4em");
+  const SIZE_VIDEO_TITLE =
+    "Make the whole video exactly this clip's size, in pixels, and fill it with this clip, " +
+    "one video pixel per output pixel.  The units stay as wide as they are now.";
+  const sizeVideoBtn = button(rectRow, "Make video this size", SIZE_VIDEO_TITLE);
   const rectButtons = [
     {
       text: "Fit canvas",
@@ -384,6 +402,12 @@ export function buildVideoClipPanel(
     realTimeBtn.hidden = Number.isNaN(speed) || isRealTime(speed);
     realTimeBtn.disabled = !(end > start);
     for (const { btn } of rectButtons) btn.disabled = !ready;
+    sizeVideoBtn.disabled = !ready || canvasRecorder.sizeLocked;
+    sizeVideoBtn.title = canvasRecorder.sizeLocked
+      ? `${SIZE_VIDEO_TITLE}\n\nThis program sets the video's size, so it can't be changed here.`
+      : ready
+        ? `${SIZE_VIDEO_TITLE}\n\n${evenSize(info!.video.width)} × ${evenSize(info!.video.height)} pixels.`
+        : SIZE_VIDEO_TITLE;
     alignRow.draw();
     drawAudio(speed);
   }
@@ -491,6 +515,37 @@ export function buildVideoClipPanel(
     if (editing && schedule.includes(editing)) return editing;
     return "Dest Rect has several keyframes.  Click ✎ on the one you want to change.";
   }
+
+  sizeVideoBtn.addEventListener("click", () => {
+    if (!info) return;
+    const target = targetKeyframe();
+    if (typeof target === "string") {
+      rectHint.textContent = target;
+      return;
+    }
+    const { width: videoWidth, height: videoHeight } = info.video;
+    const pixelWidth = evenSize(videoWidth);
+    const pixelHeight = evenSize(videoHeight);
+    const width = canvasRecorder.width;
+    const height = (width * pixelHeight) / pixelWidth;
+    if (!hooks.setVideoSize({ pixelWidth, pixelHeight, width, height })) return;
+    // One video pixel per output pixel, from the top left corner.  If a side was odd, its
+    // last column or row is off the edge, rather than resampling the whole picture.
+    const unitsPerPixel = width / pixelWidth;
+    target.value = {
+      x: 0,
+      y: 0,
+      width: videoWidth * unitsPerPixel,
+      height: videoHeight * unitsPerPixel,
+    };
+    hooks.rectKeyframeChanged(target);
+    rectHint.textContent =
+      pixelWidth === videoWidth && pixelHeight === videoHeight
+        ? ""
+        : `The clip is ${videoWidth} × ${videoHeight}.  The video is ${pixelWidth} × ${pixelHeight}, ` +
+          "because HEVC needs even sizes, so the clip's last column or row is cut off.";
+    drawDerived();
+  });
 
   for (const { btn, make } of rectButtons) {
     btn.addEventListener("click", () => {

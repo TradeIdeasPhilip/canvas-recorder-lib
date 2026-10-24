@@ -403,26 +403,33 @@ function showVideoSize(size: VideoSize) {
 }
 showVideoSize(canvasRecorder.size);
 
+/**
+ * The user asked for this size, in the size fields or with a button like the Video File
+ * panel's "Make video this size".  Use it, and remember it for this video.
+ * @returns False if the size is locked, or `size` isn't usable.  Nothing changes then.
+ */
+function setVideoSizeFromGui(size: VideoSize): boolean {
+  if (canvasRecorder.sizeLocked) return false;
+  try {
+    canvasRecorder.size = size;
+  } catch {
+    // E.g. 0.4 pixels, which rounds to 0.  Normal while typing.
+    return false;
+  }
+  try {
+    localStorage.setItem(videoSizeStorageKey, JSON.stringify(canvasRecorder.size));
+  } catch {
+    // Private browsing, or storage is full.  The size still works until the page reloads.
+  }
+  return true;
+}
+
 for (const [key, input] of Object.entries(videoSizeInputs)) {
   input.addEventListener("input", () => {
-    if (canvasRecorder.sizeLocked) return;
     const value = input.valueAsNumber;
     // Empty, 0 or negative is normal while typing.  Wait for a usable number.
     if (!(Number.isFinite(value) && value > 0)) return;
-    try {
-      canvasRecorder.size = { ...canvasRecorder.size, [key]: value };
-    } catch {
-      // E.g. 0.4 pixels, which rounds to 0.  Also normal while typing.
-      return;
-    }
-    try {
-      localStorage.setItem(
-        videoSizeStorageKey,
-        JSON.stringify(canvasRecorder.size),
-      );
-    } catch {
-      // Private browsing, or storage is full.  The size still works until the page reloads.
-    }
+    setVideoSizeFromGui({ ...canvasRecorder.size, [key]: value });
   });
   // Show the value as stored, e.g. rounded to whole pixels, once the user is done typing.
   input.addEventListener("blur", () => showVideoSize(canvasRecorder.size));
@@ -5748,6 +5755,7 @@ function updateScheduleEditor(selectable: Showable) {
 
   const videoPanel = videoClip
     ? buildVideoClipPanel(videoClip, {
+        setVideoSize: setVideoSizeFromGui,
         urlChanged() {
           activeRootComponentEditor?.update(videoClip, videoClip.urlScalar);
           markDirty();
