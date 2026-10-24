@@ -73,3 +73,29 @@ Confirmed feasible independently, and the design above holds up -- `BlobSource` 
 
 This looks easy and low risk and helpful.
 I'll probably get back to this project sooner rather than later.
+
+## Prototype (2026-10-18)
+
+Built along with [simple-video-editor.md](simple-video-editor.md).  See [src/local-files.ts](../src/local-files.ts).
+
+- **URLs look like `local:<file name>`.**  They go anywhere a URL can:  the URL field, JSON save files, a sound clip's source.
+  A file picked again under the same name replaces the old handle, which is how a moved file gets fixed.
+- **One list of handles per origin**, in IndexedDB (`canvas-recorder-local-files`), shared by every video.
+- **Video Clip** reads a local file through Mediabunny's `BlobSource`.
+  **Image** reads it into a `blob:` URL.
+  **Sound clips, Import audio and transcripts** go through `fetchMedia()`, a `fetch()` that understands `local:`.
+  So Import audio works for a local video with no extra code:  the sound clip's source is the same `local:` URL.
+- **The panels:**  Video File and Image File have **📂 Open file…** and a **Recent files…** list.  Typing a URL still works.
+- **Permission:**  nothing ever prompts on its own, because a prompt needs a click.
+  A file that needs permission puts **🔓 Allow local files** next to Zoom.  Clicking it asks for each file; the components try again by themselves, and the sounds reload.
+  The browser may only allow one prompt per click; any file it skips stays on the button.
+- **"Checking in Advance" is done, cheaply.**  The Save dialog walks the whole tree for `local:` URLs (scalars, string schedules, sound clips) and checks each one without prompting, when it opens and again on OK.
+  If anything isn't ready, it says so, offers 🔓, and doesn't start.
+  The 🔓 button is also updated whenever the audio reloads and after every load.
+
+**Not done:**
+
+- Drag and drop.
+- Sharing the list with media-browser (that page stayed in canvas-recorder).
+- Removing a file from the list.
+- Untested in a real browser by me:  the permission prompts, and what Chrome's "Allow on every visit" does to them.

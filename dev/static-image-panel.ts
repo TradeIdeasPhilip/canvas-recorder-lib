@@ -5,16 +5,20 @@ import {
   centeredOnCanvas,
   maxFit,
   minCover,
-  PIXELS_PER_UNIT,
+  pixelsPerUnit,
   preservePixels,
   sameCenter,
   shrinkToAspect,
 } from "../src/slide-components/video-info.ts";
 import { SingleImage } from "../src/slow-image-sources.ts";
 import { ALIGN_HORIZONTALLY, ALIGN_VERTICALLY, buildSnapRow } from "./rect-snap.ts";
+import { buildLocalFileRow } from "./local-file-row.ts";
+import { IMAGE_FILE_TYPES, onLocalFilesChange } from "../src/local-files.ts";
 
 /** What the panel needs from the Visual Editor.  It never reaches into canvas-recorder.ts directly. */
 export type StaticImagePanelHooks = {
+  /** The URL was changed by a button here.  Save, and rebuild the schedule editor so the URL field shows it. */
+  readonly urlChanged: () => void;
   /** A Dest Rect keyframe's value was replaced.  Sync its number fields and on-canvas handles, and save. */
   readonly rectKeyframeChanged: (keyframe: Keyframe<ReadOnlyRect>) => void;
   /** The Dest Rect keyframe in ✎ edit mode, if there is one. */
@@ -51,6 +55,23 @@ export function buildStaticImagePanel(
   legend.textContent = "Image File";
   panel.append(legend);
 
+  panel.append(
+    buildLocalFileRow({
+      types: IMAGE_FILE_TYPES,
+      pickerId: "images",
+      startIn: "pictures",
+      currentUrl: () => component.urlSchedule.at(0),
+      choose(url) {
+        if (component.urlSchedule.schedule.length > 1) {
+          alert("URL has several keyframes.  Type the file's URL into the one you want.\n\n" + url);
+          return;
+        }
+        component.urlSchedule.set(url);
+        hooks.urlChanged();
+      },
+    }),
+  );
+
   const line = (parent: HTMLElement, cssText = "") => {
     const div = document.createElement("div");
     div.style.cssText = cssText;
@@ -75,7 +96,7 @@ export function buildStaticImagePanel(
   const rectButtons = [
     {
       text: "Fit canvas",
-      title: "As large as possible while the whole image stays on the 16×9 canvas.  Centered.",
+      title: "As large as possible while the whole image stays on the canvas.  Centered.",
       make: (size: Size) => centeredOnCanvas(maxFit(size.width, size.height)),
     },
     {
@@ -85,7 +106,7 @@ export function buildStaticImagePanel(
     },
     {
       text: "Native pixels",
-      title: `One image pixel per output pixel at ${PIXELS_PER_UNIT} px/unit — pixel perfect.  Keeps the rectangle's center.`,
+      title: `One image pixel per output pixel at ${pixelsPerUnit()} px/unit — pixel perfect.  Keeps the rectangle's center.`,
       make: (size: Size, rect: ReadOnlyRect) =>
         sameCenter(preservePixels(size.width, size.height), rect),
     },
@@ -156,7 +177,7 @@ export function buildStaticImagePanel(
       // native resolution.  Above 1 the image is being upscaled.
       const ratios = component.destRectSchedule.schedule.map(({ value }) => {
         const drawn = shrinkToAspect(value, size.width / size.height);
-        return (drawn.width * PIXELS_PER_UNIT) / size.width;
+        return (drawn.width * pixelsPerUnit()) / size.width;
       });
       const lo = Math.min(...ratios);
       const hi = Math.max(...ratios);
@@ -196,7 +217,7 @@ export function buildStaticImagePanel(
     const url = component.urlSchedule.at(
       typeof target === "string" ? 0 : target.time,
     );
-    if (url === (image?.url ?? "")) {
+    if (url === (image?.url ?? "") && !image?.worthRetrying) {
       // Same file.  Only the Dest Rect may have changed.
       draw();
       return;
@@ -241,6 +262,15 @@ export function buildStaticImagePanel(
       draw();
     });
   }
+
+  // Permission granted, or a file picked again:  a file that failed may open now.
+  const stopListening = onLocalFilesChange(() => {
+    if (!panel.isConnected) {
+      stopListening();
+      return;
+    }
+    refresh();
+  });
 
   refresh();
   return {

@@ -41,3 +41,30 @@ We keep the properties in the main API as requested, not making this temporary s
 
 There is no override for the inner dimensions.
 If you needed something like that you could use a slide component at the top level of your video.
+
+## Prototype (2026-10-18)
+
+Built along with [simple-video-editor.md](simple-video-editor.md).  Decisions made along the way:
+
+- **The four properties can change after `start()`.**  `fps` still can't.
+  `canvasRecorder.size` sets all four at once; `canvasRecorder.onSizeChange()` tells the player.
+  Setting one property alone works too.  Each must be positive; pixel sizes are rounded to whole pixels.
+- **`canvasRecorder.lockSize()`** makes the four fields read-only and ignores any saved size.  Call it before `start()`.
+  The default is unlocked, as this plan says:  a playground is the common case, and a fixed-layout video opts out.
+  affine-transforms is built for 16 × 9 and should probably call it.
+- **Saved in localStorage, not IndexedDB.**  Key `canvas-recorder-size|<name>`, so it's per video, and shared by windows and sessions.
+  It's synchronous, so a saved size is in place before the first frame, and its `storage` event updates other open windows for free.
+  It isn't in the JSON save file.  A save file opened on another computer gets that computer's size.
+- **The fields** are next to Zoom.  They update on every keystroke, ignoring numbers that can't be right yet (empty, 0).
+  "⚠ stretched" appears when the pixels and units have different shapes.
+- **The Save dialog** has Size, **Keep aspect ratio** (on by default) and **Video size** (reset).
+  It starts from the video's own size every time.  Both numbers must be even, because HEVC stores color at half resolution; OK is disabled until they are.
+  The shape for Keep aspect ratio always comes from the video's size, so repeated edits can't drift.
+- **16 × 9 assumptions fixed:**  `video-info.ts`'s constants became `canvasWidthUnits()`, `canvasHeightUnits()` and `pixelsPerUnit()`, so Fit canvas, Cover canvas, Native pixels and the snap buttons use the real size.  `blackBackground` fills the real canvas.
+  A Video Clip added with **Insert** fills the canvas.  The class default is still 16 × 9, because save files leave out default values, and a default that changed with the canvas would load differently later.
+
+**Still open:**
+
+- Other components with 16 × 9 in them:  `halftone-shadow.ts`, and the class defaults of Rectangle and Image.
+- Whether the size belongs in the JSON save file.
+- Changing the units doesn't move anything:  the components keep their coordinates.  That's expected for a playground, but a "scale everything" button might be nice.

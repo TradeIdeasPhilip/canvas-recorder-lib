@@ -1,13 +1,13 @@
 import { ReadOnlyRect } from "phil-lib/misc";
 import {
-  CANVAS_HEIGHT_UNITS,
-  CANVAS_WIDTH_UNITS,
+  canvasHeightUnits,
+  canvasWidthUnits,
 } from "../src/slide-components/video-info.ts";
 
 /**
  * One button that moves or stretches a rectangle to the canvas.
  *
- * The canvas is taken to be the 16×9 the component draws into, which is true
+ * The canvas is taken to be the whole drawing area (see canvasRecorder.width), which is true
  * unless it sits inside a transformed parent like a Slide.
  */
 export type RectSnap = {
@@ -28,12 +28,12 @@ export const ALIGN_HORIZONTALLY: readonly RectSnap[] = [
   {
     text: "⇆",
     title: "Center horizontally on the canvas",
-    place: (r) => ({ ...r, x: (CANVAS_WIDTH_UNITS - r.width) / 2 }),
+    place: (r) => ({ ...r, x: (canvasWidthUnits() - r.width) / 2 }),
   },
   {
     text: "⇥",
     title: "Move the right edge to the right of the canvas",
-    place: (r) => ({ ...r, x: CANVAS_WIDTH_UNITS - r.width }),
+    place: (r) => ({ ...r, x: canvasWidthUnits() - r.width }),
   },
 ];
 
@@ -47,12 +47,12 @@ export const ALIGN_VERTICALLY: readonly RectSnap[] = [
   {
     text: "⇵",
     title: "Center vertically on the canvas",
-    place: (r) => ({ ...r, y: (CANVAS_HEIGHT_UNITS - r.height) / 2 }),
+    place: (r) => ({ ...r, y: (canvasHeightUnits() - r.height) / 2 }),
   },
   {
     text: "⤓",
     title: "Move the bottom edge to the bottom of the canvas",
-    place: (r) => ({ ...r, y: CANVAS_HEIGHT_UNITS - r.height }),
+    place: (r) => ({ ...r, y: canvasHeightUnits() - r.height }),
   },
 ];
 
@@ -61,12 +61,12 @@ export const STRETCH_TO_CANVAS: readonly RectSnap[] = [
   {
     text: "↔",
     title: "Stretch across the full width of the canvas",
-    place: (r) => ({ ...r, x: 0, width: CANVAS_WIDTH_UNITS }),
+    place: (r) => ({ ...r, x: 0, width: canvasWidthUnits() }),
   },
   {
     text: "↕",
     title: "Stretch across the full height of the canvas",
-    place: (r) => ({ ...r, y: 0, height: CANVAS_HEIGHT_UNITS }),
+    place: (r) => ({ ...r, y: 0, height: canvasHeightUnits() }),
   },
 ];
 

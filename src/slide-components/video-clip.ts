@@ -1,4 +1,16 @@
-import { ALL_FORMATS, CanvasSink, Input, UrlSource, WrappedCanvas } from "mediabunny";
+import {
+  ALL_FORMATS,
+  BlobSource,
+  CanvasSink,
+  Input,
+  UrlSource,
+  WrappedCanvas,
+} from "mediabunny";
+import {
+  getLocalFile,
+  isLocalFileUrl,
+  localFilesGeneration,
+} from "../local-files";
 import { ComponentWithLiveDuration } from "./live-duration";
 import { ReadOnlyRect } from "phil-lib/misc";
 import { RectangleScheduleInfo } from "../schedule-helper";
@@ -429,7 +441,12 @@ type OpenVideo = {
 };
 
 async function openVideo(url: string): Promise<OpenVideo> {
-  const input = new Input({ source: new UrlSource(url), formats: ALL_FORMATS });
+  // A local file is read through a Blob, which is what Mediabunny recommends in a browser.
+  // See src/local-files.ts.
+  const source = isLocalFileUrl(url)
+    ? new BlobSource(await getLocalFile(url))
+    : new UrlSource(url);
+  const input = new Input({ source, formats: ALL_FORMATS });
   const track = await input.getPrimaryVideoTrack();
   if (!track) {
     throw new Error(`No video track found in "${url}".`);
@@ -489,6 +506,11 @@ export class VideoClipComponent extends ComponentWithLiveDuration {
   soundClips: SoundClip[] = [];
 
   #url = "";
+  /**
+   * {@link localFilesGeneration} when a local file failed to open.
+   * When it changes (e.g. the user clicked 🔓), try again.  Undefined when there's nothing to retry.
+   */
+  #failedAtGeneration: number | undefined;
   #videoPromise: Promise<OpenVideo> | undefined;
   /** Set once #videoPromise resolves -- see #getVideoPromise() for why this can't just be read off the promise itself. */
   #video: OpenVideo | undefined;
@@ -501,13 +523,17 @@ export class VideoClipComponent extends ComponentWithLiveDuration {
    */
   #getVideoPromise(): Promise<OpenVideo> | undefined {
     const url = this.urlScalar.value;
-    if (url !== this.#url) {
+    const retry =
+      this.#failedAtGeneration !== undefined &&
+      this.#failedAtGeneration !== localFilesGeneration();
+    if (url !== this.#url || retry) {
       this.#url = url;
+      this.#failedAtGeneration = undefined;
       this.#video = undefined;
       this.#lastExactFrame = undefined;
       // The old FrameSource (if any) is simply dropped.  Unlike
-      // FilePathSource (Node-only), UrlSource holds no OS-level resource
-      // like a file handle, so there's nothing to explicitly release.
+      // FilePathSource (Node-only), UrlSource and BlobSource hold no OS-level
+      // resource like a file handle, so there's nothing to explicitly release.
       this.#videoPromise = url ? openVideo(url) : undefined;
       // A promise only resolves its .then() callbacks in a later microtask,
       // even if already settled -- so show() (synchronous) can't peek at
@@ -516,7 +542,15 @@ export class VideoClipComponent extends ComponentWithLiveDuration {
       // though a separate .then() in getFramePromises() also observes this
       // same promise) is what marks #videoPromise's rejection "handled" --
       // no unhandled-rejection console noise either way.
-      this.#videoPromise?.then((v) => (this.#video = v)).catch(() => {});
+      const promise = this.#videoPromise;
+      promise
+        ?.then((v) => (this.#video = v))
+        .catch(() => {
+          // Only a local file can start working without its URL changing.
+          if (isLocalFileUrl(url) && this.#videoPromise === promise) {
+            this.#failedAtGeneration = localFilesGeneration();
+          }
+        });
     }
     return this.#videoPromise;
   }

@@ -26,15 +26,34 @@ export type StartOptions = {
 export type StartRequest = { readonly showable: Showable } & Readonly<StartOptions>;
 
 /**
+ * The four numbers that set the size of the video.  See {@link CanvasRecorder.size}.
+ */
+export type VideoSize = {
+  /** The width of the saved video file, in pixels.  See {@link CanvasRecorder.pixelWidth}. */
+  readonly pixelWidth: number;
+  /** The height of the saved video file, in pixels.  See {@link CanvasRecorder.pixelHeight}. */
+  readonly pixelHeight: number;
+  /** The width of the drawing area, in units.  See {@link CanvasRecorder.width}. */
+  readonly width: number;
+  /** The height of the drawing area, in units.  See {@link CanvasRecorder.height}. */
+  readonly height: number;
+};
+
+/**
  * The main control object for this library.  Use the one instance, {@link canvasRecorder}.
  *
  * Set any properties you want to change, then call {@link start}.
- * The properties are frozen once `start()` is called.
  *
  * Any part of your video may read these properties.
  * Read them while drawing (e.g. in `show()`), not when a module first loads:
  * static imports run before the main program's own code, so a module's top level
  * would see the defaults even if the main program changes them.
+ *
+ * **The size can change while the program runs.**
+ * Unless the main program calls {@link lockSize}, the player shows the four size
+ * properties in `<input>` fields, and the user can change them.
+ * The player remembers the user's values for each video (see {@link StartOptions.name}).
+ * Code can also set them at any time.  {@link fps} still can't change after `start()`.
  */
 export class CanvasRecorder {
   #startRequest: StartRequest | undefined;
@@ -43,6 +62,96 @@ export class CanvasRecorder {
     if (this.#startRequest) {
       throw new Error(`canvasRecorder.${property} can't change after start().`);
     }
+  }
+
+  // MARK: Size
+
+  /**
+   * Each size property must be a positive, finite number.
+   * Pixel sizes are rounded to whole pixels.
+   */
+  #checkSize(property: keyof VideoSize, value: number, wholeNumber: boolean) {
+    if (!(Number.isFinite(value) && value > 0)) {
+      throw new RangeError(
+        `canvasRecorder.${property} must be a positive number, not ${value}.`,
+      );
+    }
+    const result = wholeNumber ? Math.round(value) : value;
+    if (result <= 0) {
+      throw new RangeError(`canvasRecorder.${property} must be at least 1.`);
+    }
+    return result;
+  }
+
+  readonly #sizeListeners = new Set<(size: VideoSize) => void>();
+
+  #sizeChanged() {
+    const size = this.size;
+    for (const listener of this.#sizeListeners) {
+      listener(size);
+    }
+  }
+
+  /**
+   * Call `listener` after any of the four size properties changes.
+   * @returns A function that removes the listener.
+   */
+  onSizeChange(listener: (size: VideoSize) => void): () => void {
+    this.#sizeListeners.add(listener);
+    return () => this.#sizeListeners.delete(listener);
+  }
+
+  /**
+   * All four size properties at once.
+   *
+   * Setting this changes all four, then calls the {@link onSizeChange} listeners once.
+   * Setting one property at a time works too, but calls them after each one.
+   */
+  get size(): VideoSize {
+    return {
+      pixelWidth: this.#pixelWidth,
+      pixelHeight: this.#pixelHeight,
+      width: this.#width,
+      height: this.#height,
+    };
+  }
+  set size(value: VideoSize) {
+    const pixelWidth = this.#checkSize("pixelWidth", value.pixelWidth, true);
+    const pixelHeight = this.#checkSize("pixelHeight", value.pixelHeight, true);
+    const width = this.#checkSize("width", value.width, false);
+    const height = this.#checkSize("height", value.height, false);
+    if (
+      pixelWidth === this.#pixelWidth &&
+      pixelHeight === this.#pixelHeight &&
+      width === this.#width &&
+      height === this.#height
+    ) {
+      return;
+    }
+    this.#pixelWidth = pixelWidth;
+    this.#pixelHeight = pixelHeight;
+    this.#width = width;
+    this.#height = height;
+    this.#sizeChanged();
+  }
+
+  #sizeLocked = false;
+  /**
+   * Keep the user from changing the size.
+   *
+   * Call this when the video is built for one specific size, like a hand-drawn
+   * 16 × 9 layout.  The player still shows the four size properties, but read-only,
+   * and it ignores any size the user saved earlier.
+   *
+   * The main program can still set the size properties.
+   * Call this before {@link start}, so the player never applies a saved size.
+   */
+  lockSize(): void {
+    this.#sizeLocked = true;
+  }
+  /** True after {@link lockSize}. */
+  get sizeLocked(): boolean {
+    return this.#sizeLocked;
   }
 
   #pixelWidth = 3840;
@@ -56,8 +165,7 @@ export class CanvasRecorder {
     return this.#pixelWidth;
   }
   set pixelWidth(value: number) {
-    this.#assertNotStarted("pixelWidth");
-    this.#pixelWidth = value;
+    this.size = { ...this.size, pixelWidth: value };
   }
 
   #pixelHeight = 2160;
@@ -66,8 +174,7 @@ export class CanvasRecorder {
     return this.#pixelHeight;
   }
   set pixelHeight(value: number) {
-    this.#assertNotStarted("pixelHeight");
-    this.#pixelHeight = value;
+    this.size = { ...this.size, pixelHeight: value };
   }
 
   #width = 16;
@@ -77,16 +184,17 @@ export class CanvasRecorder {
    * The player sets the canvas's transform so that the visible area is always
    * `width` units wide and {@link height} units tall, whatever the pixel size.
    *
-   * Note:  So far only the player itself reads this.  A lot of the components still
-   * assume 16 × 9.  The aspect ratio of `width` × `height` should match
-   * {@link pixelWidth} × {@link pixelHeight}.
+   * The aspect ratio of `width` × `height` should match {@link pixelWidth} × {@link pixelHeight}.
+   * If it doesn't, the picture is stretched to fit.
+   *
+   * Components that were written for 16 × 9 still assume it.
+   * The ones the Visual Editor's buttons use (Fit canvas, the snap buttons) read this.
    */
   get width() {
     return this.#width;
   }
   set width(value: number) {
-    this.#assertNotStarted("width");
-    this.#width = value;
+    this.size = { ...this.size, width: value };
   }
 
   #height = 9;
@@ -95,8 +203,7 @@ export class CanvasRecorder {
     return this.#height;
   }
   set height(value: number) {
-    this.#assertNotStarted("height");
-    this.#height = value;
+    this.size = { ...this.size, height: value };
   }
 
   #fps = 60;

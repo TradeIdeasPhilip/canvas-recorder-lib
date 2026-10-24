@@ -1,7 +1,9 @@
-# Build the API docs with TypeDoc and publish them to GitHub Pages on every push to master.
-# The generated HTML never gets committed.  Same pattern as riemann-surfaces-3d's deploy.yml.
+# Build the website and publish it to GitHub Pages on every push to master:
+#   /                        the API docs, from TypeDoc
+#   /simple-video-editor/    the simple video editor, built from this commit's library
+# Nothing generated gets committed.  Same pattern as riemann-surfaces-3d's deploy.yml.
 # One-time setup:  Settings → Pages → Source:  "GitHub Actions".
-name: Deploy docs to GitHub Pages
+name: Deploy docs and editor to GitHub Pages
 
 on:
   push:
@@ -28,13 +30,28 @@ jobs:
         with:
           node-version: lts/*
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            simple-video-editor/package-lock.json
       - run: npm ci
+      # The library's dist/, which the editor uses.
+      - run: npm run build
       # TypeDoc type checks the source, then writes HTML to docs/.
       - run: npm run docs
+      - run: npm ci
+        working-directory: simple-video-editor
+      # tsc, then vite build into simple-video-editor/dist.
+      - run: npm run build
+        working-directory: simple-video-editor
+      - name: Put the site together
+        run: |
+          mkdir _site
+          cp -R docs/. _site/
+          cp -R simple-video-editor/dist _site/simple-video-editor
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: docs
+          path: _site
 
   deploy:
     needs: build

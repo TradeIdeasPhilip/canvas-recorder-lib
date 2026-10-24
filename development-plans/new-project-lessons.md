@@ -7,17 +7,37 @@ The goal:  the next project follows the README and just works.
 
 ## Open
 
-### affine-transforms still uses `file:`
+### The library needs a very new browser (2026-10-19)
 
-Its `package.json` says `"canvas-recorder-lib": "file:../canvas-recorder-lib"`.
-It has no deploy workflow yet, so nothing is broken.
-Switch it the way riemann switched (README, [Installing](../README.md#installing)) before adding one.
+The library calls `Map.prototype.getOrInsertComputed()` (in `src/utility.ts`, `dev/audio-builder.ts`, `multi-text.ts` and `handwriting-effect.ts`).
+Chrome 155 has it.  Puppeteer's own Chrome 138 doesn't, and the player's Debug Log fills with
+`[audio] Skipped "./Some 5 part 1.m4a": TypeError: this[#cache].getOrInsertComputed is not a function`.
+The video still draws, without its sound.
+
+- For headless tests, give Puppeteer `executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"`.
+- Undecided:  a fallback for older browsers.  It matters most for the [Simple Video Editor](simple-video-editor.md), whose users aren't programmers.
+  Not checked yet:  Safari and Firefox.
+
+### A project inside this repo (2026-10-18)
+
+[simple-video-editor/](../simple-video-editor/) is the first.  What was different from a separate repo:
+
+- `"canvas-recorder-lib": "file:.."` works on GitHub too, because the library is in the same checkout.  The workflow builds the library first.
+- `npm install-scripts ls` lists the *library's* dependencies (`onnxruntime-node`, `protobufjs`, `esbuild`), found through the link.
+  They're installed by the library's own `npm ci`, so the project denies all three.
+  `fsevents` didn't need an approval here.
+- `fs.allow: [".."]` covers both the library and the project.
+- Untested so far:  whether a test project (see [test-project.md](test-project.md)) should copy this exactly.  Probably.
 
 ### To check
 
 - **`npm run dev` with the published copy (not linked).**  Vite pre-bundles packages in `node_modules`, but treats linked ones as source.
   Pre-bundling can break `new URL("./transcribe-worker.js", import.meta.url)`, which Vite's docs say may need `optimizeDeps.exclude`.
-  Production builds are fine:  riemann's site works.  Test transcription in `npm run dev` without a link.  Unverified.
+  Production builds are fine:  riemann's site works.
+  - **Mostly checked (2026-10-19), in affine-transforms with 0.5.0 and Vite 8.3.4.**  Vite pre-bundled the library (every deep import, plus the player chunk), and the worker still loaded from
+    `/node_modules/canvas-recorder-lib/dist/dev/transcribe-worker.js?worker_file&type=module`.
+    The editor's automatic transcript of the voiceover got to "downloading models 35%" before the test stopped.
+    No `optimizeDeps.exclude` needed.  Not seen:  a finished transcript.
 - **The README is the npm page.**  npmjs.com shows the README from the last publish, so README fixes appear there with the next version.
 
 ### Gaps in the README's new-project instructions
@@ -25,12 +45,26 @@ Switch it the way riemann switched (README, [Installing](../README.md#installing
 Found while planning the [test project](test-project.md).  The instructions grew from what riemann-surfaces-3d ran into, so they're not a checklist yet.
 
 - No list of the files a new project needs:  `package.json`, `tsconfig.json`, `index.html`, `src/main.ts`, `.gitignore`, `public/icon.png`, `CLAUDE.md`.
-- Missing Vite settings that affine-transforms has:  `base: "./"`, `build.outDir`, `resolve.dedupe: ["phil-lib"]`, and `rollupOptions.input` for more than one page.
+- Missing Vite settings that affine-transforms has:  `base: "./"` and `resolve.dedupe: ["phil-lib"]`.
+  Not `build.outDir` any more:  affine-transforms used to build into a committed `docs/`, and now uses Vite's default, `dist/`, like riemann.
+  `rollupOptions.input` (more than one page) is canvas-recorder's, not affine-transforms'.
 - No deploy workflow.  riemann-surfaces-3d's `.github/workflows/deploy.yml` is the one to copy.
+  affine-transforms copied it unchanged (2026-10-19).  Once its first deploy is green, that's two projects:  fold a "Publishing" section into the README,
+  including the one-time **Settings → Pages → Source: GitHub Actions**.
 - phil-lib:  a project that imports phil-lib itself should list it in its own `package.json`.
   riemann doesn't import it, and npm installs it anyway as the library's peer dependency.
 
 ## Done
+
+### affine-transforms used `file:` (2026-10-14 → 2026-10-19)
+
+It was the first project, set up from an earlier version of the README.
+It switched the way riemann did ([Installing](../README.md#installing)):  `"canvas-recorder-lib": "^0.5.0"`, the same `allowScripts` as riemann, and riemann's `deploy.yml`.
+The build moved from a committed `docs/` to a gitignored `dist/`.
+
+It built with 0.5.0 unchanged, although the library had moved on locally.
+A copy with no `../canvas-recorder-lib` beside it passed `npm ci` and `npm run build`, the same steps as GitHub's build.
+Its CLAUDE.md and README now say to use `npm link`, never `file:`.
 
 ### `file:../canvas-recorder-lib` broke GitHub Pages (2026-10-14 → 2026-10-18)
 

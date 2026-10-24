@@ -1,19 +1,27 @@
 import { Input, InputVideoTrack } from "mediabunny";
 import { ReadOnlyRect } from "phil-lib/misc";
+import { canvasRecorder } from "../../lib/main-control";
 
 // MARK: Constants
 
-/** The canvas is always 16×9 units — see CLAUDE.md's "Coordinate System". */
-export const CANVAS_WIDTH_UNITS = 16;
-export const CANVAS_HEIGHT_UNITS = 9;
+/** The width of the canvas, in units.  Usually 16.  See {@link canvasRecorder.width}. */
+export function canvasWidthUnits(): number {
+  return canvasRecorder.width;
+}
+
+/** The height of the canvas, in units.  Usually 9.  See {@link canvasRecorder.height}. */
+export function canvasHeightUnits(): number {
+  return canvasRecorder.height;
+}
 
 /**
- * Recordings render at 3840×2160 (see dev/canvas-recorder.ts), so
- * 3840 / 16 = 2160 / 9 = 240 pixels per canvas unit.  A video drawn at
- * exactly this many of its own pixels per unit appears at its native
- * resolution in the final output, with no resampling at all.
+ * Output pixels per canvas unit, across.  3840 / 16 = 240 for the defaults.
+ * A video drawn at exactly this many of its own pixels per unit appears at its
+ * native resolution in the final output, with no resampling at all.
  */
-export const PIXELS_PER_UNIT = 240;
+export function pixelsPerUnit(): number {
+  return canvasRecorder.pixelWidth / canvasRecorder.width;
+}
 
 // MARK: Reading a file
 
@@ -114,37 +122,41 @@ export async function readVideoInfo(
 
 type Size = { readonly width: number; readonly height: number };
 
-/** "max fit" / "meet" / "contain": the whole video fits inside the 16×9 canvas. */
+/** "max fit" / "meet" / "contain": the whole video fits inside the canvas. */
 export function maxFit(mediaWidth: number, mediaHeight: number): Size {
+  const canvasWidth = canvasWidthUnits();
+  const canvasHeight = canvasHeightUnits();
   const mediaAspect = mediaWidth / mediaHeight;
-  const canvasAspect = CANVAS_WIDTH_UNITS / CANVAS_HEIGHT_UNITS;
+  const canvasAspect = canvasWidth / canvasHeight;
   return mediaAspect > canvasAspect
-    ? { width: CANVAS_WIDTH_UNITS, height: CANVAS_WIDTH_UNITS / mediaAspect }
-    : { width: CANVAS_HEIGHT_UNITS * mediaAspect, height: CANVAS_HEIGHT_UNITS };
+    ? { width: canvasWidth, height: canvasWidth / mediaAspect }
+    : { width: canvasHeight * mediaAspect, height: canvasHeight };
 }
 
 /** "min to cover" / "slice" / "fill": the canvas is fully covered; the video may overflow it. */
 export function minCover(mediaWidth: number, mediaHeight: number): Size {
+  const canvasWidth = canvasWidthUnits();
+  const canvasHeight = canvasHeightUnits();
   const mediaAspect = mediaWidth / mediaHeight;
-  const canvasAspect = CANVAS_WIDTH_UNITS / CANVAS_HEIGHT_UNITS;
+  const canvasAspect = canvasWidth / canvasHeight;
   return mediaAspect > canvasAspect
-    ? { width: CANVAS_HEIGHT_UNITS * mediaAspect, height: CANVAS_HEIGHT_UNITS }
-    : { width: CANVAS_WIDTH_UNITS, height: CANVAS_WIDTH_UNITS / mediaAspect };
+    ? { width: canvasHeight * mediaAspect, height: canvasHeight }
+    : { width: canvasWidth, height: canvasWidth / mediaAspect };
 }
 
-/** "preserve pixels": native resolution in the final output.  See {@link PIXELS_PER_UNIT}. */
+/** "preserve pixels": native resolution in the final output.  See {@link pixelsPerUnit}. */
 export function preservePixels(mediaWidth: number, mediaHeight: number): Size {
   return {
-    width: mediaWidth / PIXELS_PER_UNIT,
-    height: mediaHeight / PIXELS_PER_UNIT,
+    width: mediaWidth / pixelsPerUnit(),
+    height: mediaHeight / pixelsPerUnit(),
   };
 }
 
-/** A rectangle of the given size, centered on the 16×9 canvas. */
+/** A rectangle of the given size, centered on the canvas. */
 export function centeredOnCanvas(size: Size): ReadOnlyRect {
   return {
-    x: (CANVAS_WIDTH_UNITS - size.width) / 2,
-    y: (CANVAS_HEIGHT_UNITS - size.height) / 2,
+    x: (canvasWidthUnits() - size.width) / 2,
+    y: (canvasHeightUnits() - size.height) / 2,
     width: size.width,
     height: size.height,
   };

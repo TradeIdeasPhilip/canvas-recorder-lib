@@ -36,6 +36,7 @@ There's no page in this repo.  Run a project that uses the library (add it with 
 | `../affine-transforms` | 5175 | The video in active development (formerly canvas-recorder's `some5`) |
 | `../riemann-surfaces-3d` | 5174 | three.js robots, recorded with `src/full-screen-component.ts` |
 | `test-project/` | 5176 | Planned:  test and tool pages, in this repo.  See `development-plans/test-project.md` |
+| `simple-video-editor/` | 5177 | In this repo:  the library's editor with an empty project, for non-programmers.  Uses `file:..`.  Published at `/simple-video-editor/` |
 
 Every project gets its own fixed port.  README.md's "Ports" table is the master list; add new projects there.
 
@@ -64,6 +65,8 @@ dev/canvas-recorder.ts← the player:  one big module, loaded by canvasRecorder.
 dev/player-body.ts    ← the player's HTML, which start() puts in the page
 src/                  ← Showable, components, interpolation, glib…
 src/slide-components/ ← everything the Visual Editor can create; registry.ts lists them
+src/local-files.ts    ← `local:<name>` URLs for files on the user's computer; fetchMedia()
+simple-video-editor/  ← a small app in this repo; .github/workflows/docs.yml builds and publishes it
 scripts/              ← build helpers (and the old import script)
 dist/                 ← build output, gitignored
 README.md             ← for users of the library, including notes for consumer projects
@@ -77,12 +80,14 @@ e.g. `canvas-recorder-lib/src/glib/path-shape` (the `"./*"` export maps to `dist
 - **The output is compiled JavaScript.**  tsc rewrites `import "./x.ts"` to `./x.js` (`rewriteRelativeImportExtensions`), but not strings.  So `new URL("./worker.js", import.meta.url)` must name the `.js` file.
 - **tsc doesn't copy CSS.**  `scripts/copy-assets.mjs` does.  JSON imports are emitted by tsc.
 - **`start()` loads the player with one dynamic `import()`**, so the player's top-level code runs after the request is in place.  Don't add a top-level `await` to the player, and tell consumers not to `await start()` at their top level:  either one can hang the page with no error.
-- **`canvasRecorder` settings freeze at `start()`.**  Read them while drawing, not at module load.  Some components still assume 16 × 9.
+- **Read `canvasRecorder`'s settings while drawing, not at module load.**  The size (`pixelWidth`, `pixelHeight`, `width`, `height`) can change at any time, from the GUI or from code, unless the main program calls `lockSize()`.  `fps` freezes at `start()`.  Some components still assume 16 × 9.
+- **A component's default values must never depend on the canvas size.**  Save files leave out values equal to a fresh component's (`registryDefault()` in snapshot.ts), so a size-dependent default would load differently later.  Set a size-dependent value explicitly, as the Insert button does for a new Video Clip.
+- **Media is read through `fetchMedia()`** (src/local-files.ts), not `fetch()`, so `local:` URLs work everywhere.
 - **Export names must be ASCII.**  Rollup truncates names at the first character above U+00FF.
 
 ## Coordinate System
 
-The canvas is always **16 units wide × 9 units tall**, regardless of actual pixel dimensions. The root transform (`scale(canvas.width/16, canvas.height/9)`) is applied before any `show()` call. All drawing uses these logical units. Never work in pixels directly.
+The canvas is **`canvasRecorder.width` units wide × `canvasRecorder.height` units tall** (16 × 9 by default), regardless of actual pixel dimensions. The root transform (`scale(canvas.width/width, canvas.height/height)`) is applied before any `show()` call. All drawing uses these logical units. Never work in pixels directly.
 
 ## Core Abstraction: `Showable`
 

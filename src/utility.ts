@@ -1,5 +1,6 @@
 import { pick, sum, zip } from "phil-lib/misc";
 import { Showable } from "./showable";
+import { canvasRecorder } from "../lib/main-control";
 
 export type Mutable<T> = {
   -readonly [P in keyof T]: T[P];
@@ -58,7 +59,7 @@ export const blackBackground: Showable = {
   duration: 0,
   show({ context }) {
     context.fillStyle = "black";
-    context.fillRect(0, 0, 16, 9);
+    context.fillRect(0, 0, canvasRecorder.width, canvasRecorder.height);
   },
 };
 

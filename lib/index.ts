@@ -22,6 +22,7 @@ export * from "../src/showable.ts";
 export * from "../src/interpolate.ts";
 export * from "../src/schedule-helper.ts";
 export * from "../src/stroke-colors.ts";
+export * from "../src/local-files.ts";
 
 // MARK: Components
 // Everything the Visual Editor knows how to create, save and load.

@@ -1,5 +1,6 @@
 import { assertFinite } from "phil-lib/misc";
 import { ShowOptions } from "./showable";
+import { getLocalFile, isLocalFileUrl, localFilesGeneration } from "./local-files";
 
 // MARK: Base Class
 
@@ -147,13 +148,38 @@ export class SingleImage extends SlowImage {
     return this.#promise;
   }
   #element: HTMLImageElement;
+  /**
+   * For a local file that failed to load:  {@link localFilesGeneration} at the time.
+   * A newer generation means it's worth making a new one.  See {@link worthRetrying}.
+   */
+  #failedAtGeneration: number | undefined;
+  /**
+   * True if this image failed, and something has changed that might fix it.
+   * That only happens for local files, e.g. after the user clicks 🔓.
+   */
+  get worthRetrying(): boolean {
+    return (
+      this.#failedAtGeneration !== undefined &&
+      this.#failedAtGeneration !== localFilesGeneration()
+    );
+  }
   constructor(readonly url: string) {
     super();
     this.#element = new Image();
     this.#element.crossOrigin = "anonymous";
     this.data = this.#element;
-    this.#element.src = url;
-    this.#promise = this.#element.decode().then(() => {
+    let loaded: Promise<void>;
+    if (isLocalFileUrl(url)) {
+      // A local file has no web address.  Read it, then give the <img> a blob: URL for it.
+      loaded = getLocalFile(url).then((file) => {
+        this.#element.src = URL.createObjectURL(file);
+        return this.#element.decode();
+      });
+    } else {
+      this.#element.src = url;
+      loaded = this.#element.decode();
+    }
+    this.#promise = loaded.then(() => {
       if (this.#element.naturalWidth <= 0 || this.#element.naturalHeight <= 0) {
         throw new Error(`Unable to load "${url}".`);
       } else {
@@ -162,6 +188,10 @@ export class SingleImage extends SlowImage {
     });
     // Silence "unhandled rejection" noise in the console.
     // The promise stays rejected — getPromise() callers still receive the error.
-    this.#promise.catch(() => {});
+    this.#promise.catch(() => {
+      if (isLocalFileUrl(url)) {
+        this.#failedAtGeneration = localFilesGeneration();
+      }
+    });
   }
 }

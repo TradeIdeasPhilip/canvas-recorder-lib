@@ -1,4 +1,5 @@
 import { debugLog } from "../src/debug-log.ts";
+import { fetchMedia } from "../src/local-files.ts";
 import {
   Device,
   MODELS,
@@ -221,7 +222,7 @@ export async function makeTranscript(
 
 /** The file at `url` as 16 kHz mono, the way the models want it. */
 async function decode(url: string): Promise<Float32Array> {
-  const response = await fetch(url);
+  const response = await fetchMedia(url);
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
   // decodeAudioData resamples to its context's rate, which does the 16 kHz part.
   const context = new OfflineAudioContext(1, 1, SAMPLE_RATE);
@@ -305,13 +306,14 @@ type CacheRecord = Transcript & { readonly key: string; readonly url: string };
 async function cacheKey(url: string): Promise<string> {
   const absolute = new URL(url, location.href).href;
   const prefix = `${PIPELINE_VERSION}|${MODELS.whisper}|${absolute}|`;
-  const head = await fetch(url, { method: "HEAD", cache: "no-cache" });
+  // For a local file, fetchMedia() answers with its size and modification time.
+  const head = await fetchMedia(url, { method: "HEAD", cache: "no-cache" });
   const etag = head.headers.get("etag");
   const modified = head.headers.get("last-modified");
   const length = head.headers.get("content-length");
   if (etag) return prefix + etag;
   if (modified && length) return `${prefix}${modified} ${length}`;
-  const bytes = await (await fetch(url)).arrayBuffer();
+  const bytes = await (await fetchMedia(url)).arrayBuffer();
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
   return prefix + Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("");
 }

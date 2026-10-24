@@ -42,7 +42,7 @@ export class SingleImageComponent implements Showable {
   }
   #getImage(timeInMs: number) {
     const url = this.urlSchedule.at(timeInMs);
-    if (url !== this.#image?.url) {
+    if (url !== this.#image?.url || this.#image?.worthRetrying) {
       this.#image = url ? new SingleImage(url) : undefined;
     }
     return this.#image;

@@ -1,3 +1,5 @@
+import { fetchMedia } from "../src/local-files.ts";
+
 /**
  * This creates a complete audio clip by joining multiple clips.
  * It starts with all silence and you can add the clips wherever you need them.
@@ -45,7 +47,7 @@ export class AudioBuilder {
 
   async #createNewAudioBuffer(url: string) {
     const time1 = performance.now();
-    const response = await fetch(url);
+    const response = await fetchMedia(url);
     const time2 = performance.now();
     const encodedSource = await response.arrayBuffer();
     const time3 = performance.now();
@@ -103,7 +105,7 @@ export class AudioBuilder {
    * And the url will start with "./".
    *
    * CORS can be an issue depending on the server.
-   * Local files are forbidden.
+   * A `local:` URL reads a file on the user's computer.  See src/local-files.ts.
    * @param startMsInDestination 0 to play the new clip at the the beginning of the video.
    * 1000 to start this clip 1 second after the video starts.
    *

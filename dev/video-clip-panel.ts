@@ -6,13 +6,19 @@ import {
   centeredOnCanvas,
   maxFit,
   minCover,
-  PIXELS_PER_UNIT,
+  pixelsPerUnit,
   preservePixels,
   sameCenter,
   shrinkToAspect,
   VideoInfo,
 } from "../src/slide-components/video-info.ts";
 import { ALIGN_HORIZONTALLY, ALIGN_VERTICALLY, buildSnapRow } from "./rect-snap.ts";
+import { buildLocalFileRow } from "./local-file-row.ts";
+import {
+  LocalFileError,
+  onLocalFilesChange,
+  VIDEO_FILE_TYPES,
+} from "../src/local-files.ts";
 
 /**
  * The `notes` on a sound clip that this panel created.  This is how it
@@ -23,6 +29,8 @@ const IMPORTED_AUDIO_NOTE = "imported from video";
 
 /** What the panel needs from the Visual Editor.  It never reaches into canvas-recorder.ts directly. */
 export type VideoClipPanelHooks = {
+  /** The URL was changed by a button here.  Save, and rebuild the schedule editor so the URL field shows it. */
+  readonly urlChanged: () => void;
   /**
    * Start / End were changed by a button.  Save, and rebuild the schedule
    * editor so the number fields show the new values.
@@ -68,6 +76,8 @@ function formatSpeed(speed: number): string {
  * every keystroke names a file that doesn't exist, and that is not a problem.
  */
 function quietError(error: unknown): string {
+  // These are written for the user already, and say what to do.
+  if (error instanceof LocalFileError) return error.message;
   const text = String(error);
   if (/404|not found|Failed to fetch/i.test(text)) return "Not found";
   if (/unsupported|unrecognized|format/i.test(text)) return "Not a video file this can read";
@@ -95,7 +105,7 @@ const isRealTime = (speed: number) => Math.abs(speed - 1) < 0.0005;
  */
 function nativeRatio(rect: ReadOnlyRect, info: VideoInfo): number {
   const drawn = shrinkToAspect(rect, info.video.width / info.video.height);
-  return (drawn.width * PIXELS_PER_UNIT) / info.video.width;
+  return (drawn.width * pixelsPerUnit()) / info.video.width;
 }
 
 /** The sound clip that would line this video's audio up with its picture, right now. */
@@ -152,6 +162,19 @@ export function buildVideoClipPanel(
   legend.textContent = "Video File";
   panel.append(legend);
 
+  panel.append(
+    buildLocalFileRow({
+      types: VIDEO_FILE_TYPES,
+      pickerId: "video-clips",
+      startIn: "videos",
+      currentUrl: () => clip.urlScalar.value,
+      choose(url) {
+        clip.urlScalar.value = url;
+        hooks.urlChanged();
+      },
+    }),
+  );
+
   const line = (parent: HTMLElement, cssText = "") => {
     const div = document.createElement("div");
     div.style.cssText = cssText;
@@ -193,7 +216,7 @@ export function buildVideoClipPanel(
   const rectButtons = [
     {
       text: "Fit canvas",
-      title: "As large as possible while the whole video stays on the 16×9 canvas.  Centered.",
+      title: "As large as possible while the whole video stays on the canvas.  Centered.",
       make: (info: VideoInfo) =>
         centeredOnCanvas(maxFit(info.video.width, info.video.height)),
     },
@@ -205,7 +228,7 @@ export function buildVideoClipPanel(
     },
     {
       text: "Native pixels",
-      title: `One video pixel per output pixel at ${PIXELS_PER_UNIT} px/unit — pixel perfect.  Keeps the rectangle's center.`,
+      title: `One video pixel per output pixel at ${pixelsPerUnit()} px/unit — pixel perfect.  Keeps the rectangle's center.`,
       make: (info: VideoInfo, rect: ReadOnlyRect) =>
         sameCenter(preservePixels(info.video.width, info.video.height), rect),
     },
@@ -260,7 +283,7 @@ export function buildVideoClipPanel(
   function draw(): void {
     switch (state) {
       case "empty":
-        statusEl.textContent = "No URL set";
+        statusEl.textContent = "No file yet:  open one, or type a URL below.";
         statusEl.style.color = "#888";
         break;
       case "loading":
@@ -503,6 +526,15 @@ export function buildVideoClipPanel(
     clip.soundClips = kept;
     clip.scheduleHasChanged();
     hooks.soundClipsChanged();
+  });
+
+  // Permission granted, or a file picked again:  a file that failed may open now.
+  const stopListening = onLocalFilesChange(() => {
+    if (!panel.isConnected) {
+      stopListening();
+      return;
+    }
+    if (state === "error") refresh();
   });
 
   refresh();

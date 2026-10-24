@@ -7,6 +7,9 @@ This is the tooling from [canvas-recorder](https://github.com/TradeIdeasPhilip/c
 
 **API docs:** https://tradeideasphilip.github.io/canvas-recorder-lib/
 
+**Try it:** the [Simple Video Editor](https://tradeideasphilip.github.io/canvas-recorder-lib/simple-video-editor/) is this library's player and Visual Editor with an empty project:  open video clips from your computer, add text and callouts, and save an MP4.
+Its source is in [simple-video-editor/](https://github.com/TradeIdeasPhilip/canvas-recorder-lib/tree/master/simple-video-editor).
+
 ## Use
 
 ```ts
@@ -17,8 +20,16 @@ import { myVideo } from "./my-video.ts"; // Any Showable.
 // canvasRecorder.pixelWidth = 1920;
 // canvasRecorder.pixelHeight = 1080;
 
+// Optional.  For a video drawn for one specific size.
+// canvasRecorder.lockSize();
+
 canvasRecorder.start(myVideo, { name: "my-video" });
 ```
+
+The player shows the video's size (pixels and units) in four fields.
+Unless the program calls `lockSize()`, the user can change them, and the player remembers the change for this video.
+So read `canvasRecorder.width` and the rest while drawing, not once at startup.
+The Save dialog can also save one file at a different size, without changing the video.
 
 `start()` replaces the page's `<body>` with the player and its Visual Editor.
 Leave your HTML's body empty, or put "Please wait…" in it.
@@ -107,6 +118,7 @@ For a new project, take the next number and add it here.
 | 5174 | [riemann-surfaces-3d](https://github.com/TradeIdeasPhilip/riemann-surfaces-3d) |
 | 5175 | [affine-transforms](https://github.com/TradeIdeasPhilip/affine-transforms) |
 | 5176 | `test-project/` in this repo (planned; see [development-plans/test-project.md](development-plans/test-project.md)) |
+| 5177 | [`simple-video-editor/`](https://github.com/TradeIdeasPhilip/canvas-recorder-lib/tree/master/simple-video-editor) in this repo |
 
 ### Starting the editor
 
@@ -117,6 +129,11 @@ For a new project, take the next number and add it here.
   Disabling every sheet that has more than `@font-face` rules works (see `hideOurStyles()` in riemann-surfaces-3d's `src/video-editor.ts`).
 - **Stop your own animation loop and keyboard handlers.** Otherwise typing in the Visual Editor's text boxes drives your program.
 - **Put sound files in your `public/` folder** and refer to them as `"./name.m4a"`.
+- **Or use files on your computer.** The Video File and Image File panels have **📂 Open file…**, which stores a URL like `local:Screen Recording.mov`.
+  The browser remembers the file, but only in this browser on this computer.
+  After a reload it may want your OK again:  click **🔓 Allow local files**.
+  The Save dialog checks every local file before it starts, so a long recording can't stop halfway to ask.
+  In your own code, read media with `fetchMedia()`, which understands `local:` URLs.
 - **Save the editor's state into your project, so it's in git.** The editor always saves inside the browser (IndexedDB), which git can't see.
   Make a `properties/` folder, and point **💾 Save As**, the **Save defaults** checkbox, and **Save Diffs** at it.
   The browser remembers each choice, so after the first time they keep saving there.

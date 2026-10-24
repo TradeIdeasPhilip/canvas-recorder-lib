@@ -1,0 +1,24 @@
+{
+  "name": "simple-video-editor",
+  "private": true,
+  "version": "0.0.1",
+  "description": "A very simple video editor for clips, text and callouts, built from canvas-recorder-lib.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "canvas-recorder-lib": "file:.."
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vite": "^8.3.4"
+  },
+  "allowScripts": {
+    "onnxruntime-node": false,
+    "protobufjs": false,
+    "esbuild": false
+  }
+}

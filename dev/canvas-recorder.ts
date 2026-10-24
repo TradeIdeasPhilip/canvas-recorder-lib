@@ -110,8 +110,15 @@ import {
 import { transcriptFileName, transcriptJson } from "./transcript-export.ts";
 import { wordFlag } from "./transcript-align.ts";
 import type { Device } from "./transcribe-core.ts";
-import { canvasRecorder } from "../lib/main-control.ts";
+import { canvasRecorder, type VideoSize } from "../lib/main-control.ts";
 import { watchServiceWorkerReady } from "./delay-files.ts";
+import {
+  checkLocalFiles,
+  localFilesNeedingPermission,
+  localFileUrlsIn,
+  onLocalFilesChange,
+  requestLocalFileAccess,
+} from "../src/local-files.ts";
 import { DurationAgnosticComponent } from "../src/slide-components/duration-agnostic.ts";
 import {
   componentChoices,
@@ -316,6 +323,159 @@ viewport.addEventListener(
   },
   { passive: false },
 );
+
+// MARK: Video size
+
+/**
+ * The four size fields:  the saved file's pixels, and the drawing units.
+ * See development-plans/configurable-video-size.md.
+ */
+const videoSizeInputs = {
+  pixelWidth: getById("videoPixelWidth", HTMLInputElement),
+  pixelHeight: getById("videoPixelHeight", HTMLInputElement),
+  width: getById("videoUnitWidth", HTMLInputElement),
+  height: getById("videoUnitHeight", HTMLInputElement),
+} satisfies Record<keyof VideoSize, HTMLInputElement>;
+const videoSizeWarning = getById("videoSizeWarning", HTMLSpanElement);
+
+/**
+ * Where the user's size is remembered.  One entry per video, shared by every window
+ * and session on this origin.  localStorage, not IndexedDB:  it's synchronous, so a
+ * saved size is in place before the first frame, and its `storage` event tells the
+ * other windows about a change for free.
+ */
+const videoSizeStorageKey = `canvas-recorder-size|${startRequest.name}`;
+
+/** The size this video's user saved, if any. */
+function readSavedVideoSize(): VideoSize | undefined {
+  try {
+    const parsed: unknown = JSON.parse(
+      localStorage.getItem(videoSizeStorageKey) ?? "null",
+    );
+    if (typeof parsed !== "object" || parsed === null) return undefined;
+    const record = parsed as Record<string, unknown>;
+    const size = {
+      pixelWidth: record.pixelWidth,
+      pixelHeight: record.pixelHeight,
+      width: record.width,
+      height: record.height,
+    };
+    const valid = Object.values(size).every(
+      (value) => typeof value === "number" && Number.isFinite(value) && value > 0,
+    );
+    return valid ? (size as VideoSize) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Use the saved size, unless the program locked it.  A bad saved size is ignored. */
+function applySavedVideoSize() {
+  if (canvasRecorder.sizeLocked) return;
+  const saved = readSavedVideoSize();
+  if (!saved) return;
+  try {
+    canvasRecorder.size = saved;
+  } catch (error) {
+    console.warn("Ignoring the saved video size.", saved, error);
+  }
+}
+applySavedVideoSize();
+
+/** Copy the size into the fields, except one the user is typing in. */
+function showVideoSize(size: VideoSize) {
+  for (const [key, input] of Object.entries(videoSizeInputs)) {
+    input.readOnly = canvasRecorder.sizeLocked;
+    if (document.activeElement !== input) {
+      input.value = String(size[key as keyof VideoSize]);
+    }
+  }
+  const pixelAspect = size.pixelWidth / size.pixelHeight;
+  const unitAspect = size.width / size.height;
+  const stretched = Math.abs(pixelAspect / unitAspect - 1) > 0.001;
+  videoSizeWarning.textContent = stretched ? "⚠ stretched" : "";
+  videoSizeWarning.title = stretched
+    ? `The pixels are ${pixelAspect.toFixed(3)} : 1 and the units are ${unitAspect.toFixed(3)} : 1, so the picture is stretched to fit.`
+    : "";
+  getById("videoSizeControls", HTMLSpanElement).title = canvasRecorder.sizeLocked
+    ? "The size of the video.  This program sets it, so it can't be changed here."
+    : "The size of the video.  Pixels:  the saved file.  Units:  the coordinates everything is drawn in.  Remembered for this video.";
+}
+showVideoSize(canvasRecorder.size);
+
+for (const [key, input] of Object.entries(videoSizeInputs)) {
+  input.addEventListener("input", () => {
+    if (canvasRecorder.sizeLocked) return;
+    const value = input.valueAsNumber;
+    // Empty, 0 or negative is normal while typing.  Wait for a usable number.
+    if (!(Number.isFinite(value) && value > 0)) return;
+    try {
+      canvasRecorder.size = { ...canvasRecorder.size, [key]: value };
+    } catch {
+      // E.g. 0.4 pixels, which rounds to 0.  Also normal while typing.
+      return;
+    }
+    try {
+      localStorage.setItem(
+        videoSizeStorageKey,
+        JSON.stringify(canvasRecorder.size),
+      );
+    } catch {
+      // Private browsing, or storage is full.  The size still works until the page reloads.
+    }
+  });
+  // Show the value as stored, e.g. rounded to whole pixels, once the user is done typing.
+  input.addEventListener("blur", () => showVideoSize(canvasRecorder.size));
+}
+
+canvasRecorder.onSizeChange((size) => {
+  showVideoSize(size);
+  if (isRecording) return;
+  if (zoomSelect.value === "fit") {
+    zoomToFit();
+  } else {
+    applyZoom(currentZoomFactor);
+  }
+});
+
+// Another window changed this video's size.
+addEventListener("storage", (event) => {
+  if (event.key === videoSizeStorageKey) applySavedVideoSize();
+});
+
+// MARK: Local files
+
+/**
+ * 🔓:  shown when some of the video's files are on this computer, and the browser
+ * needs a click before it will read them.  See src/local-files.ts.
+ */
+const localFilesBtn = getById("localFilesBtn", HTMLButtonElement);
+
+function updateLocalFilesButton() {
+  const names = localFilesNeedingPermission();
+  localFilesBtn.hidden = names.length === 0;
+  localFilesBtn.textContent =
+    names.length === 1 ? "🔓 Allow local file" : `🔓 Allow ${names.length} local files`;
+  localFilesBtn.title =
+    "The browser needs your OK before it reads these files again:\n" + names.join("\n");
+}
+onLocalFilesChange(updateLocalFilesButton);
+
+/** Ask about every file that needs it.  Then the sounds can load. */
+async function allowLocalFiles() {
+  await requestLocalFileAccess();
+  // The images and video clips try again by themselves.  The sounds are loaded all at once.
+  void initAudio();
+}
+localFilesBtn.addEventListener("click", () => void allowLocalFiles());
+
+/**
+ * Find out, without asking the user anything, whether the video's local files can be read.
+ * Any that can't put the 🔓 button on screen.
+ */
+function checkVideosLocalFiles() {
+  void checkLocalFiles(localFileUrlsIn(toShow));
+}
 
 /**
  * @param timeInMs Draw the animation at this time.
@@ -635,6 +795,8 @@ let audioBuilder = new AudioBuilder(toShow.duration);
 let reloadGeneration = 0;
 
 async function initAudio(): Promise<void> {
+  // The sound clips are being re-read, so this is a good time to look for files needing 🔓.
+  checkVideosLocalFiles();
   const myGen = ++reloadGeneration;
   audioReady = false;
   stopAudio();
@@ -858,7 +1020,21 @@ function escapeHtml(text: string): string {
     .replace(/>/g, "&gt;");
 }
 
-async function startRecording(saveStartMs = 0, saveEndMs = toShow.duration) {
+/**
+ * Record the video and save it to a file the user picks.
+ * @param saveStartMs Where to start, in the video's time.
+ * @param saveEndMs Where to stop.
+ * @param pixelWidth The saved file's width.  Usually {@link canvasRecorder.pixelWidth}, but the
+ * Save dialog can change it, just for this file.  Nothing else sees the change:  the picture
+ * is still drawn in canvasRecorder's units, and simply stretched to this size.
+ * @param pixelHeight The saved file's height.  See `pixelWidth`.
+ */
+async function startRecording(
+  saveStartMs = 0,
+  saveEndMs = toShow.duration,
+  pixelWidth = canvasRecorder.pixelWidth,
+  pixelHeight = canvasRecorder.pixelHeight,
+) {
   stopAudio();
   startRecordingButton.disabled = true;
   liveControls.disabled = true;
@@ -867,13 +1043,13 @@ async function startRecording(saveStartMs = 0, saveEndMs = toShow.duration) {
 
   suspendLiveAnimationLoop = true;
 
-  // Lock canvas at 4K for the duration of recording.
+  // Lock the canvas at the output size for the duration of recording.
   // Disable all size-changing code paths so the encoder sees a constant frame size.
   isRecording = true;
   viewportResizeObserver.disconnect();
   zoomControls.inert = true;
-  canvas.width = canvasRecorder.pixelWidth;
-  canvas.height = canvasRecorder.pixelHeight;
+  canvas.width = pixelWidth;
+  canvas.height = pixelHeight;
   canvas.style.width = "";
   canvas.style.height = "";
   canvas.style.maxWidth = "100%";
@@ -1096,6 +1272,85 @@ const saveInfoStart = getById("saveInfoStart", HTMLTableCellElement);
 const saveInfoEnd = getById("saveInfoEnd", HTMLTableCellElement);
 const saveInfoDuration = getById("saveInfoDuration", HTMLTableCellElement);
 const saveInfoFrames = getById("saveInfoFrames", HTMLTableCellElement);
+const saveWidthInput = getById("saveWidth", HTMLInputElement);
+const saveHeightInput = getById("saveHeight", HTMLInputElement);
+const saveKeepAspectCheckbox = getById("saveKeepAspect", HTMLInputElement);
+const saveSizeNote = getById("saveSizeNote", HTMLDivElement);
+const saveOkBtn = getById("saveOkBtn", HTMLButtonElement);
+
+// MARK: Save size
+
+/**
+ * Why the Save dialog's size can't be used, or undefined if it can.
+ *
+ * HEVC stores color at half resolution (4:2:0), so both numbers must be even.
+ */
+function saveSizeProblem(width: number, height: number): string | undefined {
+  if (!(Number.isInteger(width) && width > 0 && Number.isInteger(height) && height > 0)) {
+    return "The size must be two whole numbers of pixels.";
+  }
+  if (width % 2 || height % 2) {
+    return "Both numbers must be even.";
+  }
+  return undefined;
+}
+
+/** Explain the Save dialog's size, and enable OK only when everything is usable. */
+function updateSaveSizeNote(): void {
+  const width = saveWidthInput.valueAsNumber;
+  const height = saveHeightInput.valueAsNumber;
+  const { pixelWidth, pixelHeight } = canvasRecorder;
+  const problem = saveSizeProblem(width, height);
+  if (problem) {
+    saveSizeNote.textContent = problem;
+    saveSizeNote.style.color = "red";
+  } else if (width === pixelWidth && height === pixelHeight) {
+    saveSizeNote.textContent = "The video's own size.";
+    saveSizeNote.style.color = "#555";
+  } else {
+    const stretched =
+      Math.abs((width / height) / (pixelWidth / pixelHeight) - 1) > 0.001;
+    saveSizeNote.textContent = stretched
+      ? `Stretched:  the video is ${pixelWidth} × ${pixelHeight}.`
+      : `${Math.round((width / pixelWidth) * 100)}% of the video's ${pixelWidth} × ${pixelHeight}.`;
+    saveSizeNote.style.color = stretched ? "#a06000" : "#555";
+  }
+  const startMs = (saveStartSecondsInput.valueAsNumber || 0) * 1000;
+  const endMs = (saveEndSecondsInput.valueAsNumber || 0) * 1000;
+  saveOkBtn.disabled = problem !== undefined || endMs <= startMs;
+}
+
+/** Set the Save dialog's size to the video's own. */
+function resetSaveSize(): void {
+  saveWidthInput.value = String(canvasRecorder.pixelWidth);
+  saveHeightInput.value = String(canvasRecorder.pixelHeight);
+  updateSaveSizeNote();
+}
+
+/**
+ * With Keep aspect ratio checked, typing one number sets the other.
+ * The shape always comes from the video's own size, not the last pair typed, so it can't drift.
+ * The other number is rounded to an even number of pixels.
+ */
+function matchSaveAspect(changed: "width" | "height"): void {
+  if (saveKeepAspectCheckbox.checked) {
+    const aspect = canvasRecorder.pixelWidth / canvasRecorder.pixelHeight;
+    const even = (n: number) => Math.max(2, Math.round(n / 2) * 2);
+    if (changed === "width") {
+      const width = saveWidthInput.valueAsNumber;
+      if (width > 0) saveHeightInput.value = String(even(width / aspect));
+    } else {
+      const height = saveHeightInput.valueAsNumber;
+      if (height > 0) saveWidthInput.value = String(even(height * aspect));
+    }
+  }
+  updateSaveSizeNote();
+}
+
+saveWidthInput.addEventListener("input", () => matchSaveAspect("width"));
+saveHeightInput.addEventListener("input", () => matchSaveAspect("height"));
+saveKeepAspectCheckbox.addEventListener("input", () => matchSaveAspect("width"));
+getById("saveVideoSizeBtn", HTMLButtonElement).addEventListener("click", resetSaveSize);
 
 function formatTimecode(ms: number): string {
   const totalFrames = Math.round((ms * FPS) / 1000);
@@ -1120,6 +1375,7 @@ function updateSaveDialogInfo(): void {
     (durationMs * FPS) / 1000,
   ).toLocaleString();
   saveInfoFrames.style.color = invalid ? "red" : "";
+  updateSaveSizeNote();
 }
 
 function setSaveRange(startMs: number, endMs: number): void {
@@ -1186,17 +1442,49 @@ getById("saveDialogCancelBtn", HTMLButtonElement).addEventListener(
   () => saveDialog.close(),
 );
 
-getById("saveOkBtn", HTMLButtonElement).addEventListener("click", () => {
+const saveLocalFilesRow = getById("saveLocalFilesRow", HTMLDivElement);
+const saveLocalFilesNote = getById("saveLocalFilesNote", HTMLSpanElement);
+const saveLocalFilesBtn = getById("saveLocalFilesBtn", HTMLButtonElement);
+
+/**
+ * Check every local file the video uses, before a long recording starts, so it can't stop
+ * halfway to wait for a permission nobody is there to give.
+ * @returns True if they're all ready.  Otherwise the Save dialog says what's wrong.
+ */
+async function saveDialogLocalFilesReady(): Promise<boolean> {
+  const problems = await checkLocalFiles(localFileUrlsIn(toShow));
+  saveLocalFilesRow.hidden = problems.length === 0;
+  const needPermission = problems.some((problem) => problem.reason === "permission");
+  saveLocalFilesBtn.hidden = !needPermission;
+  saveLocalFilesNote.textContent = problems.map((problem) => problem.message).join("  ");
+  return problems.length === 0;
+}
+
+saveLocalFilesBtn.addEventListener("click", async () => {
+  await allowLocalFiles();
+  await saveDialogLocalFilesReady();
+});
+
+saveOkBtn.addEventListener("click", async () => {
   const startMs = (saveStartSecondsInput.valueAsNumber || 0) * 1000;
   const endMs = (saveEndSecondsInput.valueAsNumber || 0) * 1000;
+  const width = saveWidthInput.valueAsNumber;
+  const height = saveHeightInput.valueAsNumber;
+  if (saveSizeProblem(width, height)) return;
+  // Quick:  no prompts, just IndexedDB.  The click still counts for the file picker afterward.
+  if (!(await saveDialogLocalFilesReady())) return;
   saveDialog.close();
-  startRecording(startMs, endMs);
+  startRecording(startMs, endMs, width, height);
 });
 
 startRecordingButton.addEventListener("click", () => {
   populateSaveChapterSelect();
+  // Always start from the video's own size, not whatever was used last time.
+  resetSaveSize();
   setSaveRange(0, toShow.duration);
+  saveLocalFilesRow.hidden = true;
   saveDialog.showModal();
+  void saveDialogLocalFilesReady();
 });
 
 /**
@@ -4880,6 +5168,16 @@ function updateComponentEditor(selectable: Showable) {
     const entry = key === undefined ? undefined : componentRegistry.get(key);
     if (!entry) return;
     const newChild = entry.create();
+    if (newChild instanceof VideoClipComponent) {
+      // The class default is 16 × 9, and saved files rely on defaults never changing.
+      // So fill the canvas here, as a value of its own, whatever size the canvas is.
+      newChild.destinationRectSchedule.set({
+        x: 0,
+        y: 0,
+        width: canvasRecorder.width,
+        height: canvasRecorder.height,
+      });
+    }
     addTarget.replaceableComponents!.push(newChild);
     afterStructureEdit(newChild);
   });
@@ -5450,6 +5748,12 @@ function updateScheduleEditor(selectable: Showable) {
 
   const videoPanel = videoClip
     ? buildVideoClipPanel(videoClip, {
+        urlChanged() {
+          activeRootComponentEditor?.update(videoClip, videoClip.urlScalar);
+          markDirty();
+          // Rebuild so the URL field shows the new value.
+          updateScheduleEditor(videoClip);
+        },
         scalarsChanged() {
           activeRootComponentEditor?.update(
             videoClip,
@@ -5496,6 +5800,12 @@ function updateScheduleEditor(selectable: Showable) {
   if (selectable instanceof SingleImageComponent) {
     const image = selectable;
     const imagePanel = buildStaticImagePanel(image, {
+      urlChanged() {
+        activeRootComponentEditor?.update(image, image.urlSchedule);
+        markDirty();
+        // Rebuild so the URL field shows the new value.
+        updateScheduleEditor(image);
+      },
       rectKeyframeChanged(kf) {
         // The same sync a drag on the canvas uses, so ✎ edit mode survives.
         markerSyncCallbacks.get(kf)?.(kf.value);
@@ -7083,6 +7393,8 @@ function refreshEditorsAfterLoad(): void {
   activeRootComponentEditor?.resetAll();
   updateComponentEditor(current);
   updateScheduleEditor(current);
+  // The loaded state may use local files that need 🔓.
+  checkVideosLocalFiles();
 }
 
 /**
