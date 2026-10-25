@@ -1892,7 +1892,7 @@ const veRootParent: ShowableParent = {
     _durationAudioTimer = setTimeout(() => void initAudio(), 300);
     // Redraw the timeline so block positions/sizes update during drags.
     if (_veRootSelectable) {
-      timelineDisplay.setChapterDuration(_veRootSelectable.duration);
+      timelineDisplay.setChapter(_veRootSelectable, _veRootSelectable.duration);
       timelineDisplay.setBlocks(_buildTimelineBlocks(_veRootSelectable));
     }
     scheduleChapterRefresh();
@@ -1917,7 +1917,7 @@ const toShowParent: ShowableParent = {
     clearTimeout(_durationAudioTimer);
     _durationAudioTimer = setTimeout(() => void initAudio(), 300);
     if (_veRootSelectable) {
-      timelineDisplay.setChapterDuration(_veRootSelectable.duration);
+      timelineDisplay.setChapter(_veRootSelectable, _veRootSelectable.duration);
       timelineDisplay.setBlocks(_buildTimelineBlocks(_veRootSelectable));
     }
     scheduleChapterRefresh();
@@ -2486,7 +2486,7 @@ function _buildTimelineBlocks(selectable: Showable): TimelineBlock[] {
 }
 
 function _updateTimeline(selectable: Showable): void {
-  timelineDisplay.setChapterDuration(selectable.duration);
+  timelineDisplay.setChapter(selectable, selectable.duration);
   timelineDisplay.setBlocks(_buildTimelineBlocks(selectable));
   timelineDisplay.setSelectedId(selectedSlideChild ?? undefined);
 }
@@ -4999,10 +4999,13 @@ function updateComponentEditor(selectable: Showable) {
 
       if (replaceable && replaceables) {
         const moveChild = (fromIdx: number, toIdx: number) => {
-          const arr = replaceables.get();
-          const [item] = arr.splice(fromIdx, 1);
-          arr.splice(toIdx, 0, item);
-          replaceables.replace(arr);
+          // In a series, the playhead follows the picture it was showing.
+          keepingScene(selectable, () => {
+            const arr = replaceables.get();
+            const [item] = arr.splice(fromIdx, 1);
+            arr.splice(toIdx, 0, item);
+            replaceables.replace(arr);
+          });
           activeRootComponentEditor?.resetAll();
           updateComponentEditor(selectable);
         };
@@ -5041,10 +5044,18 @@ function updateComponentEditor(selectable: Showable) {
         deleteBtn.type = "button";
         deleteBtn.textContent = "🗑";
         deleteBtn.addEventListener("click", () => {
+          // In a series, everything after this child moves earlier, and the playhead goes with it.
+          const root = currentRoot();
+          const childStart = root ? startWithin(root, child) : undefined;
+          const childDuration = child.duration;
+          const chainEndMs = seriesChainEndMs(selectable);
           const arr = replaceables.get();
           const i = arr.indexOf(child);
           if (i !== -1) arr.splice(i, 1);
           replaceables.replace(arr);
+          if (childStart !== undefined) {
+            playheadAfterRemoving(childStart, childStart + childDuration, chainEndMs);
+          }
           if (selectedSlideChild === child) {
             selectedSlideChild = null;
             updateScheduleEditor(selectable);
@@ -5944,6 +5955,72 @@ function splitTarget(clip: VideoClipComponent): InSeriesComponent | string {
   return parent;
 }
 
+// MARK: Keep the scene
+
+/** Move the playhead to this time, measured from the start of the Visual Editor's root. */
+function seekInRoot(ms: number): void {
+  stopAudio();
+  loadPlayPositionSeconds(rootStartMs + ms);
+  loadPlayPositionRange();
+}
+
+/**
+ * Before an edit removes time from `series`:  where its chain of series ends, measured from the
+ * start of the root.  Removing time moves everything up to there earlier, and nothing after it.
+ * Undefined if `series` isn't an In Series in the current root, so nothing moves.
+ */
+function seriesChainEndMs(series: Showable): number | undefined {
+  const root = currentRoot();
+  if (!root || !(series instanceof InSeriesComponent)) return undefined;
+  let top: Showable = series;
+  while (top !== root && top.parent instanceof InSeriesComponent) {
+    top = top.parent;
+  }
+  const start = startWithin(root, top);
+  return start === undefined ? undefined : start + top.duration;
+}
+
+/**
+ * A series just lost the time from `fromMs` to `toMs` (measured from the start of the root), and
+ * everything after it moved earlier to fill the gap.  Move the playhead with it, so the preview
+ * keeps showing the same picture.  A playhead inside what's gone goes to where the gap was.
+ * @param chainEndMs {@link seriesChainEndMs}, from before the edit.
+ */
+function playheadAfterRemoving(
+  fromMs: number,
+  toMs: number,
+  chainEndMs: number | undefined,
+): void {
+  if (chainEndMs === undefined) return;
+  const at = playheadInRootMs();
+  if (at < fromMs || at >= chainEndMs) return;
+  seekInRoot(at >= toMs ? at - (toMs - fromMs) : fromMs);
+}
+
+/**
+ * Run `edit`, which reorders the children of `series`, then put the playhead on the same moment
+ * of the same child, wherever that child is now.
+ */
+function keepingScene(series: Showable, edit: () => void): void {
+  const root = currentRoot();
+  const seriesStart =
+    root && series instanceof InSeriesComponent
+      ? startWithin(root, series)
+      : undefined;
+  let anchor: { child: Showable; offsetMs: number } | undefined;
+  if (seriesStart !== undefined) {
+    const local = playheadInRootMs() - seriesStart;
+    const found = series.children?.find(
+      ({ start, child }) => local >= start && local < start + child.duration,
+    );
+    if (found) anchor = { child: found.child, offsetMs: local - found.start };
+  }
+  edit();
+  if (!root || !anchor) return;
+  const newStart = startWithin(root, anchor.child);
+  if (newStart !== undefined) seekInRoot(newStart + anchor.offsetMs);
+}
+
 /** How long a sound plays, for splitting:  a clip whose file isn't decoded yet is taken to play forever. */
 function soundLengthForSplit(sound: SoundClip): number {
   return soundClipLengthMs(sound) ?? Infinity;
@@ -5979,8 +6056,16 @@ async function splitAtPlayhead(clip: VideoClipComponent): Promise<void> {
         : [second];
   const siblings = parent.replaceableComponents!.get();
   siblings.splice(siblings.indexOf(clip), 1, ...kept);
+  const chainEndMs = seriesChainEndMs(parent);
   // Saves, rebuilds the audio, and redraws the timeline and the chapter list.
   parent.replaceableComponents!.replace(siblings);
+  // Keep showing the same picture:  a piece thrown away takes its time with it.
+  const splitMs = clipStart + first.duration;
+  if (choice.keep === "second") {
+    playheadAfterRemoving(clipStart, splitMs, chainEndMs);
+  } else if (choice.keep === "first") {
+    playheadAfterRemoving(splitMs, splitMs + second.duration, chainEndMs);
+  }
   selectedSoundClip = undefined;
   activeRootComponentEditor?.resetAll();
   if (root !== clip) {

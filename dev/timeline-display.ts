@@ -138,11 +138,33 @@ export class TimelineDisplay {
 
   // ── public API ─────────────────────────────────────────────────────────────
 
-  /** Call when the chapter changes; resets zoom/pan to show the full chapter. */
-  setChapterDuration(durationMs: number): void {
-    this._durationMs = Math.max(durationMs, 1);
-    this._viewStartMs = 0;
-    this._viewEndMs = this._durationMs;
+  /** The chapter last passed to {@link setChapter}. */
+  private _chapter: object | undefined;
+
+  /**
+   * Call whenever the chapter, or its length, may have changed.
+   *
+   * A different chapter shows all of itself.
+   * The same chapter keeps the user's zoom and pan, so an edit like ✂ Split doesn't undo them.
+   * The exception:  a view that showed the whole chapter keeps showing the whole chapter.
+   * @param chapter The chapter, by identity.
+   * @param durationMs Its length now.
+   */
+  setChapter(chapter: object, durationMs: number): void {
+    const newDurationMs = Math.max(durationMs, 1);
+    const showingAll =
+      this._viewStartMs <= 0 && this._viewEndMs >= this._durationMs;
+    if (chapter !== this._chapter || showingAll) {
+      this._viewStartMs = 0;
+      this._viewEndMs = newDurationMs;
+    } else if (this._viewStartMs >= newDurationMs) {
+      // The chapter got shorter than where the view starts.  Keep the zoom; show its end.
+      const span = this._viewEndMs - this._viewStartMs;
+      this._viewStartMs = Math.max(0, newDurationMs - span);
+      this._viewEndMs = this._viewStartMs + span;
+    }
+    this._chapter = chapter;
+    this._durationMs = newDurationMs;
     this._draw();
   }
 

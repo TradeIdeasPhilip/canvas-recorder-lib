@@ -5,26 +5,6 @@
     "description": "Simple Video Editor",
     "components": [
       {
-        "registryKey": "Rectangle",
-        "schedules": [
-          {
-            "description": "Color",
-            "type": "color",
-            "value": "black"
-          },
-          {
-            "description": "Rect",
-            "type": "rectangle",
-            "value": {
-              "x": 0,
-              "y": 0,
-              "width": 16,
-              "height": 10
-            }
-          }
-        ]
-      },
-      {
         "registryKey": "In Series",
         "components": [
           {
@@ -48,54 +28,68 @@
                 "value": "local:Ms Pac-Man Short.mov"
               },
               {
+                "description": "Start Ms Into Clip",
+                "type": "number",
+                "value": 2156.5
+              },
+              {
+                "description": "End Ms Into Clip",
+                "type": "number",
+                "value": 8337.1
+              }
+            ],
+            "duration": 6180.6,
+            "soundClips": [
+              {
+                "source": "local:Ms Pac-Man Short.mov",
+                "startMsIntoScene": 0,
+                "startMsIntoClip": 2180.020833,
+                "lengthMs": 6180.6,
+                "notes": "imported from video"
+              }
+            ]
+          },
+          {
+            "registryKey": "Video Clip",
+            "schedules": [
+              {
+                "description": "Dest Rect",
+                "type": "rectangle",
+                "value": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 16,
+                  "height": 20.512820512820515
+                }
+              }
+            ],
+            "scalars": [
+              {
+                "description": "URL",
+                "type": "string",
+                "value": "local:Ms Pac-Man Short.mov"
+              },
+              {
+                "description": "Start Ms Into Clip",
+                "type": "number",
+                "value": 11465.2
+              },
+              {
                 "description": "End Ms Into Clip",
                 "type": "number",
                 "value": 202868.33333333334
               }
             ],
-            "duration": 202868.33333333334,
+            "duration": 191403.13333333333,
             "soundClips": [
               {
                 "source": "local:Ms Pac-Man Short.mov",
                 "startMsIntoScene": 0,
-                "startMsIntoClip": 23.520833333333336,
-                "lengthMs": 202868.33333333334,
+                "startMsIntoClip": 11488.720833,
+                "lengthMs": 191403.133333,
                 "notes": "imported from video"
               }
             ]
-          }
-        ]
-      },
-      {
-        "registryKey": "Traditional Text",
-        "schedules": [
-          {
-            "description": "Text",
-            "type": "string",
-            "value": "Select Clip 1, then 📂 Open file…"
-          },
-          {
-            "description": "Position",
-            "type": "point",
-            "value": {
-              "x": 8,
-              "y": 5
-            }
-          },
-          {
-            "description": "Fill Color",
-            "type": "color",
-            "value": "white"
-          },
-          {
-            "description": "Font Size",
-            "type": "number",
-            "value": 0.6
-          },
-          {
-            "description": "Baseline",
-            "type": "select",
-            "value": "middle"
           }
         ]
       }

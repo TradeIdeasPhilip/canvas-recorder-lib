@@ -16,6 +16,20 @@ In simple-video-editor, a third clip was a 17:33 screen recording, 2880 × 1800:
 
 The two earlier clips were small, and worked.
 
+### Later the same day
+
+Probably the same cause, but not proven:
+
+- After deleting the big clip and reloading a few times:  no sound at all, and a blank waveform, though the transcript (cached) was there.
+  That's what every sound clip failing to load looks like; the reasons would be in the Debug Log.
+- Adding a 3-minute screen recording as a second clip crashed the tab ("Aw, Snap") within a second or two.
+  Import audio and the transcript each read the whole file into memory, at about the same time, in a tab that had already struggled with the 7.2 GB file.
+- Closing the tab and opening a new one fixed everything.  A new tab gets a fresh renderer process; a reload may not.
+- On GitHub Pages, after a reload, the three properties files wanted a click to allow writing again, and the waveform was blank until a second reload.
+  Chrome may drop some file permissions when a tab's process is replaced.  Least certain of all.
+
+Until this is fixed:  turn off 📝 Transcripts while working with big files, and check the Debug Log when the sound goes silent.
+
 ## Why
 
 Both readers fetch the **whole file** into one `ArrayBuffer` and hand it to the browser's audio decoder:
