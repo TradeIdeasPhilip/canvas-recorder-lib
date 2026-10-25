@@ -1891,10 +1891,7 @@ const veRootParent: ShowableParent = {
     clearTimeout(_durationAudioTimer);
     _durationAudioTimer = setTimeout(() => void initAudio(), 300);
     // Redraw the timeline so block positions/sizes update during drags.
-    if (_veRootSelectable) {
-      timelineDisplay.setChapter(_veRootSelectable, _veRootSelectable.duration);
-      timelineDisplay.setBlocks(_buildTimelineBlocks(_veRootSelectable));
-    }
+    refreshTimeline();
     scheduleChapterRefresh();
   },
 };
@@ -1916,10 +1913,7 @@ const toShowParent: ShowableParent = {
     markDirty();
     clearTimeout(_durationAudioTimer);
     _durationAudioTimer = setTimeout(() => void initAudio(), 300);
-    if (_veRootSelectable) {
-      timelineDisplay.setChapter(_veRootSelectable, _veRootSelectable.duration);
-      timelineDisplay.setBlocks(_buildTimelineBlocks(_veRootSelectable));
-    }
+    refreshTimeline();
     scheduleChapterRefresh();
   },
 };
@@ -2137,7 +2131,7 @@ transcriptView = new TranscriptView({
     _durationAudioTimer = setTimeout(() => void initAudio(), 300);
     // Show the owner's Sound Clips, with the remaining piece highlighted.
     selectInChapter(owner);
-    if (_veRootSelectable) _updateTimeline(_veRootSelectable);
+    refreshTimeline();
   },
 });
 getById("timelineCanvas", HTMLCanvasElement).after(transcriptView.element);
@@ -2483,6 +2477,17 @@ function _buildTimelineBlocks(selectable: Showable): TimelineBlock[] {
   }
 
   return blocks;
+}
+
+/**
+ * Redraw the timeline after an edit.  It always shows the chapter, the root picked in the
+ * `<select>`.  Not {@link _veRootSelectable}:  that's whatever the component editor shows, which
+ * can be a child of the chapter.  Passing both, one after the other, looked like a new chapter
+ * every time, and reset the timeline's zoom and pan.
+ */
+function refreshTimeline(): void {
+  const chapter = currentRoot();
+  if (chapter) _updateTimeline(chapter);
 }
 
 function _updateTimeline(selectable: Showable): void {
@@ -5287,7 +5292,7 @@ function buildSoundClipSection(selectable: Showable): HTMLElement {
     clearTimeout(_durationAudioTimer);
     _durationAudioTimer = setTimeout(() => void initAudio(), 300);
     updateScheduleEditor(selectable);
-    if (_veRootSelectable) _updateTimeline(_veRootSelectable);
+    refreshTimeline();
   }
 
   /** Every place a sound can live in this video, and when each starts. */
@@ -5642,7 +5647,7 @@ function buildSoundClipSection(selectable: Showable): HTMLElement {
         // The new owner is in another chapter.  Stay here; the clip is gone from this list.
         updateScheduleEditor(selectable);
       }
-      if (_veRootSelectable) _updateTimeline(_veRootSelectable);
+      refreshTimeline();
     });
     ownerLabel.append(ownerSelect);
     const playsAt = document.createElement("span");

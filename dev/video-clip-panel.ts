@@ -146,6 +146,18 @@ function expectedSoundClip(
   };
 }
 
+/**
+ * How far `sound` has been slid away from the picture, compared with a fresh import.
+ * Trimming either end doesn't change this; only moving the sound does.
+ * @returns Milliseconds.  Negative means the sound plays later than the matching picture.
+ */
+function syncOffsetMs(sound: SoundClip, expected: SoundClip): number {
+  // Which moment of the file plays at the clip's own time 0, for each.
+  const fileAtZero = (clip: SoundClip) =>
+    (clip.startMsIntoClip ?? 0) - clip.startMsIntoScene;
+  return fileAtZero(sound) - fileAtZero(expected);
+}
+
 function sameSoundClip(a: SoundClip, b: SoundClip): boolean {
   const close = (x: number | undefined, y: number | undefined) =>
     x === y || (x !== undefined && y !== undefined && Math.abs(x - y) < 0.5);
@@ -484,15 +496,27 @@ export function buildVideoClipPanel(
     importBtn.title =
       "Add this file's audio as a sound clip on this Video Clip, lined up with the picture.  " +
       "It lives on the clip, so it moves with the clip on the timeline.";
+    const expected = expectedSoundClip(clip, audio);
     if (imported.length === 0) {
       setStatus("");
-    } else if (
-      imported.length === 1 &&
-      sameSoundClip(imported[0], expectedSoundClip(clip, audio))
-    ) {
+    } else if (imported.length > 1) {
+      setStatus("Audio imported, then cut into pieces");
+      importBtn.title += "\n\nRe-import replaces the pieces with one sound clip, lined up with the picture.";
+    } else if (sameSoundClip(imported[0], expected)) {
       setStatus("Audio imported ✓", "#070");
     } else {
-      setStatus("Audio imported, but out of date", "#a06000");
+      const offsetMs = syncOffsetMs(imported[0], expected);
+      if (Math.abs(offsetMs) < 0.5) {
+        setStatus("Audio trimmed, still in sync ✓", "#070");
+      } else {
+        const seconds = (Math.abs(offsetMs) / 1000).toFixed(2);
+        setStatus(
+          `Audio moved ${seconds} s ${offsetMs < 0 ? "later" : "earlier"} than the picture`,
+          "#555",
+        );
+      }
+      importBtn.title +=
+        "\n\nRe-import undoes your changes to this sound clip:  its start, its end, and any move.";
     }
   }
 
