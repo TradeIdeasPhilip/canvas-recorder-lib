@@ -4035,9 +4035,19 @@ function buildScheduleSection(
     return playPositionSeconds.valueAsNumber * 1000;
   }
 
-  /** Time relative to the start of the selected scene — what keyframe.time values use. */
+  /**
+   * Where the component that owns this schedule starts, measured from the start of the Visual
+   * Editor's root.  0 for anything in a parallel container at the top, which is why measuring
+   * from the root used to look right.  A clip in an In Series starts later.
+   */
+  function ownerStartMs() {
+    const root = currentRoot();
+    return root ? (startWithin(root, selectable) ?? 0) : 0;
+  }
+
+  /** Time relative to the start of the component that owns this schedule — what keyframe.time values use. */
   function localTimeMs() {
-    return currentTimeMs() - rootStartMs;
+    return currentTimeMs() - rootStartMs - ownerStartMs();
   }
 
   function addKeyframeAtCurrentTime() {
@@ -4848,7 +4858,7 @@ function buildScheduleSection(
       goToBtn.addEventListener("click", () => {
         const globalMs = Math.max(
           sectionStartTime,
-          Math.min(sectionEndTime, kf.time + rootStartMs),
+          Math.min(sectionEndTime, kf.time + rootStartMs + ownerStartMs()),
         );
         stopAudio();
         loadPlayPositionSeconds(globalMs);
