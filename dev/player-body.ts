@@ -123,7 +123,12 @@ export const playerBodyHtml = `
                   />Repeat</label
                 >)&nbsp;</span
               >
-              <input type="number" id="playPositionSeconds" value="0" />
+              <input
+                type="number"
+                id="playPositionSeconds"
+                value="0"
+                title="The play position, in seconds.  Option-← and Option-→ step one frame."
+              />
               <input type="range" id="playPositionRange" value="0" step="any" />
             </div>
           </fieldset>
@@ -200,10 +205,16 @@ export const playerBodyHtml = `
           <button id="recordJustSound">Record Just Sound</button>
           <div id="info"><i>status goes here</i>...</div>
         </div>
-        <p>
-          Hot keys: ⌥Space to play/pause. ⌥B to go back 5 seconds and play. ⌥0
-          to jump to the start of the current section. Alt instead of ⌥ on a PC.
-        </p>
+        <div style="margin: 1em 0">
+          Hot keys:
+          <ul style="margin: 0">
+            <li>⌥Space to play or pause.</li>
+            <li>⌥B to go back 5 seconds and play.</li>
+            <li>⌥0 to jump to the start of the current section.</li>
+            <li>⌥← and ⌥→ to step one frame back or forward.</li>
+          </ul>
+          Alt instead of ⌥ on a PC.
+        </div>
         <br />
         <h1>Debug Log</h1>
         <button id="debugLogClearBtn" type="button">Clear</button>

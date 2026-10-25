@@ -992,6 +992,76 @@ getById("back5s", HTMLButtonElement).addEventListener("click", () => {
  */
 const FPS = canvasRecorder.fps;
 
+// MARK: Frames
+
+/**
+ * Frame *n* covers the times from n / FPS (inclusive) to (n + 1) / FPS (exclusive), and is
+ * always drawn at its center, (n + ½) / FPS.  That's true for the whole video and for any part
+ * of it, so separately saved pieces line up exactly.
+ *
+ * These measure in frames from the start of the whole video, with the centers at whole numbers.
+ * The play position is stored to 0.1 ms (see {@link loadPlayPositionSeconds}), so a time that
+ * was meant to be a center is allowed to miss by a little.
+ */
+const FRAME_TOLERANCE = 0.01;
+
+/** `ms` in frames, shifted so the frame centers are whole numbers. */
+function framePosition(ms: number): number {
+  return (ms * FPS) / 1000 - 0.5;
+}
+
+/** Where frame `n` is drawn, in ms from the start of the whole video. */
+function frameCenterMs(n: number): number {
+  return ((n + 0.5) * 1000) / FPS;
+}
+
+/** The first frame drawn at or after `ms`. */
+function firstFrameAtOrAfter(ms: number): number {
+  return Math.ceil(framePosition(ms) - FRAME_TOLERANCE);
+}
+
+/** How many frames are drawn from `startMs` (inclusive) to `endMs` (exclusive). */
+function framesBetween(startMs: number, endMs: number): number {
+  return Math.max(0, firstFrameAtOrAfter(endMs) - firstFrameAtOrAfter(startMs));
+}
+
+/**
+ * Move one frame forward (+1) or back (-1), pausing playback.
+ *
+ * From a frame's center, that's exactly one frame.  From anywhere else, it's the nearest
+ * center in that direction, so the playhead always ends up on a time that's really rendered.
+ * It stays inside the play limits.
+ */
+function stepOneFrame(direction: 1 | -1): void {
+  const position = framePosition(playPositionSeconds.valueAsNumber * 1000);
+  let frame =
+    direction > 0
+      ? Math.floor(position + FRAME_TOLERANCE) + 1
+      : Math.ceil(position - FRAME_TOLERANCE) - 1;
+  const first = firstFrameAtOrAfter(sectionStartTime);
+  const last = firstFrameAtOrAfter(sectionEndTime) - 1;
+  frame = Math.max(first, Math.min(last, frame));
+  playCheckBox.checked = false;
+  stopAudio();
+  loadPlayPositionSeconds(frameCenterMs(frame));
+  loadPlayPositionRange();
+}
+
+// Option-← and Option-→:  one frame back or forward.  Like the other hot keys, these use Option.
+// They work even in a text field, where they would otherwise move the cursor one word.
+// Arrow keys never cause a keypress event, so this has to be keydown.
+addEventListener("keydown", (event) => {
+  if (!event.altKey || event.shiftKey || event.metaKey || event.ctrlKey) return;
+  if (suspendLiveAnimationLoop) return; // Recording.
+  if (event.code === "ArrowRight") {
+    stepOneFrame(1);
+    event.preventDefault();
+  } else if (event.code === "ArrowLeft") {
+    stepOneFrame(-1);
+    event.preventDefault();
+  }
+});
+
 /**
  * This is the status of the save.  It has no purpose during live / realtime operation
  * so it initialize it to blank.
@@ -1102,13 +1172,18 @@ async function startRecording(
 
     output.addVideoTrack(videoSource, { frameRate: FPS });
 
+    // Frames come from the whole video's grid, even for part of it.  See firstFrameAtOrAfter().
+    const firstFrame = firstFrameAtOrAfter(saveStartMs);
+    // The file starts where its first frame starts, so the sound starts there too.
+    const audioStartMs = (firstFrame * 1000) / FPS;
+
     const fullAudioBuffer = audioBuilder.getAudioBuffer();
     let audioBuffer: AudioBuffer;
-    if (saveStartMs === 0 && saveEndMs >= toShow.duration) {
+    if (firstFrame === 0 && saveEndMs >= toShow.duration) {
       audioBuffer = fullAudioBuffer;
     } else {
       const sr = fullAudioBuffer.sampleRate;
-      const s0 = Math.round((saveStartMs / 1000) * sr);
+      const s0 = Math.round((audioStartMs / 1000) * sr);
       const s1 = Math.min(
         Math.round((saveEndMs / 1000) * sr),
         fullAudioBuffer.length,
@@ -1143,7 +1218,7 @@ async function startRecording(
     let frameNumber = 0;
     let warnedNoFramePromises = false;
     while (!canceled) {
-      const timeInMs = saveStartMs + (frameNumber + 0.5) * frameDuration;
+      const timeInMs = frameCenterMs(firstFrame + frameNumber);
       if (timeInMs >= saveEndMs) {
         break;
       }
@@ -1378,9 +1453,7 @@ function updateSaveDialogInfo(): void {
   saveInfoEnd.textContent = formatTimecode(endMs);
   saveInfoDuration.textContent = formatTimecode(durationMs);
   saveInfoDuration.style.color = invalid ? "red" : "";
-  saveInfoFrames.textContent = Math.floor(
-    (durationMs * FPS) / 1000,
-  ).toLocaleString();
+  saveInfoFrames.textContent = framesBetween(startMs, endMs).toLocaleString();
   saveInfoFrames.style.color = invalid ? "red" : "";
   updateSaveSizeNote();
 }
