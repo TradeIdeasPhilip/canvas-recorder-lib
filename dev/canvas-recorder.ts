@@ -5043,6 +5043,7 @@ function updateComponentEditor(selectable: Showable) {
         const deleteBtn = document.createElement("button");
         deleteBtn.type = "button";
         deleteBtn.textContent = "🗑";
+        deleteBtn.title = "Delete component";
         deleteBtn.addEventListener("click", () => {
           // In a series, everything after this child moves earlier, and the playhead goes with it.
           const root = currentRoot();
@@ -5398,7 +5399,7 @@ function buildSoundClipSection(selectable: Showable): HTMLElement {
 
     const delBtn = document.createElement("button");
     delBtn.type = "button";
-    delBtn.textContent = "✕";
+    delBtn.textContent = "🗑";
     delBtn.title = "Delete clip";
     delBtn.addEventListener("click", () => {
       clips.splice(i, 1);
