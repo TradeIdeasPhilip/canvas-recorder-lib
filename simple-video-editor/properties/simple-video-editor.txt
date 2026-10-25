@@ -1,0 +1,21 @@
+Simple Video Editor
+  const background = new hi({ description: "Background" });
+  background.colorSchedule.set("black");
+  background.rectSchedule.set({"x":0,"y":0,"width":16,"height":10});
+  this.addFixed({ child: background });
+  const clips = new e({ description: "Clips" });
+  const clip1 = new e({ description: "Clip 1" });
+  clip1.destinationRectSchedule.set({"x":0,"y":0,"width":16,"height":20.512820512820515});
+  clip1.urlScalar.value = "local:Ms Pac-Man Short.mov";
+  clip1.endMsIntoClipScalar.value = 202868.33333333334;
+  clip1.setDuration(202868.33333333334);
+  clip1.soundClips = [{"source":"local:Ms Pac-Man Short.mov","startMsIntoScene":0,"startMsIntoClip":23.520833333333336,"lengthMs":202868.33333333334,"notes":"imported from video"}];
+  clips.addFixed({ child: clip1 });
+  this.addFixed({ child: clips });
+  const instructions = new Nr({ description: "Instructions" });
+  instructions.textSchedule.set("Select Clip 1, then 📂 Open file…");
+  instructions.positionSchedule.set({"x":8,"y":5});
+  instructions.fillColorSchedule.set("white");
+  instructions.fontSizeSchedule.set(0.6);
+  instructions.textBaselineSchedule.set("middle");
+  this.addFixed({ child: instructions });

@@ -1,0 +1,104 @@
+{
+  "formatVersion": 2,
+  "videoKey": "simple-video-editor",
+  "tree": {
+    "description": "Simple Video Editor",
+    "components": [
+      {
+        "registryKey": "Rectangle",
+        "schedules": [
+          {
+            "description": "Color",
+            "type": "color",
+            "value": "black"
+          },
+          {
+            "description": "Rect",
+            "type": "rectangle",
+            "value": {
+              "x": 0,
+              "y": 0,
+              "width": 16,
+              "height": 10
+            }
+          }
+        ]
+      },
+      {
+        "registryKey": "In Series",
+        "components": [
+          {
+            "registryKey": "Video Clip",
+            "schedules": [
+              {
+                "description": "Dest Rect",
+                "type": "rectangle",
+                "value": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 16,
+                  "height": 20.512820512820515
+                }
+              }
+            ],
+            "scalars": [
+              {
+                "description": "URL",
+                "type": "string",
+                "value": "local:Ms Pac-Man Short.mov"
+              },
+              {
+                "description": "End Ms Into Clip",
+                "type": "number",
+                "value": 202868.33333333334
+              }
+            ],
+            "duration": 202868.33333333334,
+            "soundClips": [
+              {
+                "source": "local:Ms Pac-Man Short.mov",
+                "startMsIntoScene": 0,
+                "startMsIntoClip": 23.520833333333336,
+                "lengthMs": 202868.33333333334,
+                "notes": "imported from video"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "registryKey": "Traditional Text",
+        "schedules": [
+          {
+            "description": "Text",
+            "type": "string",
+            "value": "Select Clip 1, then 📂 Open file…"
+          },
+          {
+            "description": "Position",
+            "type": "point",
+            "value": {
+              "x": 8,
+              "y": 5
+            }
+          },
+          {
+            "description": "Fill Color",
+            "type": "color",
+            "value": "white"
+          },
+          {
+            "description": "Font Size",
+            "type": "number",
+            "value": 0.6
+          },
+          {
+            "description": "Baseline",
+            "type": "select",
+            "value": "middle"
+          }
+        ]
+      }
+    ]
+  }
+}

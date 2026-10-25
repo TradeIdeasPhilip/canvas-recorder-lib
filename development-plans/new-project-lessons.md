@@ -56,6 +56,20 @@ Found while planning the [test project](test-project.md).  The instructions grew
 
 ## Done
 
+### Class names in the generated TypeScript (2026-10-24)
+
+**Symptom.**  From the GitHub Pages copy of simple-video-editor, `properties/simple-video-editor.txt` said `new hi({ description: "Background" })` and `new Nr(…)`.
+
+**Cause.**  The Visual Editor writes each class's runtime name (`regEntry.howToGenerate.class.name` in dev/canvas-recorder.ts), and the production build minifies names.
+`npm run dev` doesn't minify, which is why it never showed up before.
+
+**Fix.**  `build.rolldownOptions.output.keepNames: true` in vite.config.js (Vite 8).
+The build then says `var ki=class VideoClipComponent extends …`, so `.name` is right.
+riemann-surfaces-3d builds for GitHub Pages too, and probably needs it.
+A sturdier fix would be a class-name string in each `componentRegistry` entry, but every custom component would need one too.
+
+**README:**  [Vite setup](../README.md#vite-setup).
+
 ### The first Import audio reloads the page (2026-10-24)
 
 **Symptom.**  In simple-video-editor under `npm run dev`, clicking Import audio reloaded the page.

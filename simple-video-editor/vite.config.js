@@ -13,6 +13,13 @@ export default defineConfig({
     target: "esnext",
     // .github/workflows/docs.yml copies this into the site, under simple-video-editor/.
     outDir: "dist",
+    rolldownOptions: {
+      output: {
+        // The Visual Editor writes TypeScript that names each component's class (the "Sync diffs"
+        // file, and properties/*.txt).  Without this, minifying turns those names into "hi" and "Nr".
+        keepNames: true,
+      },
+    },
   },
   resolve: {
     // Only one copy of phil-lib, whichever node_modules it's found in.

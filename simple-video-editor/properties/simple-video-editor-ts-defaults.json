@@ -1,0 +1,148 @@
+{
+  "formatVersion": 2,
+  "videoKey": "simple-video-editor",
+  "tree": {
+    "description": "Simple Video Editor",
+    "scalars": [
+      {
+        "description": "Min Duration",
+        "type": "number",
+        "value": 0
+      }
+    ],
+    "components": [
+      {
+        "registryKey": "Rectangle",
+        "schedules": [
+          {
+            "description": "Color",
+            "type": "color",
+            "value": "black"
+          },
+          {
+            "description": "Rect",
+            "type": "rectangle",
+            "value": {
+              "x": 0,
+              "y": 0,
+              "width": 16,
+              "height": 10
+            }
+          }
+        ]
+      },
+      {
+        "registryKey": "In Series",
+        "schedules": [],
+        "components": [
+          {
+            "registryKey": "Video Clip",
+            "schedules": [
+              {
+                "description": "Dest Rect",
+                "type": "rectangle",
+                "value": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 16,
+                  "height": 10
+                }
+              }
+            ],
+            "scalars": [
+              {
+                "description": "URL",
+                "type": "string",
+                "value": ""
+              },
+              {
+                "description": "Start Ms Into Clip",
+                "type": "number",
+                "value": 0
+              },
+              {
+                "description": "End Ms Into Clip",
+                "type": "number",
+                "value": 1000
+              }
+            ],
+            "components": [],
+            "duration": 10000,
+            "soundClips": []
+          }
+        ]
+      },
+      {
+        "registryKey": "Traditional Text",
+        "schedules": [
+          {
+            "description": "Text",
+            "type": "string",
+            "value": "Select Clip 1, then 📂 Open file…"
+          },
+          {
+            "description": "Position",
+            "type": "point",
+            "value": {
+              "x": 8,
+              "y": 5
+            }
+          },
+          {
+            "description": "Fill Color",
+            "type": "color",
+            "value": "white"
+          },
+          {
+            "description": "Outline Color",
+            "type": "color",
+            "value": "rgb(255, 128, 0)"
+          },
+          {
+            "description": "Outline Width",
+            "type": "number",
+            "value": 0
+          },
+          {
+            "description": "Font Size",
+            "type": "number",
+            "value": 0.6
+          },
+          {
+            "description": "Font Style",
+            "type": "select",
+            "value": "normal"
+          },
+          {
+            "description": "Font Weight",
+            "type": "number",
+            "value": 400
+          },
+          {
+            "description": "Font Family",
+            "type": "string",
+            "value": "Life Savers"
+          },
+          {
+            "description": "Align",
+            "type": "select",
+            "value": "center"
+          },
+          {
+            "description": "Baseline",
+            "type": "select",
+            "value": "middle"
+          }
+        ],
+        "scalars": [
+          {
+            "description": "Min Duration",
+            "type": "number",
+            "value": 0
+          }
+        ],
+        "components": []
+      }
+    ]
+  }
+}

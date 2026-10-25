@@ -98,6 +98,9 @@ export default defineConfig({
   optimizeDeps: {
     include: ["canvas-recorder-lib > @huggingface/transformers"],
   },
+  build: {
+    rolldownOptions: { output: { keepNames: true } }, // Vite 8.  Vite 7:  rollupOptions.
+  },
 });
 ```
 
@@ -107,6 +110,8 @@ export default defineConfig({
   Setting `allow` turns off Vite's default, so your own folder has to be listed too; that's what `searchForWorkspaceRoot()` is for.
 - **`optimizeDeps.include`:** without it, the first Import audio or transcript reloads the page, under `npm run dev` only.
   Only the transcription worker imports that package, and Vite doesn't look inside workers when it starts, so it finds the package late and reloads to use it.
+- **`keepNames`:** the Visual Editor writes TypeScript that names each component's class (Sync diffs, and `properties/*.txt`).
+  In a minified production build, like your GitHub Pages copy, those names come out as `hi` and `Nr` without it.
 - **A fixed port:** the editor saves your work in the browser (IndexedDB), and the browser keeps a separate copy for each origin.
   If another project already has the port, Vite quietly moves to the next one (5173 → 5174), and the editor seems to forget everything.
   `strictPort` makes that an error instead.

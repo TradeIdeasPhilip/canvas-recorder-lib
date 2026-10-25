@@ -228,11 +228,9 @@ export function buildVideoClipPanel(
   const derivedEl = line(panel, "font-size:0.9em;line-height:1.4;margin-top:0.3em");
 
   const timingRow = line(panel, "margin-top:0.5em");
-  const wholeFileBtn = button(
-    timingRow,
-    "Whole file",
-    "Start = 0, End = the end of the file, and Duration to match, so it plays in real time.",
-  );
+  const WHOLE_FILE_TITLE =
+    "Start = 0, End = the end of the file, and Duration to match, so it plays in real time.";
+  const wholeFileBtn = button(timingRow, "Whole file", WHOLE_FILE_TITLE);
   const realTimeBtn = button(
     timingRow,
     "Play at 1×",
@@ -420,12 +418,24 @@ export function buildVideoClipPanel(
     realTimeBtn.hidden = Number.isNaN(speed) || isRealTime(speed);
     realTimeBtn.disabled = !(end > start);
     for (const { btn } of rectButtons) btn.disabled = !ready;
-    sizeVideoBtn.disabled = !ready || canvasRecorder.sizeLocked;
+    const alreadyWhole =
+      ready &&
+      start === 0 &&
+      Math.abs(end - info!.durationMs) < 0.5 &&
+      Math.abs(clip.duration - info!.durationMs) < 0.5;
+    wholeFileBtn.disabled = !ready || alreadyWhole;
+    wholeFileBtn.title = alreadyWhole
+      ? `${WHOLE_FILE_TITLE}\n\nIt already is.`
+      : WHOLE_FILE_TITLE;
+    const alreadySized = ready && videoMatchesClip(info!);
+    sizeVideoBtn.disabled = !ready || canvasRecorder.sizeLocked || alreadySized;
     sizeVideoBtn.title = canvasRecorder.sizeLocked
       ? `${SIZE_VIDEO_TITLE}\n\nThis program sets the video's size, so it can't be changed here.`
-      : ready
-        ? `${SIZE_VIDEO_TITLE}\n\n${evenSize(info!.video.width)} × ${evenSize(info!.video.height)} pixels.`
-        : SIZE_VIDEO_TITLE;
+      : alreadySized
+        ? `${SIZE_VIDEO_TITLE}\n\nIt already is.`
+        : ready
+          ? `${SIZE_VIDEO_TITLE}\n\n${evenSize(info!.video.width)} × ${evenSize(info!.video.height)} pixels.`
+          : SIZE_VIDEO_TITLE;
     alignRow.draw();
     drawAudio(speed);
   }
@@ -534,6 +544,46 @@ export function buildVideoClipPanel(
     return "Dest Rect has several keyframes.  Click ✎ on the one you want to change.";
   }
 
+  /**
+   * What "Make video this size" does:  the video's new size, and the Dest Rect that fills it.
+   *
+   * The pixels are the clip's, rounded down to even numbers.  The units stay as wide as they
+   * are now, and get as tall as the clip's shape needs.  The rectangle puts one clip pixel on
+   * one output pixel, from the top left corner.  If a side was odd, its last column or row is
+   * off the edge, rather than resampling the whole picture.
+   */
+  function clipSize(info: VideoInfo): { size: VideoSize; rect: ReadOnlyRect } {
+    const { width: videoWidth, height: videoHeight } = info.video;
+    const pixelWidth = evenSize(videoWidth);
+    const pixelHeight = evenSize(videoHeight);
+    const width = canvasRecorder.width;
+    const height = (width * pixelHeight) / pixelWidth;
+    const unitsPerPixel = width / pixelWidth;
+    return {
+      size: { pixelWidth, pixelHeight, width, height },
+      rect: { x: 0, y: 0, width: videoWidth * unitsPerPixel, height: videoHeight * unitsPerPixel },
+    };
+  }
+
+  /** True when "Make video this size" would change nothing. */
+  function videoMatchesClip(info: VideoInfo): boolean {
+    const target = targetKeyframe();
+    // Several keyframes and none chosen:  clicking explains that, so keep the button enabled.
+    if (typeof target === "string") return false;
+    const { size, rect } = clipSize(info);
+    const close = (a: number, b: number) => Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b));
+    const current = canvasRecorder.size;
+    return (
+      current.pixelWidth === size.pixelWidth &&
+      current.pixelHeight === size.pixelHeight &&
+      close(current.height, size.height) &&
+      close(target.value.x, rect.x) &&
+      close(target.value.y, rect.y) &&
+      close(target.value.width, rect.width) &&
+      close(target.value.height, rect.height)
+    );
+  }
+
   sizeVideoBtn.addEventListener("click", () => {
     if (!info) return;
     const target = targetKeyframe();
@@ -542,20 +592,10 @@ export function buildVideoClipPanel(
       return;
     }
     const { width: videoWidth, height: videoHeight } = info.video;
-    const pixelWidth = evenSize(videoWidth);
-    const pixelHeight = evenSize(videoHeight);
-    const width = canvasRecorder.width;
-    const height = (width * pixelHeight) / pixelWidth;
-    if (!hooks.setVideoSize({ pixelWidth, pixelHeight, width, height })) return;
-    // One video pixel per output pixel, from the top left corner.  If a side was odd, its
-    // last column or row is off the edge, rather than resampling the whole picture.
-    const unitsPerPixel = width / pixelWidth;
-    target.value = {
-      x: 0,
-      y: 0,
-      width: videoWidth * unitsPerPixel,
-      height: videoHeight * unitsPerPixel,
-    };
+    const { size, rect } = clipSize(info);
+    const { pixelWidth, pixelHeight } = size;
+    if (!hooks.setVideoSize(size)) return;
+    target.value = rect;
     hooks.rectKeyframeChanged(target);
     rectHint.textContent =
       pixelWidth === videoWidth && pixelHeight === videoHeight
@@ -599,6 +639,15 @@ export function buildVideoClipPanel(
     clip.soundClips = kept;
     clip.scheduleHasChanged();
     hooks.soundClipsChanged();
+  });
+
+  // The size fields changed, so "Make video this size" may have something to do now, or not.
+  const stopWatchingSize = canvasRecorder.onSizeChange(() => {
+    if (!panel.isConnected) {
+      stopWatchingSize();
+      return;
+    }
+    drawDerived();
   });
 
   // Permission granted, or a file picked again:  a file that failed may open now.
