@@ -472,6 +472,12 @@ export class VideoClipComponent extends ComponentWithLiveDuration {
    * tune once this has actually been watched in practice.
    */
   static readonly CLOSE_ENOUGH_MARK_THRESHOLD_MS = 100;
+  /**
+   * How far ahead {@link getReady} starts decoding the first frame, in the video's time.
+   * Farther ahead than this, the work could pile up:  starting the movie would start every
+   * clip in the series at once.
+   */
+  static readonly GET_READY_MS = 5_000;
   readonly registryKey = "Video Clip";
   readonly urlScalar: Scalar<"string"> = {
     description: "URL",
@@ -618,6 +624,17 @@ export class VideoClipComponent extends ComponentWithLiveDuration {
       );
     }
     super.getFramePromises(timeInMs, set);
+  }
+  /**
+   * Called by an In Series parent before this clip starts.  Within {@link GET_READY_MS}, open the
+   * file and start decoding the first frame, the same request show() will make at time 0.
+   * Then the first frame is usually ready when it's needed, instead of a red ✕.
+   */
+  getReady(timeInMs: number): void {
+    if (timeInMs < -VideoClipComponent.GET_READY_MS) return;
+    // Opens the file, if this is the first time anyone asked.
+    if (!this.#getVideoPromise()) return;
+    this.#video?.frameSource.getRaf(this.locationInClip(0));
   }
   override show(options: ShowOptions): void {
     const { context, playSpeed, timeInMs } = options;

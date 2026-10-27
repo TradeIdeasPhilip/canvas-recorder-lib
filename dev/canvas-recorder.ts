@@ -6041,6 +6041,8 @@ function seekInRoot(ms: number): void {
   stopAudio();
   loadPlayPositionSeconds(rootStartMs + ms);
   loadPlayPositionRange();
+  // An edit moved the playhead.  Keep it on the timeline's screen if it was there.
+  timelineDisplay.movePlayMs(ms);
 }
 
 /**

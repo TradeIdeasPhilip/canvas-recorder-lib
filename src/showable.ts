@@ -400,6 +400,19 @@ export type Showable = {
   ) => void;
 
   /**
+   * This object will be shown soon.  Start loading what its first frame needs.  Draw nothing.
+   *
+   * The live-playback counterpart of {@link getFramePromises}.  In real time nobody can wait,
+   * so anything slow, like decoding a video frame, has to be asked for before it's needed.
+   *
+   * An In Series (`InSeriesComponent`) calls this on every frame of live playback, for each child that
+   * hasn't started yet.  Never while recording.
+   * @param timeInMs This object's own time, which is negative:  -2000 means it starts in 2 seconds
+   * of the video's time (not the wall clock's).  The object decides how far ahead is worth it.
+   */
+  getReady?: (timeInMs: number) => void;
+
+  /**
    * Draw this object to the canvas.
    *
    * This should have no other assumptions or side effects.

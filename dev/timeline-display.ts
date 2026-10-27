@@ -203,6 +203,24 @@ export class TimelineDisplay {
   }
 
   /**
+   * An edit just moved the play head, like ✂ Split keeping only the second piece.
+   *
+   * If that took it off screen, bring it back the same way playback does:  jump so it's at the
+   * left edge, keeping the zoom.  If it was already off screen, the user put it there, so the
+   * view stays where it is.
+   * @param localMs The play head's new time, from the start of the chapter.
+   */
+  movePlayMs(localMs: number): void {
+    const wasVisible = this._playheadVisible();
+    this._playLocalMs = localMs;
+    if (wasVisible && !this._interacting && !this._playheadVisible()) {
+      this._jumpToPlayhead();
+    }
+    this._wasPlayheadVisible = this._playheadVisible();
+    this._draw();
+  }
+
+  /**
    * The user just panned or zoomed.  If that took the play head off screen,
    * that was their choice:  don't follow it until it comes back into view.
    */
@@ -232,6 +250,11 @@ export class TimelineDisplay {
     if (this._interacting || this._playheadVisible()) return;
     const justStarted = !this._wasFollowing;
     if (!this._wasPlayheadVisible && !justStarted) return;
+    this._jumpToPlayhead();
+  }
+
+  /** Put the play head at the left edge, keeping the zoom.  Near the end, show the end instead. */
+  private _jumpToPlayhead(): void {
     const span = this._viewEndMs - this._viewStartMs;
     const start = Math.max(
       0,

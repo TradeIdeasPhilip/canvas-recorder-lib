@@ -239,7 +239,6 @@
                 "value": 107783.5
               }
             ],
-            "userEditableDescription": "ab ksdflk lkdjfaasgljksgadf allsjkdsdf ",
             "duration": 34219.9,
             "soundClips": [
               {
@@ -274,7 +273,7 @@
               {
                 "description": "Start Ms Into Clip",
                 "type": "number",
-                "value": 107783.5
+                "value": 163366.3
               },
               {
                 "description": "End Ms Into Clip",
@@ -282,13 +281,13 @@
                 "value": 202868.33333333334
               }
             ],
-            "duration": 95084.83333333337,
+            "duration": 39502.03333333337,
             "soundClips": [
               {
                 "source": "local:Ms Pac-Man Short.mov",
-                "startMsIntoScene": 0,
-                "startMsIntoClip": 104617.589212,
-                "lengthMs": 98274.264954,
+                "startMsIntoScene": 7044.610788,
+                "startMsIntoClip": 167245,
+                "lengthMs": 35646.854166,
                 "notes": "imported from video"
               }
             ]

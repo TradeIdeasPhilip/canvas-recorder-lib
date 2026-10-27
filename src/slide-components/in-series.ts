@@ -207,6 +207,9 @@ export class InSeriesComponent extends InParallelComponent {
       } else {
         super.showChild(info);
       }
+    } else if (timeInMs < 0 && info.options.playSpeed !== "exact") {
+      // Not started yet.  A video clip uses this to decode its first frame before it's needed.
+      info.child.getReady?.(timeInMs);
     }
   }
 }
