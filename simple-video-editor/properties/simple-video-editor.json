@@ -30,7 +30,7 @@
               {
                 "description": "Start Ms Into Clip",
                 "type": "number",
-                "value": 2156.5
+                "value": 6365.2
               },
               {
                 "description": "End Ms Into Clip",
@@ -38,13 +38,13 @@
                 "value": 8337.1
               }
             ],
-            "duration": 6180.6,
+            "duration": 1971.9000000000005,
             "soundClips": [
               {
                 "source": "local:Ms Pac-Man Short.mov",
                 "startMsIntoScene": 0,
-                "startMsIntoClip": 2180.020833,
-                "lengthMs": 6180.6,
+                "startMsIntoClip": 6388.720833,
+                "lengthMs": 1971.9,
                 "notes": "imported from video"
               }
             ]
@@ -114,40 +114,7 @@
               {
                 "description": "Start Ms Into Clip",
                 "type": "number",
-                "value": 23350.9
-              },
-              {
-                "description": "End Ms Into Clip",
-                "type": "number",
-                "value": 23439.4
-              }
-            ],
-            "duration": 88.5
-          },
-          {
-            "registryKey": "Video Clip",
-            "schedules": [
-              {
-                "description": "Dest Rect",
-                "type": "rectangle",
-                "value": {
-                  "x": 0,
-                  "y": 0,
-                  "width": 16,
-                  "height": 20.512820512820515
-                }
-              }
-            ],
-            "scalars": [
-              {
-                "description": "URL",
-                "type": "string",
-                "value": "local:Ms Pac-Man Short.mov"
-              },
-              {
-                "description": "Start Ms Into Clip",
-                "type": "number",
-                "value": 26093
+                "value": 30970
               },
               {
                 "description": "End Ms Into Clip",
@@ -155,16 +122,7 @@
                 "value": 31356.4
               }
             ],
-            "duration": 5263.4,
-            "soundClips": [
-              {
-                "source": "local:Ms Pac-Man Short.mov",
-                "startMsIntoScene": 468.479167,
-                "startMsIntoClip": 26585,
-                "lengthMs": 4794.920833,
-                "notes": "imported from video"
-              }
-            ]
+            "duration": 386.39999999999964
           },
           {
             "registryKey": "Video Clip",
@@ -296,6 +254,170 @@
                 "startMsIntoClip": 171850,
                 "lengthMs": 31041.854166,
                 "notes": "imported from video"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "registryKey": "Padding",
+        "scalars": [
+          {
+            "description": "Initial Time",
+            "type": "number",
+            "value": 17879.663722601832
+          },
+          {
+            "description": "Show After",
+            "type": "select",
+            "value": "hide"
+          }
+        ],
+        "components": [
+          {
+            "registryKey": "Multi Text",
+            "schedules": [
+              {
+                "description": "Position",
+                "type": "point",
+                "value": {
+                  "x": 8.285548202,
+                  "y": 14.944761618
+                }
+              },
+              {
+                "description": "Width",
+                "type": "number",
+                "value": 10.161956716150957
+              },
+              {
+                "description": "Height",
+                "type": "number",
+                "value": 6.482543498168499
+              }
+            ],
+            "scalars": [
+              {
+                "description": "Min Duration",
+                "type": "number",
+                "value": 4223
+              }
+            ],
+            "components": [
+              {
+                "registryKey": "Text Format",
+                "schedules": [
+                  {
+                    "description": "Color",
+                    "type": "color",
+                    "value": "rgb(255, 0, 255)"
+                  },
+                  {
+                    "description": "Font Size",
+                    "type": "number",
+                    "value": 0.6
+                  }
+                ]
+              },
+              {
+                "registryKey": "Text Span",
+                "schedules": [
+                  {
+                    "description": "Content",
+                    "type": "string",
+                    "value": "“5” = One Quarter\n"
+                  }
+                ]
+              },
+              {
+                "registryKey": "Handwriting Effect",
+                "schedules": [
+                  {
+                    "description": "Progress",
+                    "type": "number",
+                    "keyframes": [
+                      {
+                        "time": 0,
+                        "value": 0
+                      },
+                      {
+                        "time": 4223,
+                        "value": 1
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "userEditableDescription": "“5” = One Quarter"
+          }
+        ]
+      },
+      {
+        "registryKey": "Padding",
+        "scalars": [
+          {
+            "description": "Initial Time",
+            "type": "number",
+            "value": 19607.02569229056
+          }
+        ],
+        "components": [
+          {
+            "registryKey": "Multi Text",
+            "schedules": [
+              {
+                "description": "Position",
+                "type": "point",
+                "value": {
+                  "x": 8.285548202,
+                  "y": 16
+                }
+              },
+              {
+                "description": "Width",
+                "type": "number",
+                "value": 10.161956716150957
+              },
+              {
+                "description": "Height",
+                "type": "number",
+                "value": 6.482543498168499
+              }
+            ],
+            "scalars": [
+              {
+                "description": "Min Duration",
+                "type": "number",
+                "value": 20000
+              }
+            ],
+            "components": [
+              {
+                "registryKey": "Text Format",
+                "schedules": [
+                  {
+                    "description": "Color",
+                    "type": "color",
+                    "value": "rgb(255, 0, 255)"
+                  },
+                  {
+                    "description": "Font Size",
+                    "type": "number",
+                    "value": 0.6
+                  }
+                ]
+              },
+              {
+                "registryKey": "Text Span",
+                "schedules": [
+                  {
+                    "description": "Content",
+                    "type": "string",
+                    "value": "“6” = One Dollar"
+                  }
+                ],
+                "userEditableDescription": "“6” = One Dollar"
               }
             ]
           }

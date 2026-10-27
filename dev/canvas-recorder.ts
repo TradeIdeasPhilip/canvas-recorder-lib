@@ -5775,6 +5775,9 @@ function buildNameSection(selectable: Showable): HTMLElement {
     resetBtn.disabled = selectable.userEditableDescription === undefined;
     const root = currentSaveTarget();
     if (root) updateComponentEditor(root);
+    // The timeline's blocks and the Edit menu show the name, too.
+    refreshTimeline();
+    scheduleChapterRefresh();
   }
 
   input.addEventListener("input", () => syncName(input.value));
