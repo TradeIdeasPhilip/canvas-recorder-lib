@@ -3,7 +3,10 @@
 Preview, edit, annotate and record HTML canvas animations.
 This is the tooling from [canvas-recorder](https://github.com/TradeIdeasPhilip/canvas-recorder), packaged as a library, so each video can be its own small project.
 
-**Status:** version 0.x, a first version. Expect breaking changes.
+**Status:** in use for published videos.
+It's still growing:  while the version is 0.x, a change that could break your project comes with a new minor version (0.5 → 0.6), and [BREAKING-CHANGES.md](BREAKING-CHANGES.md) says what changed and how to update.
+
+**Source:** https://github.com/TradeIdeasPhilip/canvas-recorder-lib
 
 **API docs:** https://tradeideasphilip.github.io/canvas-recorder-lib/
 
@@ -197,7 +200,8 @@ The Simple Video Editor is a separate npm project inside this repo.  [simple-vid
 
 ## Releasing
 
-1. Bump the version:  `npm version minor --no-git-tag-version` (or `patch`).  Commit and push.
+1. Bump the version.  If [BREAKING-CHANGES.md](BREAKING-CHANGES.md) has an "Unreleased" section:  `npm version minor --no-git-tag-version`, and replace "Unreleased" with the new version and the date.
+   Otherwise:  `npm version patch --no-git-tag-version`.  Commit and push.
 2. `npm publish`.  `prepublishOnly` empties and rebuilds `dist/` first, so nothing stale is published.
 3. In each project:  `npm install canvas-recorder-lib@<version>`, `npx tsc --noEmit`, and commit `package.json` and `package-lock.json`.
 

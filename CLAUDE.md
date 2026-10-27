@@ -46,9 +46,13 @@ So run `npm run build` (or keep `npm run watch` going) here, then reload the pag
 
 ## Releasing a change
 
-1. Bump the version: `npm version minor --no-git-tag-version` (or `patch`).  Commit and `git push`.
+1. Bump the version.  If BREAKING-CHANGES.md has an "Unreleased" section:  `npm version minor --no-git-tag-version`, and replace "Unreleased" with the version and date.  Otherwise `patch`.  Commit and `git push`.
 2. `npm publish`.  `prepublishOnly` empties and rebuilds `dist/` first.  (The user runs this:  it needs their npm login and 2FA.)
 3. In each project that uses the library:  `npm install canvas-recorder-lib@<new version>`, `npx tsc --noEmit`, and commit `package.json` and `package-lock.json`.
+
+**A breaking change gets an entry in BREAKING-CHANGES.md, under "Unreleased", in the same commit.**  Breaking means a project that uses the library could stop compiling or look different:
+removing or renaming an export, changing a signature, or changing a component's default value (save files leave out defaults, so an old save would load differently).
+Say what to do instead.  The library is a production tool now.
 
 Projects depend on the published version, so their GitHub Pages builds work.
 To try unpublished library changes in a project, run `npm link ../canvas-recorder-lib` there.

@@ -9,7 +9,11 @@
   "entryPoints": ["lib/index.ts", "src/**/*.ts"],
   "out": "docs",
   "readme": "README.md",
-  "projectDocuments": ["internals.md"],
+  "projectDocuments": ["internals.md", "BREAKING-CHANGES.md"],
+  // In the header of every page.
+  "navigationLinks": {
+    "GitHub": "https://github.com/TradeIdeasPhilip/canvas-recorder-lib"
+  },
   "navigation": {
     "includeFolders": true
   },
