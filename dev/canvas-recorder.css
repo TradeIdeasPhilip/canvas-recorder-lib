@@ -367,3 +367,62 @@ body {
   outline: 2px solid #4a90d9;
   outline-offset: -2px;
 }
+
+/* ── Multi Text editor ───────────────────────────────────────────────── */
+
+/* The FormatEditor in dev/format-editor.ts:  plain text with a menu ("chip")
+   in front of each run of text, naming its Text Format.  From
+   format-editor-prototype's style.css. */
+.format-editor {
+  min-height: 6rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #c7c7cc;
+  border-radius: 6px;
+  background: white;
+  /* Newlines are stored as plain "\n" characters, not <br> or <div>. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.9;
+  font-size: 1.05rem;
+}
+
+.format-editor:focus-within {
+  outline: 2px solid #0a66d8;
+  outline-offset: 1px;
+}
+
+.format-chip {
+  display: inline-block;
+  margin: 0 1px;
+  vertical-align: baseline;
+}
+
+.format-chip select {
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  padding: 0 0.15rem;
+  color: #1d1d1f;
+  background: #e3edfb;
+  border: 1px solid #9dbbe6;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* A name that isn't one of the formats this text can see. */
+.format-chip.invalid select {
+  color: #d70015;
+  background: #fde8ea;
+  border-color: #d70015;
+  font-weight: 600;
+}
+
+/* In the open menu, all options except the unknown one use the normal color. */
+.format-chip.invalid select option {
+  color: #1d1d1f;
+  font-weight: normal;
+}
+
+.format-chip select option.invalid {
+  color: #d70015;
+}

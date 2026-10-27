@@ -5,7 +5,7 @@ I propose a simple tool in the Visual Editor for this component.
 The user types text, more or less like any plain text editor,
 and inserts HTML `<select>` elements to change the formats.
 
-**Status (2026-10-24):** Planning.  No code yet.
+**Status (2026-10-27):** Built, first version.  See [First version](#first-version-2026-10-27) at the end.
 
 ## Background
 
@@ -140,4 +140,35 @@ My recommendations.  Small, but each one needs an answer.
 
 ## Questions
 
-- Rename `#temporaryText`, and add `setSpans()`?  See [Why `addText()`'s spans are hidden](#why-addtexts-spans-are-hidden).
+- ~~Rename `#temporaryText`, and add `setSpans()`?~~  Yes, both.  See below.
+
+## First version (2026-10-27)
+
+**In the library** ([src/slide-components/multi-text.ts](../src/slide-components/multi-text.ts)):
+
+- `parseFormatString()`:  the `⸨name⸩content` parser, now shared by `addText1()`, `setSpans()` and the editor.
+  The prototype's copy (`addText1Spans()`) stayed behind.
+- `#temporaryText` is now `#programText`, with a doc comment saying why it's hidden.  `hasProgramText` tells the dialog whether to mention it.
+- `editableSpans()`, `getSpans()` and `setSpans(value)`, as described under [Details](#details):  spans reused in order, a schedule only changed if its value at time 0 differs, spans added after the last span and removed from the end.
+- `formatNamesInScope()` and `formatInScope(name)`:  the formats a span can see, found by walking up the `parent` chain.
+
+**In the Visual Editor:**
+
+- [dev/format-string.ts](../dev/format-string.ts) and [dev/format-editor.ts](../dev/format-editor.ts), copied from the prototype.
+  Added:  **New…** at the end of each menu (an `onNewFormat` option), and `destroy()`, which removes its `selectionchange` listener from the document.
+  Its styles are at the end of [dev/canvas-recorder.css](../dev/canvas-recorder.css).
+- [dev/multi-text-dialog.ts](../dev/multi-text-dialog.ts):  the dialog, opened by **✎ Edit Text…** at the top of the Text Frame panel.
+  It has **+ Format** (the prototype's "insert a format at the cursor"), notes for program text, TypeScript spans and animated spans, **Revert** and **Done**.  Escape is Done.
+- The Cmd+Z handler skips a `contenteditable`, and any key an editor already handled (`defaultPrevented`).  Inside the dialog, Cmd+Z is always the editor's undo.
+
+**Where it differs from the plan:**
+
+- **Saving first:**  the dialog saves any unsaved changes when it *opens*, not just before an edit that would flatten or delete an animated span.
+  Simpler, and the promise is the same:  the History dialog has the text as it was before the dialog changed it.
+- **Revert is exact:**  the dialog keeps copies of each span's keyframes and of the list of children, so Revert brings back animation, deleted spans, and removes new formats.
+- **Modal:**  like the font picker, so the left column's play controls don't work while it's open.  The canvas follows the typing only while the playhead is inside the text's time; the dialog says so.
+
+**Not done:**
+
+- The prototype's tests (`format-string.test.ts`) stay in the prototype.  The library half was checked with a throwaway Node script.
+- Spell check and drag and drop are still off in the editor, as in the prototype.

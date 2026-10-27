@@ -27,6 +27,8 @@ export type TextFramePanelHooks = {
   readonly rotationChanged: () => void;
   readonly canvasState: () => CanvasState;
   readonly setCanvasState: (state: CanvasState) => void;
+  /** ✎ Edit Text… was clicked.  Open the text editor.  See multi-text-dialog.ts. */
+  readonly editText: () => void;
 };
 
 export type TextFramePanel = {
@@ -77,6 +79,15 @@ export function buildTextFramePanel(
   };
 
   // MARK: Controls
+
+  const editTextRow = line("margin-bottom:0.3em");
+  const editTextBtn = button(
+    editTextRow,
+    "✎ Edit Text…",
+    "Type this text, with a menu in front of each part naming its format.  " +
+      "The canvas follows as you type.",
+  );
+  editTextBtn.addEventListener("click", () => hooks.editText());
 
   const canvasRow = line();
   const viewBtn = button(canvasRow, "👁", "Show the frame on the canvas");

@@ -18,7 +18,13 @@ import {
   StringScalarInfo,
   ColorScheduleInfo,
 } from "../schedule-helper";
-import { ShowOptions, Showable, ScheduleInfo, Scalar } from "../showable";
+import {
+  ShowOptions,
+  Showable,
+  ShowableParent,
+  ScheduleInfo,
+  Scalar,
+} from "../showable";
 import { DurationAgnosticComponent } from "./duration-agnostic";
 import { ShowChildInfo } from "./in-parallel";
 import { showError } from "./show-error";
@@ -77,6 +83,36 @@ function setTextFormatList(
 ) {
   return { ...options, [TEXT_FORMAT_LIST]: textFormatList };
 }
+
+// MARK: Format strings
+
+/** One piece of a format string:  a format's name, and the text after it. */
+export type FormattedSpan = { readonly format: string; readonly content: string };
+
+const FORMAT_STRING_SPLITTER = /^⸨([^⸨⸩]*)⸩([^⸨⸩]*)(.*)$/s;
+
+/**
+ * Split a format string, `"⸨format1⸩content1⸨format2⸩content2"`, into its spans.
+ *
+ * This is what {@link MultiTextComponent.addText1} and {@link MultiTextComponent.setSpans} read.
+ * Each `⸨name⸩` names a Text Format, and the content after it, up to the next `⸨`, is one span.
+ * There's no way to escape `⸨` or `⸩`, so content can't contain them.
+ *
+ * @throws If `all` isn't empty and doesn't start with a format.
+ */
+export function parseFormatString(all: string): FormattedSpan[] {
+  const result: FormattedSpan[] = [];
+  while (all != "") {
+    const pieces = FORMAT_STRING_SPLITTER.exec(all);
+    if (!pieces) {
+      throw new Error("Invalid here:  " + all);
+    }
+    result.push({ format: pieces[1], content: pieces[2] });
+    all = pieces[3];
+  }
+  return result;
+}
+
 // MARK: Auto Sizing
 
 /**
@@ -236,10 +272,9 @@ const ANCHOR_FRACTION = {
  * Each TextSpanComponent object points to a TextFormatComponent object by name.
  * Presumably a lot of formatting will be reused, like "normal" and bold.
  *
- * This is a prototype.
- * The basic functionality is there and works.
- * But the GUI needs some cleanup.
- * If nothing else it needs instructions.
+ * In the Visual Editor, ✎ Edit Text… (in the Text Frame panel) edits the Text Span children as
+ * one piece of text, with a menu in front of each part naming its format.  See {@link setSpans}.
+ * Text Formats are still edited one at a time, in the component list.
  * Ideally it would be impossible to add a TextSpanComponent or a TextFormatComponent to anything but one of these components.
  * And these components should have two *preferred* types of children:  TextSpanComponent or TextFormatComponent.
  *
@@ -273,9 +308,24 @@ export class MultiTextComponent extends DurationAgnosticComponent {
       .map(([key]) => key);
     choices.unshift("Text Span", "Text Format", ...effects);
   }
-  readonly #temporaryText = new Array<TextSpanComponent>();
+  /**
+   * Spans added by {@link addText} and {@link addText1}:  text the *program* owns.
+   *
+   * They're drawn after every Text Span child, but they aren't children, so the Visual Editor
+   * never sees them and they're never saved.  That's on purpose.  A program may rebuild them on
+   * every frame from live values (`clearText().addText1(…)` inside `show()`), and as children
+   * they would change the tree, and mark the video as changed, on every frame.
+   * They used to be replaceable children.  Loading a save replaced them with new objects, and
+   * the program went on changing the old ones, which were no longer in the tree.
+   *
+   * Text that the Visual Editor should show, save and undo belongs in Text Span children
+   * instead.  See {@link setSpans}.
+   */
+  readonly #programText = new Array<TextSpanComponent>();
   /**
    * Create, initialize, and add a TextSpanComponent to this MultiTextComponent.
+   *
+   * The span is hidden from the Visual Editor and never saved.  See {@link clearText}.
    * @param style The name of the style to apply to this text.
    * @param content The text to display.
    * @returns `this`, for chaining.
@@ -284,25 +334,23 @@ export class MultiTextComponent extends DurationAgnosticComponent {
     const span = new TextSpanComponent();
     span.styleSchedule.set(style);
     span.contentSchedule.set(content);
-    this.#temporaryText.push(span);
+    this.#programText.push(span);
     return this;
   }
-  static #splitter = /^⸨([^⸨⸩]*)⸩([^⸨⸩]*)(.*)$/s;
   /**
    * `component.addText1("⸨format1⸩content1⸨format2⸩content2⸨format3⸩content3")`
    * is equivalent to
-   * `component.add("format1", "content1").add("format2", "content2").add("format3", "content3")`
-   * @param all A string containing all of the text and styles to add.
+   * `component.addText("format1", "content1").addText("format2", "content2").addText("format3", "content3")`
+   *
+   * Like {@link addText}, this text is hidden from the Visual Editor and never saved, so it's
+   * the right choice for text built from live values, even on every frame.  For text the user
+   * should be able to edit, use {@link setSpans}.
+   * @param all A string containing all of the text and styles to add.  See {@link parseFormatString}.
    * @returns this;
    */
   addText1(all: string): this {
-    while (all != "") {
-      const pieces = MultiTextComponent.#splitter.exec(all);
-      if (!pieces) {
-        throw new Error("Invalid here:  " + all);
-      }
-      this.addText(pieces[1], pieces[2]);
-      all = pieces[3];
+    for (const { format, content } of parseFormatString(all)) {
+      this.addText(format, content);
     }
     return this;
   }
@@ -310,8 +358,125 @@ export class MultiTextComponent extends DurationAgnosticComponent {
    * Remove all TextSpanComponent objects created by addText() or addText1().
    */
   clearText() {
-    this.#temporaryText.length = 0;
+    this.#programText.length = 0;
     return this;
+  }
+  /** True if {@link addText} or {@link addText1} added text that {@link clearText} hasn't removed. */
+  get hasProgramText(): boolean {
+    return this.#programText.length > 0;
+  }
+
+  // MARK: Editable spans
+
+  /**
+   * The Text Span children the Visual Editor can add and remove, in order.
+   *
+   * Not the spans from {@link addText}, and not Text Spans added in TypeScript with `addFixed()`.
+   */
+  editableSpans(): TextSpanComponent[] {
+    return this.replaceableComponents!.get().filter(
+      (child): child is TextSpanComponent => child instanceof TextSpanComponent,
+    );
+  }
+  /**
+   * The {@link editableSpans} as one format string, using their values at time 0.
+   * The inverse of {@link setSpans}.
+   */
+  getSpans(): string {
+    return this.editableSpans()
+      .map((span) => {
+        const { style, content } = span.get(0);
+        return `⸨${style}⸩${content}`;
+      })
+      .join("");
+  }
+  /**
+   * Make the {@link editableSpans} match a format string, the same format {@link addText1} reads.
+   *
+   * Unlike addText1(), these spans are real children:  the Visual Editor shows, saves and
+   * undoes them.  So set them once, as the starting text, never inside `show()`.  Every
+   * change is an edit.
+   *
+   * The existing spans are reused, in order, so typing a letter changes one span and nothing
+   * else.  A span's Content or Style is only changed if its value at time 0 differs, and then
+   * it gets that single value, which flattens any animation it had.  New spans go right after
+   * the last span (at the end, if there were none) and extra spans are removed from the end.
+   * Other children keep their places.  The list of children only changes when the number of
+   * spans does.
+   * @param value See {@link parseFormatString}.
+   * @returns `this`, for chaining.
+   * @throws If `value` isn't a valid format string.  Nothing changes.
+   */
+  setSpans(value: string): this {
+    const wanted = parseFormatString(value);
+    const spans = this.editableSpans();
+    wanted.forEach(({ format, content }, index) => {
+      const span = spans[index];
+      if (!span) return;
+      const current = span.get(0);
+      if (current.content !== content) span.contentSchedule.set(content);
+      if (current.style !== format) span.styleSchedule.set(format);
+    });
+    if (wanted.length !== spans.length) {
+      const children = this.replaceableComponents!.get();
+      if (wanted.length < spans.length) {
+        const removed = new Set<Showable>(spans.slice(wanted.length));
+        this.replaceableComponents!.replace(
+          children.filter((child) => !removed.has(child)),
+        );
+      } else {
+        const added = wanted
+          .slice(spans.length)
+          .map(
+            ({ format, content }) =>
+              new TextSpanComponent({ content, style: format }),
+          );
+        const last = spans.at(-1);
+        const at = last ? children.indexOf(last) + 1 : children.length;
+        children.splice(at, 0, ...added);
+        this.replaceableComponents!.replace(children);
+      }
+    }
+    return this;
+  }
+
+  // MARK: Formats in scope
+
+  /**
+   * Every Text Format this Multi Text's spans can use, in the order {@link show} searches them:
+   * the formats of the outermost Multi Text first, this one's own last.
+   * When two share a name, the *last* one wins.
+   */
+  #formatsInScope(): TextFormatComponent[] {
+    const chain: MultiTextComponent[] = [];
+    let node: ShowableParent | undefined = this;
+    while (node) {
+      if (node instanceof MultiTextComponent) chain.unshift(node);
+      node = node.parent;
+    }
+    return chain.flatMap((multiText) => multiText.#ownFormatters());
+  }
+  /**
+   * The names this Multi Text's spans can use:  its own Text Formats', then those of each
+   * Multi Text it's inside, nearest first.  Each name once.
+   *
+   * {@link show} finds the outer Multi Texts while drawing.  This walks up the `parent` chain
+   * instead, so it works any time.
+   */
+  formatNamesInScope(): string[] {
+    const names: string[] = [];
+    let node: ShowableParent | undefined = this;
+    while (node) {
+      if (node instanceof MultiTextComponent) {
+        names.push(...node.#ownFormatters().map((format) => format.nameScalar.value));
+      }
+      node = node.parent;
+    }
+    return [...new Set(names)];
+  }
+  /** The Text Format that a span in this Multi Text named `name` would use, or undefined. */
+  formatInScope(name: string): TextFormatComponent | undefined {
+    return getFormat(name, this.#formatsInScope());
   }
   /**
    * The point the finished text is anchored to.
@@ -591,7 +756,7 @@ export class MultiTextComponent extends DurationAgnosticComponent {
       ...this.children.flatMap(({ child }) =>
         child instanceof TextSpanComponent ? [child] : [],
       ),
-      ...this.#temporaryText,
+      ...this.#programText,
     ];
     sources.forEach((source, spanIndex) => {
       const { content, style } = source.get(timeInMs);

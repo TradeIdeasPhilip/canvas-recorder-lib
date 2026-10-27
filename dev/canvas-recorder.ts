@@ -80,6 +80,7 @@ import {
 import { buildSlideComponentPanel } from "./slide-panel.ts";
 import { buildVideoClipPanel } from "./video-clip-panel.ts";
 import { buildTextFramePanel, CanvasState } from "./multi-text-panel.ts";
+import { openMultiTextDialog } from "./multi-text-dialog.ts";
 import {
   ownerOf,
   parseSoundClips,
@@ -935,11 +936,15 @@ playPositionSeconds.addEventListener("input", () => {
 });
 
 // Cmd+Z / Ctrl+Z opens the history (undo) dialog when no text field is focused.
+// A contenteditable, like the Multi Text editor, is a text field with its own undo,
+// and an editor that handled the key itself has said so with preventDefault().
 addEventListener("keydown", (event) => {
   if (!(event.metaKey || event.ctrlKey) || event.key !== "z") return;
+  if (event.defaultPrevented) return;
   if (
     event.target instanceof HTMLInputElement ||
-    event.target instanceof HTMLTextAreaElement
+    event.target instanceof HTMLTextAreaElement ||
+    (event.target instanceof HTMLElement && event.target.isContentEditable)
   )
     return;
   event.preventDefault();
@@ -6235,6 +6240,21 @@ function buildMultiTextFrame(text: MultiTextComponent): HTMLElement {
     setCanvasState(newState) {
       textFrameCanvasStates.set(text, newState);
       applyCanvasState();
+    },
+    editText() {
+      void openMultiTextDialog(text, {
+        saveNow: _flushDirtyToDb,
+        changed: markDirty,
+        copyComponent: (component) =>
+          buildComponents(serializeComponents([component]))[0],
+        closed() {
+          // The dialog covered the component list and this panel, so neither was kept up to date.
+          activeRootComponentEditor?.resetAll();
+          const root = currentSaveTarget();
+          if (root) updateComponentEditor(root);
+          updateScheduleEditor(text);
+        },
+      });
     },
   });
   // Adding a keyframe to Position, say, means there's no longer one frame.
