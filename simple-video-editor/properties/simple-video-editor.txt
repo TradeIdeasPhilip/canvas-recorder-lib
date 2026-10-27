@@ -53,6 +53,6 @@ Simple Video Editor
   videoClip7.startMsIntoClipScalar.value = 163366.3;
   videoClip7.endMsIntoClipScalar.value = 202868.33333333334;
   videoClip7.setDuration(39502.03333333337);
-  videoClip7.soundClips = [{"source":"local:Ms Pac-Man Short.mov","startMsIntoScene":7044.610788,"startMsIntoClip":167245,"lengthMs":35646.854166,"notes":"imported from video"}];
+  videoClip7.soundClips = [{"source":"local:Ms Pac-Man Short.mov","startMsIntoScene":1809.522787,"startMsIntoClip":167245,"lengthMs":4605,"notes":"imported from video"},{"source":"local:Ms Pac-Man Short.mov","startMsIntoScene":11649.610788,"startMsIntoClip":171850,"lengthMs":31041.854166,"notes":"imported from video"}];
   inSeries.addFixed({ child: videoClip7 });
   this.addFixed({ child: inSeries });

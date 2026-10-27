@@ -22,11 +22,12 @@
     "imported-files.txt"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc && node scripts/copy-assets.mjs",
-    "watch": "rm -rf dist && node scripts/copy-assets.mjs && tsc --watch",
+    "build": "tsc && node scripts/copy-assets.mjs",
+    "watch": "node scripts/copy-assets.mjs && tsc --watch",
+    "clean": "rm -rf dist",
     "import": "node scripts/import-from-canvas-recorder.mjs",
     "docs": "typedoc",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run clean && npm run build"
   },
   "repository": {
     "type": "git",

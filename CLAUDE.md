@@ -17,6 +17,7 @@ It came from [canvas-recorder](../canvas-recorder), which is now historical: loo
 ```bash
 npm run build   # tsc → dist/, plus CSS copied by scripts/copy-assets.mjs
 npm run watch   # the same, continuously
+npm run clean   # empty dist/.  build and watch never do, so a consumer's running Vite never sees it empty.
 npm run docs    # TypeDoc → docs/ (gitignored).  Config in typedoc.json.
 ```
 
@@ -46,7 +47,7 @@ So run `npm run build` (or keep `npm run watch` going) here, then reload the pag
 ## Releasing a change
 
 1. Bump the version: `npm version minor --no-git-tag-version` (or `patch`).  Commit and `git push`.
-2. `npm publish`.  `prepublishOnly` rebuilds `dist/` first.  (The user runs this:  it needs their npm login and 2FA.)
+2. `npm publish`.  `prepublishOnly` empties and rebuilds `dist/` first.  (The user runs this:  it needs their npm login and 2FA.)
 3. In each project that uses the library:  `npm install canvas-recorder-lib@<new version>`, `npx tsc --noEmit`, and commit `package.json` and `package-lock.json`.
 
 Projects depend on the published version, so their GitHub Pages builds work.

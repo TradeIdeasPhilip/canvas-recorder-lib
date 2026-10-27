@@ -285,9 +285,16 @@
             "soundClips": [
               {
                 "source": "local:Ms Pac-Man Short.mov",
-                "startMsIntoScene": 7044.610788,
+                "startMsIntoScene": 1809.522787,
                 "startMsIntoClip": 167245,
-                "lengthMs": 35646.854166,
+                "lengthMs": 4605,
+                "notes": "imported from video"
+              },
+              {
+                "source": "local:Ms Pac-Man Short.mov",
+                "startMsIntoScene": 11649.610788,
+                "startMsIntoClip": 171850,
+                "lengthMs": 31041.854166,
                 "notes": "imported from video"
               }
             ]

@@ -182,17 +182,23 @@ Since 2026-10-14, this library is the master copy:  new features and fixes start
 ```
 npm install
 npm run build    # or:  npm run watch
+npm run clean    # empty dist/
 npm run docs     # API docs, in docs/
 ```
 
 Output goes to `dist/`: `.js`, `.d.ts`, source maps, plus the CSS and JSON files the JavaScript imports.
 
+`build` and `watch` only add and overwrite files in `dist/`, so a project's running dev server never sees it empty.
+A deleted or renamed source file leaves its old output behind until `npm run clean`.
+
 A project that has linked this library (see [Working on the library at the same time](#working-on-the-library-at-the-same-time)) sees a change as soon as `npm run watch` recompiles it.
+
+The Simple Video Editor is a separate npm project inside this repo.  [simple-video-editor/README.md](simple-video-editor/README.md) says how to run it.
 
 ## Releasing
 
 1. Bump the version:  `npm version minor --no-git-tag-version` (or `patch`).  Commit and push.
-2. `npm publish`.  `prepublishOnly` rebuilds `dist/` first.
+2. `npm publish`.  `prepublishOnly` empties and rebuilds `dist/` first, so nothing stale is published.
 3. In each project:  `npm install canvas-recorder-lib@<version>`, `npx tsc --noEmit`, and commit `package.json` and `package-lock.json`.
 
 The API docs publish themselves on every push to master.

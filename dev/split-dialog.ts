@@ -395,9 +395,17 @@ export function askHowToSplitSound(options: {
   // MARK: Behavior
   const inside = (atMs: number) => atMs > 0 && atMs < lengthMs;
 
-  /** The quiet moment between words nearest `atMs`, inside the clip, or `atMs` itself. */
+  /**
+   * `atMs`, moved to the nearest quiet moment between words if it's in the middle of one.
+   *
+   * Anywhere between one word's `cutAfterMs` and the next word's `cutBeforeMs` is already quiet,
+   * so a split there stays where it is.  Snapping out of a long pause moved a split a whole second.
+   */
   function snapped(atMs: number): number {
     if (!snapInput.checked || !words?.length) return atMs;
+    const fileMs = startMsIntoClip + atMs;
+    const inWord = words.some((w) => w.cutBeforeMs < fileMs && fileMs < w.cutAfterMs);
+    if (!inWord) return atMs;
     let best = atMs;
     let bestDistance = Infinity;
     for (const word of words) {
@@ -448,8 +456,11 @@ export function askHowToSplitSound(options: {
       return;
     }
     const moved = Math.abs(atMs - typed) > 0.05;
+    const direction = atMs < typed ? "earlier" : "later";
     whereNote.textContent =
-      (moved ? `Snapped to ${Math.round(atMs)} ms.` : "") + aroundWords(atMs);
+      (moved
+        ? `Snapped to ${Math.round(atMs)} ms, ${Math.round(Math.abs(atMs - typed))} ms ${direction}.`
+        : "") + aroundWords(atMs);
     whereNote.style.color = whereNote.textContent.includes("⚠") ? "#a06000" : "#555";
 
     const kept = keep();
