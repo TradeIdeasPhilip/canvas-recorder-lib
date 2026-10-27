@@ -1,0 +1,434 @@
+{
+  "formatVersion": 2,
+  "videoKey": "simple-video-editor",
+  "tree": {
+    "description": "Simple Video Editor",
+    "components": [
+      {
+        "registryKey": "In Series",
+        "components": [
+          {
+            "registryKey": "Video Clip",
+            "schedules": [
+              {
+                "description": "Dest Rect",
+                "type": "rectangle",
+                "value": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 16,
+                  "height": 20.512820512820515
+                }
+              }
+            ],
+            "scalars": [
+              {
+                "description": "URL",
+                "type": "string",
+                "value": "local:Ms Pac-Man Short.mov"
+              },
+              {
+                "description": "Start Ms Into Clip",
+                "type": "number",
+                "value": 6365.2
+              },
+              {
+                "description": "End Ms Into Clip",
+                "type": "number",
+                "value": 8337.1
+              }
+            ],
+            "duration": 1971.9000000000005,
+            "soundClips": [
+              {
+                "source": "local:Ms Pac-Man Short.mov",
+                "startMsIntoScene": 0,
+                "startMsIntoClip": 6388.720833,
+                "lengthMs": 1971.9,
+                "notes": "imported from video"
+              }
+            ]
+          },
+          {
+            "registryKey": "Video Clip",
+            "schedules": [
+              {
+                "description": "Dest Rect",
+                "type": "rectangle",
+                "value": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 16,
+                  "height": 20.512820512820515
+                }
+              }
+            ],
+            "scalars": [
+              {
+                "description": "URL",
+                "type": "string",
+                "value": "local:Ms Pac-Man Short.mov"
+              },
+              {
+                "description": "Start Ms Into Clip",
+                "type": "number",
+                "value": 17911.5
+              },
+              {
+                "description": "End Ms Into Clip",
+                "type": "number",
+                "value": 20927.9
+              }
+            ],
+            "duration": 3016.4,
+            "soundClips": [
+              {
+                "source": "local:Ms Pac-Man Short.mov",
+                "startMsIntoScene": 0,
+                "startMsIntoClip": 17935.020833,
+                "lengthMs": 3485.909432,
+                "notes": "imported from video"
+              }
+            ]
+          },
+          {
+            "registryKey": "Video Clip",
+            "schedules": [
+              {
+                "description": "Dest Rect",
+                "type": "rectangle",
+                "value": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 16,
+                  "height": 20.512820512820515
+                }
+              }
+            ],
+            "scalars": [
+              {
+                "description": "URL",
+                "type": "string",
+                "value": "local:Ms Pac-Man Short.mov"
+              },
+              {
+                "description": "Start Ms Into Clip",
+                "type": "number",
+                "value": 30970
+              },
+              {
+                "description": "End Ms Into Clip",
+                "type": "number",
+                "value": 31356.4
+              }
+            ],
+            "duration": 386.39999999999964
+          },
+          {
+            "registryKey": "Video Clip",
+            "schedules": [
+              {
+                "description": "Dest Rect",
+                "type": "rectangle",
+                "value": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 16,
+                  "height": 20.512820512820515
+                }
+              }
+            ],
+            "scalars": [
+              {
+                "description": "URL",
+                "type": "string",
+                "value": "local:Ms Pac-Man Short.mov"
+              },
+              {
+                "description": "Start Ms Into Clip",
+                "type": "number",
+                "value": 60586.1
+              },
+              {
+                "description": "End Ms Into Clip",
+                "type": "number",
+                "value": 69286
+              }
+            ],
+            "duration": 8699.9,
+            "soundClips": [
+              {
+                "source": "local:Ms Pac-Man Short.mov",
+                "startMsIntoScene": 115.627763,
+                "startMsIntoClip": 60609.620833,
+                "lengthMs": 8584.272237,
+                "notes": "imported from video"
+              }
+            ]
+          },
+          {
+            "registryKey": "Video Clip",
+            "schedules": [
+              {
+                "description": "Dest Rect",
+                "type": "rectangle",
+                "value": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 16,
+                  "height": 20.512820512820515
+                }
+              }
+            ],
+            "scalars": [
+              {
+                "description": "URL",
+                "type": "string",
+                "value": "local:Ms Pac-Man Short.mov"
+              },
+              {
+                "description": "Start Ms Into Clip",
+                "type": "number",
+                "value": 73563.6
+              },
+              {
+                "description": "End Ms Into Clip",
+                "type": "number",
+                "value": 107783.5
+              }
+            ],
+            "duration": 34219.9,
+            "soundClips": [
+              {
+                "source": "local:Ms Pac-Man Short.mov",
+                "startMsIntoScene": 72.310788,
+                "startMsIntoClip": 70470,
+                "lengthMs": 28339.189,
+                "notes": "imported from video"
+              },
+              {
+                "source": "local:Ms Pac-Man Short.mov",
+                "startMsIntoScene": 29040.799788,
+                "startMsIntoClip": 99438.489,
+                "lengthMs": 5179.100212,
+                "notes": "imported from video"
+              }
+            ]
+          },
+          {
+            "registryKey": "Video Clip",
+            "schedules": [
+              {
+                "description": "Dest Rect",
+                "type": "rectangle",
+                "value": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 16,
+                  "height": 20.512820512820515
+                }
+              }
+            ],
+            "scalars": [
+              {
+                "description": "URL",
+                "type": "string",
+                "value": "local:Ms Pac-Man Short.mov"
+              },
+              {
+                "description": "Start Ms Into Clip",
+                "type": "number",
+                "value": 163366.3
+              },
+              {
+                "description": "End Ms Into Clip",
+                "type": "number",
+                "value": 202868.33333333334
+              }
+            ],
+            "duration": 39502.03333333337,
+            "soundClips": [
+              {
+                "source": "local:Ms Pac-Man Short.mov",
+                "startMsIntoScene": 1809.522787,
+                "startMsIntoClip": 167245,
+                "lengthMs": 4605,
+                "notes": "imported from video"
+              },
+              {
+                "source": "local:Ms Pac-Man Short.mov",
+                "startMsIntoScene": 11649.610788,
+                "startMsIntoClip": 171850,
+                "lengthMs": 31041.854166,
+                "notes": "imported from video"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "registryKey": "Padding",
+        "scalars": [
+          {
+            "description": "Initial Time",
+            "type": "number",
+            "value": 17879.663722601832
+          },
+          {
+            "description": "Show After",
+            "type": "select",
+            "value": "hide"
+          }
+        ],
+        "components": [
+          {
+            "registryKey": "Multi Text",
+            "schedules": [
+              {
+                "description": "Position",
+                "type": "point",
+                "value": {
+                  "x": 8.285548202,
+                  "y": 14.944761618
+                }
+              },
+              {
+                "description": "Width",
+                "type": "number",
+                "value": 10.161956716150957
+              }
+            ],
+            "scalars": [
+              {
+                "description": "Min Duration",
+                "type": "number",
+                "value": 6552.412513799933
+              }
+            ],
+            "components": [
+              {
+                "registryKey": "Text Format",
+                "schedules": [
+                  {
+                    "description": "Color",
+                    "type": "color",
+                    "value": "rgb(255, 0, 255)"
+                  },
+                  {
+                    "description": "Font Size",
+                    "type": "number",
+                    "value": 0.6
+                  }
+                ]
+              },
+              {
+                "registryKey": "Text Span",
+                "schedules": [
+                  {
+                    "description": "Content",
+                    "type": "string",
+                    "value": "“5” = One Quarter\n"
+                  }
+                ]
+              },
+              {
+                "registryKey": "Handwriting Effect",
+                "schedules": [
+                  {
+                    "description": "Progress",
+                    "type": "number",
+                    "keyframes": [
+                      {
+                        "time": 0,
+                        "value": 0
+                      },
+                      {
+                        "time": 4223,
+                        "value": 1
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "userEditableDescription": "“5” = One Quarter"
+          }
+        ]
+      },
+      {
+        "registryKey": "Padding",
+        "scalars": [
+          {
+            "description": "Initial Time",
+            "type": "number",
+            "value": 24522.4962059148
+          },
+          {
+            "description": "Show After",
+            "type": "select",
+            "value": "hide"
+          }
+        ],
+        "components": [
+          {
+            "registryKey": "Multi Text",
+            "schedules": [
+              {
+                "description": "Position",
+                "type": "point",
+                "value": {
+                  "x": 8.285548202,
+                  "y": 16
+                }
+              },
+              {
+                "description": "Width",
+                "type": "number",
+                "value": 10.161956716150957
+              }
+            ],
+            "scalars": [
+              {
+                "description": "Min Duration",
+                "type": "number",
+                "value": 15101.32532880198
+              }
+            ],
+            "components": [
+              {
+                "registryKey": "Text Format",
+                "schedules": [
+                  {
+                    "description": "Color",
+                    "type": "color",
+                    "value": "rgb(255, 0, 255)"
+                  },
+                  {
+                    "description": "Font Size",
+                    "type": "number",
+                    "value": 0.6
+                  }
+                ]
+              },
+              {
+                "registryKey": "Text Span",
+                "schedules": [
+                  {
+                    "description": "Content",
+                    "type": "string",
+                    "value": "“6” = One Dollar"
+                  }
+                ],
+                "userEditableDescription": "“6” = One Dollar"
+              },
+              {
+                "registryKey": "Handwriting Effect"
+              }
+            ],
+            "userEditableDescription": "“6” = One Dollar"
+          }
+        ]
+      }
+    ]
+  }
+}

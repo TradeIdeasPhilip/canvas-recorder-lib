@@ -203,7 +203,14 @@
                 "source": "local:Ms Pac-Man Short.mov",
                 "startMsIntoScene": 72.310788,
                 "startMsIntoClip": 70470,
-                "lengthMs": 34147.589212,
+                "lengthMs": 28339.189,
+                "notes": "imported from video"
+              },
+              {
+                "source": "local:Ms Pac-Man Short.mov",
+                "startMsIntoScene": 30872.154404,
+                "startMsIntoClip": 99438.489,
+                "lengthMs": 4662.346,
                 "notes": "imported from video"
               }
             ]
@@ -236,10 +243,10 @@
               {
                 "description": "End Ms Into Clip",
                 "type": "number",
-                "value": 202868.33333333334
+                "value": 201463.5
               }
             ],
-            "duration": 39502.03333333337,
+            "duration": 38097.2,
             "soundClips": [
               {
                 "source": "local:Ms Pac-Man Short.mov",
@@ -252,7 +259,7 @@
                 "source": "local:Ms Pac-Man Short.mov",
                 "startMsIntoScene": 11649.610788,
                 "startMsIntoClip": 171850,
-                "lengthMs": 31041.854166,
+                "lengthMs": 26447.589212,
                 "notes": "imported from video"
               }
             ]
@@ -289,18 +296,13 @@
                 "description": "Width",
                 "type": "number",
                 "value": 10.161956716150957
-              },
-              {
-                "description": "Height",
-                "type": "number",
-                "value": 6.482543498168499
               }
             ],
             "scalars": [
               {
                 "description": "Min Duration",
                 "type": "number",
-                "value": 4223
+                "value": 6552.412513799933
               }
             ],
             "components": [
@@ -359,7 +361,12 @@
           {
             "description": "Initial Time",
             "type": "number",
-            "value": 19607.02569229056
+            "value": 24522.4962059148
+          },
+          {
+            "description": "Show After",
+            "type": "select",
+            "value": "hide"
           }
         ],
         "components": [
@@ -378,18 +385,13 @@
                 "description": "Width",
                 "type": "number",
                 "value": 10.161956716150957
-              },
-              {
-                "description": "Height",
-                "type": "number",
-                "value": 6.482543498168499
               }
             ],
             "scalars": [
               {
                 "description": "Min Duration",
                 "type": "number",
-                "value": 20000
+                "value": 15101.32532880198
               }
             ],
             "components": [
@@ -418,8 +420,495 @@
                   }
                 ],
                 "userEditableDescription": "“6” = One Dollar"
+              },
+              {
+                "registryKey": "Handwriting Effect"
               }
-            ]
+            ],
+            "userEditableDescription": "“6” = One Dollar"
+          }
+        ]
+      },
+      {
+        "registryKey": "Padding",
+        "scalars": [
+          {
+            "description": "Initial Time",
+            "type": "number",
+            "value": 39730.477698154646
+          },
+          {
+            "description": "Show After",
+            "type": "select",
+            "value": "hide"
+          }
+        ],
+        "components": [
+          {
+            "registryKey": "Multi Text",
+            "schedules": [
+              {
+                "description": "Position",
+                "type": "point",
+                "keyframes": [
+                  {
+                    "time": 2227.8223018453573,
+                    "value": {
+                      "x": 9.4,
+                      "y": 19.5
+                    }
+                  },
+                  {
+                    "time": 3000.0223018453544,
+                    "value": {
+                      "x": 8.6,
+                      "y": 19.5
+                    }
+                  }
+                ]
+              },
+              {
+                "description": "Width",
+                "type": "number",
+                "value": 10.161956716150957
+              },
+              {
+                "description": "Height",
+                "type": "number",
+                "value": 1
+              }
+            ],
+            "scalars": [
+              {
+                "description": "Min Duration",
+                "type": "number",
+                "value": 5291.903079279713
+              }
+            ],
+            "components": [
+              {
+                "registryKey": "Text Format",
+                "schedules": [
+                  {
+                    "description": "Color",
+                    "type": "color",
+                    "value": "rgb(255, 0, 255)"
+                  },
+                  {
+                    "description": "Font Size",
+                    "type": "number",
+                    "value": 0.6
+                  }
+                ]
+              },
+              {
+                "registryKey": "Text Span",
+                "schedules": [
+                  {
+                    "description": "Content",
+                    "type": "string",
+                    "value": "“1” = One Player Start"
+                  }
+                ],
+                "userEditableDescription": "“1” = One Player Start"
+              },
+              {
+                "registryKey": "Handwriting Effect"
+              }
+            ],
+            "userEditableDescription": "“1” = One Player Start"
+          }
+        ]
+      },
+      {
+        "registryKey": "Padding",
+        "scalars": [
+          {
+            "description": "Initial Time",
+            "type": "number",
+            "value": 45097.30098531877
+          },
+          {
+            "description": "Show After",
+            "type": "select",
+            "value": "hide"
+          }
+        ],
+        "components": [
+          {
+            "registryKey": "Multi Text",
+            "schedules": [
+              {
+                "description": "Position",
+                "type": "point",
+                "value": {
+                  "x": 8.580978358,
+                  "y": 19.5
+                }
+              },
+              {
+                "description": "Width",
+                "type": "number",
+                "value": 10.161956716150957
+              },
+              {
+                "description": "Height",
+                "type": "number",
+                "value": 1
+              }
+            ],
+            "scalars": [
+              {
+                "description": "Min Duration",
+                "type": "number",
+                "value": 5291.903079279713
+              }
+            ],
+            "components": [
+              {
+                "registryKey": "Text Format",
+                "schedules": [
+                  {
+                    "description": "Color",
+                    "type": "color",
+                    "value": "rgb(255, 0, 255)"
+                  },
+                  {
+                    "description": "Font Size",
+                    "type": "number",
+                    "value": 0.6
+                  }
+                ]
+              },
+              {
+                "registryKey": "Text Span",
+                "schedules": [
+                  {
+                    "description": "Content",
+                    "type": "string",
+                    "value": "← ↑ → ↓"
+                  }
+                ]
+              },
+              {
+                "registryKey": "Handwriting Effect",
+                "schedules": [
+                  {
+                    "description": "Progress",
+                    "type": "number",
+                    "keyframes": [
+                      {
+                        "time": 0,
+                        "value": 0
+                      },
+                      {
+                        "time": 3194.3990146812284,
+                        "value": 1
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "userEditableDescription": "Arrow Keys"
+          }
+        ]
+      },
+      {
+        "registryKey": "Padding",
+        "scalars": [
+          {
+            "description": "Initial Time",
+            "type": "number",
+            "value": 50442.47292256696
+          },
+          {
+            "description": "Show After",
+            "type": "select",
+            "value": "hide"
+          }
+        ],
+        "components": [
+          {
+            "registryKey": "Multi Text",
+            "schedules": [
+              {
+                "description": "Position",
+                "type": "point",
+                "keyframes": [
+                  {
+                    "time": 3532.527077433042,
+                    "value": {
+                      "x": 7.943570023,
+                      "y": 16
+                    }
+                  },
+                  {
+                    "time": 3665.827077433045,
+                    "value": {
+                      "x": 9.216419245215524,
+                      "y": 19.47884472298535
+                    }
+                  },
+                  {
+                    "time": 5865.827077433045,
+                    "value": {
+                      "x": 9.216419245215524,
+                      "y": 19.47884472298535
+                    }
+                  },
+                  {
+                    "time": 6383.1270774330405,
+                    "value": {
+                      "x": 8.6,
+                      "y": 19.47884472298535
+                    }
+                  }
+                ]
+              },
+              {
+                "description": "Width",
+                "type": "number",
+                "value": 9.478000357717763
+              },
+              {
+                "description": "Height",
+                "type": "number",
+                "value": 1.0606327266483504
+              }
+            ],
+            "scalars": [
+              {
+                "description": "Min Duration",
+                "type": "number",
+                "value": 9276.75048070155
+              }
+            ],
+            "components": [
+              {
+                "registryKey": "Text Format",
+                "schedules": [
+                  {
+                    "description": "Color",
+                    "type": "color",
+                    "value": "rgb(255, 0, 255)"
+                  },
+                  {
+                    "description": "Font Size",
+                    "type": "number",
+                    "value": 0.6
+                  }
+                ]
+              },
+              {
+                "registryKey": "Text Span",
+                "schedules": [
+                  {
+                    "description": "Content",
+                    "type": "string",
+                    "value": "“2” = Two Player Start"
+                  }
+                ]
+              },
+              {
+                "registryKey": "Handwriting Effect",
+                "schedules": [
+                  {
+                    "description": "Progress",
+                    "type": "number",
+                    "keyframes": [
+                      {
+                        "time": 0,
+                        "value": 0
+                      },
+                      {
+                        "time": 3194.3990146812284,
+                        "value": 1
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "userEditableDescription": "“2” = Two Player Start"
+          }
+        ]
+      },
+      {
+        "registryKey": "Padding",
+        "scalars": [
+          {
+            "description": "Initial Time",
+            "type": "number",
+            "value": 66130.00442603003
+          },
+          {
+            "description": "Show After",
+            "type": "select",
+            "value": "hide"
+          }
+        ],
+        "components": [
+          {
+            "registryKey": "Multi Text",
+            "schedules": [
+              {
+                "description": "Position",
+                "type": "point",
+                "value": {
+                  "x": 8.639000179,
+                  "y": 19.478844723
+                }
+              },
+              {
+                "description": "Width",
+                "type": "number",
+                "value": 9.478000357717763
+              },
+              {
+                "description": "Height",
+                "type": "number",
+                "value": 1.0606327266483504
+              }
+            ],
+            "scalars": [
+              {
+                "description": "Min Duration",
+                "type": "number",
+                "value": 9276.75048070155
+              }
+            ],
+            "components": [
+              {
+                "registryKey": "Text Format",
+                "schedules": [
+                  {
+                    "description": "Color",
+                    "type": "color",
+                    "value": "rgb(255, 0, 255)"
+                  },
+                  {
+                    "description": "Font Size",
+                    "type": "number",
+                    "value": 0.6
+                  }
+                ]
+              },
+              {
+                "registryKey": "Text Span",
+                "schedules": [
+                  {
+                    "description": "Content",
+                    "type": "string",
+                    "value": "“R”=↑ “D”=← “F”=↓ “G”=→"
+                  }
+                ]
+              },
+              {
+                "registryKey": "Handwriting Effect",
+                "schedules": [
+                  {
+                    "description": "Progress",
+                    "type": "number",
+                    "keyframes": [
+                      {
+                        "time": 0,
+                        "value": 0
+                      },
+                      {
+                        "time": 3878.8955739699595,
+                        "value": 1
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "userEditableDescription": "Player Two's Keys"
+          }
+        ]
+      },
+      {
+        "registryKey": "Padding",
+        "scalars": [
+          {
+            "description": "Initial Time",
+            "type": "number",
+            "value": 3689.6
+          },
+          {
+            "description": "Show After",
+            "type": "select",
+            "value": "hide"
+          }
+        ],
+        "components": [
+          {
+            "registryKey": "Multi Text",
+            "schedules": [
+              {
+                "description": "Position",
+                "type": "point",
+                "value": {
+                  "x": 8,
+                  "y": 18.3
+                }
+              }
+            ],
+            "scalars": [
+              {
+                "description": "Min Duration",
+                "type": "number",
+                "value": 4436.809110490623
+              }
+            ],
+            "components": [
+              {
+                "registryKey": "Text Format",
+                "schedules": [
+                  {
+                    "description": "Color",
+                    "type": "color",
+                    "value": "rgb(255, 0, 255)"
+                  },
+                  {
+                    "description": "Font Size",
+                    "type": "number",
+                    "value": 0.5
+                  }
+                ]
+              },
+              {
+                "registryKey": "Text Span",
+                "schedules": [
+                  {
+                    "description": "Content",
+                    "type": "string",
+                    "value": "https://archive.org/details/arcade_20pacgal"
+                  }
+                ]
+              },
+              {
+                "registryKey": "Handwriting Effect",
+                "schedules": [
+                  {
+                    "description": "Progress",
+                    "type": "number",
+                    "keyframes": [
+                      {
+                        "time": 0,
+                        "value": 0
+                      },
+                      {
+                        "time": 1784.9,
+                        "value": 1
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "userEditableDescription": "URL"
           }
         ]
       }
