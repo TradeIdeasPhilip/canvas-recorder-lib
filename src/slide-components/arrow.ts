@@ -4,10 +4,10 @@ import {
   NumberScheduleInfo,
   ColorScheduleInfo,
   ArrowValue,
-} from "../schedule-helper";
-import { ShowOptions } from "../showable";
-import { DurationAgnosticComponent } from "./duration-agnostic";
-import { Keyframe } from "../interpolate";
+} from "../schedule-helper.ts";
+import { ShowOptions } from "../showable.ts";
+import { DurationAgnosticComponent } from "./duration-agnostic.ts";
+import { Keyframe } from "../interpolate.ts";
 
 /**
  * Standard registry component: a directed arrow with a rectangular shaft and

@@ -15,7 +15,7 @@ It came from [canvas-recorder](../canvas-recorder), which is now historical: loo
 ## Commands
 
 ```bash
-npm run build   # tsc → dist/, plus CSS copied by scripts/copy-assets.mjs
+npm run build   # check the imports, tsc → dist/, plus CSS copied by scripts/copy-assets.mjs
 npm run watch   # the same, continuously
 npm run clean   # empty dist/.  build and watch never do, so a consumer's running Vite never sees it empty.
 npm run docs    # TypeDoc → docs/ (gitignored).  Config in typedoc.json.
@@ -83,6 +83,7 @@ e.g. `canvas-recorder-lib/src/glib/path-shape` (the `"./*"` export maps to `dist
 ## Library Gotchas
 
 - **The output is compiled JavaScript.**  tsc rewrites `import "./x.ts"` to `./x.js` (`rewriteRelativeImportExtensions`), but not strings.  So `new URL("./worker.js", import.meta.url)` must name the `.js` file.
+- **Every relative import names its file:  `"./x.ts"`, never `"./x"`.**  tsc leaves `"./x"` alone, and only Vite and tsx can guess the rest.  `npm run build` stops on one (scripts/check-imports.mjs).
 - **tsc doesn't copy CSS.**  `scripts/copy-assets.mjs` does.  JSON imports are emitted by tsc.
 - **`start()` loads the player with one dynamic `import()`**, so the player's top-level code runs after the request is in place.  Don't add a top-level `await` to the player, and tell consumers not to `await start()` at their top level:  either one can hang the page with no error.
 - **Read `canvasRecorder`'s settings while drawing, not at module load.**  The size (`pixelWidth`, `pixelHeight`, `width`, `height`) can change at any time, from the GUI or from code, unless the main program calls `lockSize()`.  `fps` freezes at `start()`.  Some components still assume 16 × 9.

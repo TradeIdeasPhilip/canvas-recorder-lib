@@ -1,4 +1,4 @@
-import { Command, CommandSplitter, PathShape, Point } from "./path-shape";
+import { Command, CommandSplitter, PathShape, Point } from "./path-shape.ts";
 
 /**
  * Used internally.

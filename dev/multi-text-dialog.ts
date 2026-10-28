@@ -140,6 +140,7 @@ export async function openMultiTextDialog(
     const div = document.createElement("div");
     div.textContent = message;
     notes.append(div);
+    return div;
   };
   if (text.hasProgramText) {
     note(
@@ -162,9 +163,14 @@ export async function openMultiTextDialog(
       );
     }
   }
-  if (text.formatNamesInScope().length === 0) {
-    note("This text has no Text Formats yet.  Pick New… in a menu to make one.");
-  }
+  const noFormatsNote = note(
+    "This text has no Text Formats yet.  Pick New… in a menu to make one.",
+  );
+  /** New… and Revert change which formats there are. */
+  const formatsChanged = () => {
+    editor.knownNames = text.formatNamesInScope();
+    noFormatsNote.hidden = editor.knownNames.length > 0;
+  };
 
   // MARK: Behavior
 
@@ -176,6 +182,7 @@ export async function openMultiTextDialog(
   });
   editor.element.style.minHeight = "12rem";
   middle.append(editor.element, errorLine);
+  formatsChanged();
 
   editor.onChange = (value) => {
     if (reverting) return;
@@ -215,7 +222,7 @@ export async function openMultiTextDialog(
       revertBtn.disabled = false;
       hooks.changed();
     }
-    editor.knownNames = text.formatNamesInScope();
+    formatsChanged();
     return name;
   }
 
@@ -236,7 +243,7 @@ export async function openMultiTextDialog(
     } finally {
       reverting = false;
     }
-    editor.knownNames = text.formatNamesInScope();
+    formatsChanged();
     errorLine.textContent = "";
     revertBtn.disabled = true;
     hooks.changed();

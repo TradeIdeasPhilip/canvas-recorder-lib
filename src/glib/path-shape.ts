@@ -15,10 +15,10 @@ import {
   ReadOnlyRect,
   sum,
 } from "phil-lib/misc";
-import { panAndZoom, transform } from "./transforms";
+import { panAndZoom, transform } from "./transforms.ts";
 
 import { Bezier, MinMax } from "bezier-js";
-import { mapEachPair, philDebug } from "../utility";
+import { mapEachPair, philDebug } from "../utility.ts";
 
 const formatForSvg = new Intl.NumberFormat("en-US", {
   maximumSignificantDigits: 8,

@@ -6,10 +6,10 @@ import {
   positiveModulo,
   radiansPerDegree,
 } from "phil-lib/misc";
-import { PathShapeSplitter } from "./glib/path-shape-splitter";
-import { countPresent } from "./utility";
-import { myRainbow } from "./glib/my-rainbow";
-import { LCommand, PathShape } from "./glib/path-shape";
+import { PathShapeSplitter } from "./glib/path-shape-splitter.ts";
+import { countPresent } from "./utility.ts";
+import { myRainbow } from "./glib/my-rainbow.ts";
+import { LCommand, PathShape } from "./glib/path-shape.ts";
 
 // Bug / TODO
 // Display a zero length path.

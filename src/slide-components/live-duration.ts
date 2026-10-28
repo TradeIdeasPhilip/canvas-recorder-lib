@@ -1,4 +1,4 @@
-import { InParallelComponent, ParallelChildInfo } from "./in-parallel";
+import { InParallelComponent, ParallelChildInfo } from "./in-parallel.ts";
 
 /**
  * This is a convenient base class for any component that wants to have children.

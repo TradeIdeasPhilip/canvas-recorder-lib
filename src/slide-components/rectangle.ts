@@ -1,7 +1,7 @@
-import { Showable, ShowOptions } from "../showable";
-import { Keyframe } from "../interpolate";
+import { Showable, ShowOptions } from "../showable.ts";
+import { Keyframe } from "../interpolate.ts";
 import { ReadOnlyRect } from "phil-lib/misc";
-import { ColorScheduleInfo, RectangleScheduleInfo } from "../schedule-helper";
+import { ColorScheduleInfo, RectangleScheduleInfo } from "../schedule-helper.ts";
 
 /**
  * Standard registry component: a filled rectangle with an editable color and

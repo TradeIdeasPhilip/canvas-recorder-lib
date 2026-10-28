@@ -1,12 +1,12 @@
 // MARK: Handwriting Effect
 
-import { Command, PathShape } from "../glib/path-shape";
-import { PathShapeSplitter } from "../glib/path-shape-splitter";
-import { Keyframe } from "../interpolate";
-import { NumberScheduleInfo } from "../schedule-helper";
-import { Scalar, ShowOptions } from "../showable";
-import { showError } from "./show-error";
-import { EffectLetter, TEXT_EFFECT, TextEffect } from "./text-effect";
+import { Command, PathShape } from "../glib/path-shape.ts";
+import { PathShapeSplitter } from "../glib/path-shape-splitter.ts";
+import { Keyframe } from "../interpolate.ts";
+import { NumberScheduleInfo } from "../schedule-helper.ts";
+import { Scalar, ShowOptions } from "../showable.ts";
+import { showError } from "./show-error.ts";
+import { EffectLetter, TEXT_EFFECT, TextEffect } from "./text-effect.ts";
 
 /**
  * What one step of {@link HandwritingEffectComponent.progressSchedule} means.

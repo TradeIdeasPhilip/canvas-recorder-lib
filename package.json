@@ -23,7 +23,7 @@
     "imported-files.txt"
   ],
   "scripts": {
-    "build": "tsc && node scripts/copy-assets.mjs",
+    "build": "node scripts/check-imports.mjs && tsc && node scripts/copy-assets.mjs",
     "watch": "node scripts/copy-assets.mjs && tsc --watch",
     "clean": "rm -rf dist",
     "import": "node scripts/import-from-canvas-recorder.mjs",

@@ -14,16 +14,16 @@
 // the tool already ready then next time I need it so I don't have to stop what I'm doing
 // then.
 
-import { Showable, ShowOptions } from "../showable";
-import { Mutable } from "../utility";
+import { Showable, ShowOptions } from "../showable.ts";
+import { Mutable } from "../utility.ts";
 import {
   InParallelComponent,
   ParallelChildInfo,
   ShowChildInfo,
   PaddingComponent,
-} from "./in-parallel";
+} from "./in-parallel.ts";
 // Type-only: registry.ts imports this module, so a runtime import would be circular.
-import type { ComponentRegistryEntry } from "./registry";
+import type { ComponentRegistryEntry } from "./registry.ts";
 
 /**
  * Each of the children is displayed one after the next.

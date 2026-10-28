@@ -1,13 +1,13 @@
 import { ReadOnlyRect } from "phil-lib/misc";
-import { drawGrid, computeGridTransform } from "../glib/grid";
+import { drawGrid, computeGridTransform } from "../glib/grid.ts";
 import {
   StringScheduleInfo,
   RectangleScheduleInfo,
   NumberScheduleInfo,
   ColorScheduleInfo,
-} from "../schedule-helper";
-import { Showable, ShowOptions } from "../showable";
-import { showError } from "./show-error";
+} from "../schedule-helper.ts";
+import { Showable, ShowOptions } from "../showable.ts";
+import { showError } from "./show-error.ts";
 
 export class FunctionGraphComponent implements Showable {
   /**

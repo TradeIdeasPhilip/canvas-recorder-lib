@@ -1,8 +1,9 @@
 import { assertClass, assertFinite, pickAny } from "phil-lib/misc";
-import { PathShape } from "./path-shape";
+import { PathShape } from "./path-shape.ts";
 
-import futuraLBase from "./Futura L.json";
-import cursiveBase from "./Cursive.json";
+// Node needs the "type", and Vite and browsers accept it.
+import futuraLBase from "./Futura L.json" with { type: "json" };
+import cursiveBase from "./Cursive.json" with { type: "json" };
 
 /**
  * This is an older idea.

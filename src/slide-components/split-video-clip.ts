@@ -5,10 +5,10 @@
 // pieces are brand new components.  Putting them into the tree is the
 // caller's job.
 
-import { SoundClip } from "../showable";
-import { serializeComponents } from "../snapshot";
-import { buildComponents } from "./serialize";
-import { VideoClipComponent } from "./video-clip";
+import { SoundClip } from "../showable.ts";
+import { serializeComponents } from "../snapshot.ts";
+import { buildComponents } from "./serialize.ts";
+import { VideoClipComponent } from "./video-clip.ts";
 
 /**
  * What to do with a sound clip that is playing at the split point.

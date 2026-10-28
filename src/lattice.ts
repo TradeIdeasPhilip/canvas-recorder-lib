@@ -1,5 +1,5 @@
 import { LinearFunction, makeLinear, ReadOnlyRect } from "phil-lib/misc";
-import { Point } from "./glib/path-shape";
+import { Point } from "./glib/path-shape.ts";
 
 /**
  * A grid of cells covering a rectangular area.

@@ -1,4 +1,4 @@
-import { philDebug } from "../src/utility";
+import { philDebug } from "../src/utility.ts";
 
 const SW_URL = "./delay-files-sw.js";
 

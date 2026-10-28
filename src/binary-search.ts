@@ -1,6 +1,6 @@
 import { initializedArray } from "phil-lib/misc";
-import { zipper } from "./zipper";
-import { philDebug } from "./utility";
+import { zipper } from "./zipper.ts";
+import { philDebug } from "./utility.ts";
 
 type Key = number | BigInt;
 

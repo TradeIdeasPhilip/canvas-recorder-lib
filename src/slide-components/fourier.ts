@@ -1,8 +1,8 @@
 import { ReadOnlyRect } from "phil-lib/misc";
-import { myRainbow } from "../glib/my-rainbow";
-import { ParametricFunction, PathShape } from "../glib/path-shape";
-import { panAndZoom } from "../glib/transforms";
-import { Keyframe } from "../interpolate";
+import { myRainbow } from "../glib/my-rainbow.ts";
+import { ParametricFunction, PathShape } from "../glib/path-shape.ts";
+import { panAndZoom } from "../glib/transforms.ts";
+import { Keyframe } from "../interpolate.ts";
 import {
   Complex,
   FourierTerm,
@@ -13,17 +13,17 @@ import {
   samplesFromPath,
   samplesToFourier,
   termsToParametricFunction,
-} from "../peano-fourier/fourier-shared";
+} from "../peano-fourier/fourier-shared.ts";
 import {
   ColorScheduleInfo,
   NumberScheduleInfo,
   RectangleScheduleInfo,
   SelectScheduleInfo,
   StringScheduleInfo,
-} from "../schedule-helper";
-import { ShowOptions } from "../showable";
-import { DurationAgnosticComponent } from "./duration-agnostic";
-import { showError } from "./show-error";
+} from "../schedule-helper.ts";
+import { ShowOptions } from "../showable.ts";
+import { DurationAgnosticComponent } from "./duration-agnostic.ts";
+import { showError } from "./show-error.ts";
 
 // MARK: Sources
 

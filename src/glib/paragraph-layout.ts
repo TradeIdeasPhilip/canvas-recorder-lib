@@ -1,6 +1,6 @@
 import { sum } from "phil-lib/misc";
-import { DescriptionOfLetter, Font } from "./letters-base";
-import { Command, PathShape } from "./path-shape";
+import { DescriptionOfLetter, Font } from "./letters-base.ts";
+import { Command, PathShape } from "./path-shape.ts";
 
 class WordInfo {
   readonly top: number;

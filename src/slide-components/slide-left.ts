@@ -1,7 +1,7 @@
-import { Showable, ShowOptions } from "../showable";
-import { InSeriesComponent, Transition } from "./in-series";
-import { ComponentWithLiveDuration } from "./live-duration";
-import { showError } from "./show-error";
+import { Showable, ShowOptions } from "../showable.ts";
+import { InSeriesComponent, Transition } from "./in-series.ts";
+import { ComponentWithLiveDuration } from "./live-duration.ts";
+import { showError } from "./show-error.ts";
 
 /**
  * A {@link Transition}.

@@ -1,17 +1,17 @@
 import { ReadOnlyRect } from "phil-lib/misc";
-import { makeLineFontRatio } from "../glib/line-font";
-import { ParagraphLayout } from "../glib/paragraph-layout";
+import { makeLineFontRatio } from "../glib/line-font.ts";
+import { ParagraphLayout } from "../glib/paragraph-layout.ts";
 import {
   ColorScheduleInfo,
   RectangleScheduleInfo,
   StringScheduleInfo,
   NumberScheduleInfo,
   SelectScheduleInfo,
-} from "../schedule-helper";
-import { ShowOptions } from "../showable";
-import { DurationAgnosticComponent } from "./duration-agnostic";
-import { Keyframe } from "../interpolate";
-import { Font } from "../glib/letters-base";
+} from "../schedule-helper.ts";
+import { ShowOptions } from "../showable.ts";
+import { DurationAgnosticComponent } from "./duration-agnostic.ts";
+import { Keyframe } from "../interpolate.ts";
+import { Font } from "../glib/letters-base.ts";
 
 type CachedFont = {
   readonly font: Font;

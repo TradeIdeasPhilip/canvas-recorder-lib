@@ -1,5 +1,5 @@
-import { makeLineFont } from "../glib/line-font";
-import { ParagraphLayout } from "../glib/paragraph-layout";
+import { makeLineFont } from "../glib/line-font.ts";
+import { ParagraphLayout } from "../glib/paragraph-layout.ts";
 
 const errorFont = makeLineFont(1);
 

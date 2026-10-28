@@ -191,6 +191,9 @@ npm run docs     # API docs, in docs/
 
 Output goes to `dist/`: `.js`, `.d.ts`, source maps, plus the CSS and JSON files the JavaScript imports.
 
+Every relative import names its file, like `from "./utility.ts"`, and `npm run build` stops if one doesn't.
+tsc turns `.ts` into `.js` in `dist/`, which works everywhere; an import with no extension only works where a tool like Vite guesses it.
+
 `build` and `watch` only add and overwrite files in `dist/`, so a project's running dev server never sees it empty.
 A deleted or renamed source file leaves its old output behind until `npm run clean`.
 

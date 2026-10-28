@@ -1,6 +1,6 @@
 import { FIGURE_SPACE } from "phil-lib/misc";
-import { ShowOptions } from "../showable";
-import { TraditionalTextComponent } from "./traditional-text";
+import { ShowOptions } from "../showable.ts";
+import { TraditionalTextComponent } from "./traditional-text.ts";
 
 /**
  * This component displays text like "0:00  0/60" to tell you the current timeInMs of this component.

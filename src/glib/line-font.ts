@@ -6,7 +6,7 @@ import {
   pickAny,
   polarToRectangular,
 } from "phil-lib/misc";
-import { Font, FontMetrics } from "./letters-base";
+import { Font, FontMetrics } from "./letters-base.ts";
 import {
   PathShape,
   PathBuilder,
@@ -14,7 +14,7 @@ import {
   QCommand,
   Command,
   Point,
-} from "./path-shape";
+} from "./path-shape.ts";
 import { Line } from "bezier-js";
 
 const dEast = 0;

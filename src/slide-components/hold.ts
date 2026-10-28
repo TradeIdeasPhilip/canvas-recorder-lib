@@ -1,9 +1,9 @@
 // MARK: Hold Previous
 
-import { ShowOptions, Showable } from "../showable";
-import { Transition, InSeriesComponent } from "./in-series";
-import { ComponentWithLiveDuration } from "./live-duration";
-import { showError } from "./show-error";
+import { ShowOptions, Showable } from "../showable.ts";
+import { Transition, InSeriesComponent } from "./in-series.ts";
+import { ComponentWithLiveDuration } from "./live-duration.ts";
+import { showError } from "./show-error.ts";
 
 /**
  * Display and hold the opening frame of the next component.

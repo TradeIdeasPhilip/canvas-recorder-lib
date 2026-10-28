@@ -1,6 +1,6 @@
-import { Scalar } from "../showable";
-import { Mutable } from "../utility";
-import { InParallelComponent, ParallelChildInfo } from "./in-parallel";
+import { Scalar } from "../showable.ts";
+import { Mutable } from "../utility.ts";
+import { InParallelComponent, ParallelChildInfo } from "./in-parallel.ts";
 
 /**
  * I like this as a base class for a lot of generic containers.

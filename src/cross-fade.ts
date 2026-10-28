@@ -1,7 +1,7 @@
 import { makeBoundedLinear } from "phil-lib/misc";
-import { PathShape, Point } from "./glib/path-shape";
-import { interpolatePoint } from "./interpolate";
-import { PathShapeSplitter } from "./glib/path-shape-splitter";
+import { PathShape, Point } from "./glib/path-shape.ts";
+import { interpolatePoint } from "./interpolate.ts";
+import { PathShapeSplitter } from "./glib/path-shape-splitter.ts";
 
 /**
  * @param pathShape An arbitrary path.

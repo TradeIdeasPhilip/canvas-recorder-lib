@@ -1,4 +1,4 @@
-import type { Showable } from "./showable";
+import type { Showable } from "./showable.ts";
 
 /**
  * Video, sound and image files on the user's own computer, instead of on a web server.

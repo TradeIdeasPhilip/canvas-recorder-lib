@@ -5,7 +5,7 @@ import {
   ParametricFunction,
   PathShape,
   Point,
-} from "../glib/path-shape";
+} from "../glib/path-shape.ts";
 import {
   assertNonNullable,
   initializedArray,
@@ -14,9 +14,9 @@ import {
   makeLinear,
   sum,
 } from "phil-lib/misc";
-import { ease } from "../interpolate";
-import { PathShapeSplitter } from "../glib/path-shape-splitter";
-import { philDebug, Random } from "../utility";
+import { ease } from "../interpolate.ts";
+import { PathShapeSplitter } from "../glib/path-shape-splitter.ts";
+import { philDebug, Random } from "../utility.ts";
 
 /**
  * Transform a path.

@@ -10,15 +10,15 @@ import {
   getLocalFile,
   isLocalFileUrl,
   localFilesGeneration,
-} from "../local-files";
-import { ComponentWithLiveDuration } from "./live-duration";
+} from "../local-files.ts";
+import { ComponentWithLiveDuration } from "./live-duration.ts";
 import { ReadOnlyRect } from "phil-lib/misc";
-import { RectangleScheduleInfo } from "../schedule-helper";
-import { Scalar, ShowOptions, SoundClip } from "../showable";
-import { SlowImage } from "../slow-image-sources";
-import { Keyframe } from "../interpolate";
-import { debugLog } from "../debug-log";
-import { readVideoInfo, VideoInfo } from "./video-info";
+import { RectangleScheduleInfo } from "../schedule-helper.ts";
+import { Scalar, ShowOptions, SoundClip } from "../showable.ts";
+import { SlowImage } from "../slow-image-sources.ts";
+import { Keyframe } from "../interpolate.ts";
+import { debugLog } from "../debug-log.ts";
+import { readVideoInfo, VideoInfo } from "./video-info.ts";
 
 // MARK: Streaming Frame Sources
 

@@ -5,9 +5,9 @@ import {
   ReadOnlyRect,
   RealSvgRect,
 } from "phil-lib/misc";
-import { LCommand, PathShape, Point, QCommand } from "./glib/path-shape";
-import { LatticeValue } from "./lattice";
-import { Showable } from "./showable";
+import { LCommand, PathShape, Point, QCommand } from "./glib/path-shape.ts";
+import { LatticeValue } from "./lattice.ts";
+import { Showable } from "./showable.ts";
 
 /**
  * If the old code used element.animate(), this file will help build the new code.

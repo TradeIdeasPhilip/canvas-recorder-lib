@@ -1,4 +1,4 @@
-import { Scalar } from "./showable";
+import { Scalar } from "./showable.ts";
 import {
   discreteKeyframes,
   durationKeyframes,
@@ -8,10 +8,10 @@ import {
   interpolatePoints,
   interpolateRects,
   Keyframe,
-} from "./interpolate";
+} from "./interpolate.ts";
 import { ReadOnlyRect } from "phil-lib/misc";
-import { Point } from "./glib/path-shape";
-import { Lattice, LatticeValue } from "./lattice";
+import { Point } from "./glib/path-shape.ts";
+import { Lattice, LatticeValue } from "./lattice.ts";
 
 // This code is often used to create schedules for Showable.schedules.
 // This interface makes it easier for the TypeScript programmer to access the data.

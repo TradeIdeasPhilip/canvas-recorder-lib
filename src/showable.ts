@@ -1,9 +1,9 @@
 import { positiveModulo, ReadOnlyRect } from "phil-lib/misc";
-import { ease, easeIn, easeOut, Keyframe } from "./interpolate";
-import { Point } from "./glib/path-shape";
-import { LatticeValue } from "./lattice";
+import { ease, easeIn, easeOut, Keyframe } from "./interpolate.ts";
+import { Point } from "./glib/path-shape.ts";
+import { LatticeValue } from "./lattice.ts";
 // Type-only, so it is erased at runtime: registry.ts imports this module.
-import type { ComponentRegistryEntry } from "./slide-components/registry";
+import type { ComponentRegistryEntry } from "./slide-components/registry.ts";
 
 /**
  * The content shouldn't know much about the Visual Editor.

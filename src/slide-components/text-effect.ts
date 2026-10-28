@@ -1,7 +1,7 @@
 // MARK: Text Effects
 
-import { PathShape } from "../glib/path-shape";
-import { Showable, ShowOptions } from "../showable";
+import { PathShape } from "../glib/path-shape.ts";
+import { Showable, ShowOptions } from "../showable.ts";
 
 /**
  * A {@link MultiTextComponent} child with this key changes how the text is

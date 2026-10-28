@@ -1,26 +1,26 @@
-import { Showable } from "../showable";
-import { ArrowComponent } from "./arrow";
-import { CrossFadeTransition } from "./cross-fade-transition";
-import { FourierComponent } from "./fourier";
-import { FrameCounter } from "./frame-counter";
-import { FunctionGraphComponent } from "./function-graph";
-import { HalftoneShadowComponent } from "./halftone-shadow";
-import { HandwritingEffectComponent } from "./handwriting-effect";
-import { HoldPreviousTransition, HoldNextTransition } from "./hold";
-import { SingleImageComponent } from "./image";
-import { PaddingComponent } from "./in-parallel";
-import { InSeriesComponent } from "./in-series";
+import { Showable } from "../showable.ts";
+import { ArrowComponent } from "./arrow.ts";
+import { CrossFadeTransition } from "./cross-fade-transition.ts";
+import { FourierComponent } from "./fourier.ts";
+import { FrameCounter } from "./frame-counter.ts";
+import { FunctionGraphComponent } from "./function-graph.ts";
+import { HalftoneShadowComponent } from "./halftone-shadow.ts";
+import { HandwritingEffectComponent } from "./handwriting-effect.ts";
+import { HoldPreviousTransition, HoldNextTransition } from "./hold.ts";
+import { SingleImageComponent } from "./image.ts";
+import { PaddingComponent } from "./in-parallel.ts";
+import { InSeriesComponent } from "./in-series.ts";
 import {
   MultiTextComponent,
   TextSpanComponent,
   TextFormatComponent,
-} from "./multi-text";
-import { RectangleComponent } from "./rectangle";
-import { TextComponent } from "./simple-text";
-import { SlideComponent } from "./slide-component";
-import { SlideLeftTransition } from "./slide-left";
-import { TraditionalTextComponent } from "./traditional-text";
-import { VideoClipComponent } from "./video-clip";
+} from "./multi-text.ts";
+import { RectangleComponent } from "./rectangle.ts";
+import { TextComponent } from "./simple-text.ts";
+import { SlideComponent } from "./slide-component.ts";
+import { SlideLeftTransition } from "./slide-left.ts";
+import { TraditionalTextComponent } from "./traditional-text.ts";
+import { VideoClipComponent } from "./video-clip.ts";
 
 export type ComponentRegistryEntry = {
   /**

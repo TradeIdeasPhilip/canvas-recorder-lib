@@ -1,6 +1,6 @@
 import { pick, sum, zip } from "phil-lib/misc";
-import { Showable } from "./showable";
-import { canvasRecorder } from "../lib/main-control";
+import { Showable } from "./showable.ts";
+import { canvasRecorder } from "../lib/main-control.ts";
 
 export type Mutable<T> = {
   -readonly [P in keyof T]: T[P];

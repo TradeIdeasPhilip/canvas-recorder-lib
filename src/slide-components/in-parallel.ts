@@ -1,4 +1,4 @@
-import { BinaryInserter } from "../binary-search";
+import { BinaryInserter } from "../binary-search.ts";
 import {
   Scalar,
   ScalarInfo,
@@ -6,10 +6,10 @@ import {
   Showable,
   ShowableParent,
   ShowOptions,
-} from "../showable";
-import { Mutable, removeIf } from "../utility";
+} from "../showable.ts";
+import { Mutable, removeIf } from "../utility.ts";
 // Type-only: registry.ts imports this module, so a runtime import would be circular.
-import type { ComponentRegistryEntry } from "./registry";
+import type { ComponentRegistryEntry } from "./registry.ts";
 
 // MARK:  In Parallel
 

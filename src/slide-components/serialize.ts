@@ -5,8 +5,8 @@ import {
   SerializedSchedule,
   Showable,
   SoundClip,
-} from "../showable";
-import { ComponentRegistryEntry, componentRegistry } from "./registry";
+} from "../showable.ts";
+import { ComponentRegistryEntry, componentRegistry } from "./registry.ts";
 
 /**
  * One component the Visual Editor added, as saved.

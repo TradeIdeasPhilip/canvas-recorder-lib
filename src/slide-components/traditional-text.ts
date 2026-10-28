@@ -1,15 +1,15 @@
 import { Point } from "bezier-js";
-import { myRainbow } from "../glib/my-rainbow";
+import { myRainbow } from "../glib/my-rainbow.ts";
 import {
   ColorScheduleInfo,
   NumberScheduleInfo,
   PointScheduleInfo,
   SelectScheduleInfo,
   StringScheduleInfo,
-} from "../schedule-helper";
-import { ShowOptions } from "../showable";
-import { DurationAgnosticComponent } from "./duration-agnostic";
-import { Keyframe } from "../interpolate";
+} from "../schedule-helper.ts";
+import { ShowOptions } from "../showable.ts";
+import { DurationAgnosticComponent } from "./duration-agnostic.ts";
+import { Keyframe } from "../interpolate.ts";
 
 /**
  * `document.fonts.check()`/`.load()` only know about `FontFace` objects that

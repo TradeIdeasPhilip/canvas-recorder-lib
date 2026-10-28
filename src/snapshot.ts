@@ -1,4 +1,4 @@
-import { ease, easeIn, easeOut } from "./interpolate";
+import { ease, easeIn, easeOut } from "./interpolate.ts";
 import {
   applyScalarSnapshot,
   applySnapshot,
@@ -9,9 +9,9 @@ import {
   SerializedSchedule,
   Showable,
   SoundClip,
-} from "./showable";
-import { componentRegistry } from "./slide-components/registry";
-import { SerializedChild, buildComponents } from "./slide-components/serialize";
+} from "./showable.ts";
+import { componentRegistry } from "./slide-components/registry.ts";
+import { SerializedChild, buildComponents } from "./slide-components/serialize.ts";
 
 /**
  * Serialized state of one {@link Showable.fixedComponents} item.

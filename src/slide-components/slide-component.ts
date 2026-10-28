@@ -1,10 +1,10 @@
-import { applyTransform } from "../glib/transforms";
-import { StringScalarInfo, NumberScheduleInfo } from "../schedule-helper";
-import { ShowOptions } from "../showable";
-import { DurationAgnosticComponent } from "./duration-agnostic";
-import { ShowChildInfo } from "./in-parallel";
-import { showError } from "./show-error";
-import { Keyframe } from "../interpolate";
+import { applyTransform } from "../glib/transforms.ts";
+import { StringScalarInfo, NumberScheduleInfo } from "../schedule-helper.ts";
+import { ShowOptions } from "../showable.ts";
+import { DurationAgnosticComponent } from "./duration-agnostic.ts";
+import { ShowChildInfo } from "./in-parallel.ts";
+import { showError } from "./show-error.ts";
+import { Keyframe } from "../interpolate.ts";
 
 /**
  * Mathematical Bold Script capital letters A–J, used as placeholders in

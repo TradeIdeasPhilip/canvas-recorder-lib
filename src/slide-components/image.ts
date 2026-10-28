@@ -1,8 +1,8 @@
 import { ReadOnlyRect } from "phil-lib/misc";
-import { StringScheduleInfo, RectangleScheduleInfo } from "../schedule-helper";
-import { Showable, ShowOptions } from "../showable";
-import { SingleImage, SlowImage } from "../slow-image-sources";
-import { Keyframe } from "../interpolate";
+import { StringScheduleInfo, RectangleScheduleInfo } from "../schedule-helper.ts";
+import { Showable, ShowOptions } from "../showable.ts";
+import { SingleImage, SlowImage } from "../slow-image-sources.ts";
+import { Keyframe } from "../interpolate.ts";
 
 /**
  * Standard registry component: draws a single image loaded from a URL.

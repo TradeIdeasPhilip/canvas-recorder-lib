@@ -1,6 +1,6 @@
 import { Input, InputVideoTrack } from "mediabunny";
 import { ReadOnlyRect } from "phil-lib/misc";
-import { canvasRecorder } from "../../lib/main-control";
+import { canvasRecorder } from "../../lib/main-control.ts";
 
 // MARK: Constants
 

@@ -1,7 +1,7 @@
-import { ColorScheduleInfo, NumberScheduleInfo } from "../schedule-helper";
-import { Showable, ShowOptions } from "../showable";
-import { InParallelComponent } from "./in-parallel";
-import { Keyframe } from "../interpolate";
+import { ColorScheduleInfo, NumberScheduleInfo } from "../schedule-helper.ts";
+import { Showable, ShowOptions } from "../showable.ts";
+import { InParallelComponent } from "./in-parallel.ts";
+import { Keyframe } from "../interpolate.ts";
 
 /** At 100% opacity the dot radius reaches this fraction of the half-cell width. */
 const HALFTONE_MAX_RADIUS_FACTOR = 0.9;

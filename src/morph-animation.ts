@@ -1,6 +1,6 @@
 import { angleBetween, radiansPerDegree, zip } from "phil-lib/misc";
-import { Command, QCommand, LCommand, PathShape } from "./glib/path-shape";
-import { qCommandInterpolation } from "./interpolate";
+import { Command, QCommand, LCommand, PathShape } from "./glib/path-shape.ts";
+import { qCommandInterpolation } from "./interpolate.ts";
 
 /**
  * If the angle between two pieces is less than 1/2°, so we'll call it good enough.

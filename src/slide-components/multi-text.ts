@@ -2,14 +2,14 @@
 
 import { Point } from "bezier-js";
 import { ReadOnlyRect } from "phil-lib/misc";
-import { Font } from "../glib/letters-base";
-import { makeLineFontRatio } from "../glib/line-font";
+import { Font } from "../glib/letters-base.ts";
+import { makeLineFontRatio } from "../glib/line-font.ts";
 import {
   LaidOut,
   ParagraphLayout,
   WordInPlace,
-} from "../glib/paragraph-layout";
-import { PathShape } from "../glib/path-shape";
+} from "../glib/paragraph-layout.ts";
+import { PathShape } from "../glib/path-shape.ts";
 import {
   PointScheduleInfo,
   SelectScheduleInfo,
@@ -17,21 +17,21 @@ import {
   StringScheduleInfo,
   StringScalarInfo,
   ColorScheduleInfo,
-} from "../schedule-helper";
+} from "../schedule-helper.ts";
 import {
   ShowOptions,
   Showable,
   ShowableParent,
   ScheduleInfo,
   Scalar,
-} from "../showable";
-import { DurationAgnosticComponent } from "./duration-agnostic";
-import { ShowChildInfo } from "./in-parallel";
-import { showError } from "./show-error";
-import { EffectLetter, isTextEffect, TextEffect, TEXT_EFFECT } from "./text-effect";
-import { Keyframe } from "../interpolate";
+} from "../showable.ts";
+import { DurationAgnosticComponent } from "./duration-agnostic.ts";
+import { ShowChildInfo } from "./in-parallel.ts";
+import { showError } from "./show-error.ts";
+import { EffectLetter, isTextEffect, TextEffect, TEXT_EFFECT } from "./text-effect.ts";
+import { Keyframe } from "../interpolate.ts";
 // Type-only: registry.ts imports this module, so a runtime import would be circular.
-import type { ComponentRegistryEntry } from "./registry";
+import type { ComponentRegistryEntry } from "./registry.ts";
 
 /**
  * This is needed as a default in some places but should never actually be used.
