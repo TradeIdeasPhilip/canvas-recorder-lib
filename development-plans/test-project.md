@@ -1,8 +1,9 @@
 # Test Project
 
-A home for the main programs that test and support this library.
+A home for the main programs that test and support this library, starting with the showcase.
 
-**Status (2026-10-17):** Planning. No code yet.
+**Status (2026-11-02):** The folder exists, with one page:  the [showcase](../test-project/README.md), moved from canvas-recorder and split into one file per slide.
+It's built and published with the API docs.  The other pages below are still plans.
 
 ## Goals
 
@@ -38,29 +39,28 @@ The other small projects we're about to make will test those instructions.
 
 ```
 test-project/
-  package.json        private; "canvas-recorder-lib": "file:..", phil-lib, vite, typescript
-  vite.config.js      copied from affine-transforms; see below
-  tsconfig.json       copied from affine-transforms
+  package.json        private; "canvas-recorder-lib": "file:..", vite, typescript
+  vite.config.js      copied from simple-video-editor; see below
+  tsconfig.json       copied from simple-video-editor
   index.html          a plain list of the other pages
-  slow-fonts.html     one HTML file per page …
-  src/slow-fonts.ts   … and one main program for each
-  public/             delay-files-sw.js, sounds, images
-  properties/         saved editor state, one set per page (see the README)
+  showcase.html       one HTML file per page …
+  src/showcase.ts     … and one main program for each
+  src/showcase/       the showcase's slides, one per file; scene-list.ts puts them in order
+  public/             icon.png; later delay-files-sw.js, sounds, images
+  properties/         (later) saved editor state, one set per page
 ```
+
+phil-lib and the library's other dependencies aren't in `package.json`.
+A `file:` link's dependencies aren't installed in the project that links it, so imports of them find the library's copies in `../node_modules/`.
+That's also what keeps it to one copy of phil-lib.
 
 ### `vite.config.js`
 
-Start from [simple-video-editor's copy](../simple-video-editor/vite.config.js).
-It's already in this repo and uses the library from `..`, and it has the `optimizeDeps` line the transcriber needs (Sound Explorer and the [voice recorder](voice-recording.md) will use it).
-Change:
+Copied from [simple-video-editor's](../simple-video-editor/vite.config.js), with two changes:
 
 - **`server.port: 5176`**, with `strictPort: true`.  See [Ports](../README.md#ports).
-- **`build.rolldownOptions.input`:** list every HTML file.
+- **`build.rolldownOptions.input`:** lists every HTML file.
   Otherwise a page works under `npm run dev`, but silently disappears from `npm run build`.
-  [canvas-recorder's vite.config.js](https://github.com/TradeIdeasPhilip/canvas-recorder/blob/master/vite.config.js) shows the pattern, under Vite 7's older name, `rollupOptions`.
-
-Keep `base: "./"`, `target: "esnext"`, `fs.allow: [".."]`, `keepNames`, and `resolve.dedupe: ["phil-lib"]`.
-The library's own `node_modules` has a copy of phil-lib (a devDependency), and without `dedupe` the page can end up with two.
 
 ### `index.html`
 
@@ -88,17 +88,14 @@ The test project uses the library's compiled `dist/`, like every other consumer,
 
 ## Deploy
 
-Extend [.github/workflows/docs.yml](../.github/workflows/docs.yml), which already publishes the API docs and simple-video-editor.
-Do the same steps it does for `simple-video-editor/`:
+Done (2026-11-02).  [.github/workflows/docs.yml](../.github/workflows/docs.yml) does the same steps for `test-project/` as for `simple-video-editor/`:
+`npm ci` and `npm run build`, whose `tsc` is the regression test, then it copies `dist/` into the site:
 
-1. `npm ci` and `npm run build` in `test-project/`.  Its `build` script runs `tsc` first, which is the regression test.
-2. Add its `package-lock.json` to `cache-dependency-path`.
-3. Copy its `dist` into the site:
-   - `/` is the API docs (today's https://tradeideasphilip.github.io/canvas-recorder-lib/);
-   - `/simple-video-editor/` is already there;
-   - `/tests/` is the test project's `index.html` and pages.
+- `/` is the API docs (https://tradeideasphilip.github.io/canvas-recorder-lib/);
+- `/simple-video-editor/`;
+- `/tests/` is the test project's `index.html` and pages.
 
-Then the README can link to live examples, and so can the docs.
+The README links to the showcase.  The docs could link to slides too.
 
 **Fonts on the public site.** Some test slides use macOS system fonts (see [slow-fonts.md](slow-fonts.md#the-fonts-on-slide-1)).
 They work on your Mac, but a visitor on Windows sees a fallback font, and recording fails with "Font family … was not found."
@@ -108,11 +105,11 @@ That's fine for test pages; just don't make them the first thing a stranger sees
 
 | Page | Status | Notes |
 | --- | --- | --- |
-| `index.html` | Planned | The list. |
-| 🐢 Slow Fonts | Planned | [slow-fonts.md](slow-fonts.md):  the delay-files service worker, and the slides it was made for. |
+| `index.html` | Done | The list. |
+| 🖼️ Showcase | Done | canvas-recorder's `showcase.ts`, one slide per file.  See the [README](../test-project/README.md). |
+| 🐢 Slow Fonts | Planned | [slow-fonts.md](slow-fonts.md):  the delay-files service worker, and the slides it was made for.  Maybe as showcase slides, now that there's a place for them. |
 | 🎤 Sound Explorer | Planned | Moved from canvas-recorder, plus a 🎙 voice recorder.  See [voice-recording.md](voice-recording.md). |
 | 🔍 Font Inspector + Kerning | Idea | See below. |
-| ❓ Help / sample | Idea | See below. |
 
 ### Font Inspector + Kerning
 
@@ -124,10 +121,18 @@ That's fine for test pages; just don't make them the first thing a stranger sees
 - library-split.md called these the `canvas-recorder-dev` project, deferred until after the robots video.
   That video is out.
 
-### Help / sample
+### The showcase (done 2026-11-02)
 
-library-split.md's `canvas-recorder-sample`:  start the library and show a help page, made from canvas-recorder's `showcase.ts`, with no external files.
-That may be a better fit for the public site's `/tests/` front page than for a test.
+This was library-split.md's `canvas-recorder-sample` idea:  start the library and show what it can do, made from canvas-recorder's `showcase.ts`, with no external files.
+
+- canvas-recorder's 5,800-line `showcase.ts` became `src/showcase/`, one file per slide, each exporting the function that builds its slide.
+  `scene-list.ts` lists them in order, like `src/slide-components/registry.ts` does for components.
+  The few things many slides share are in `shared.ts`.
+- **The sound track wasn't copied,** on purpose.  Neither was any reference to it.
+  One slide's timing came from a sound clip's length; that's a plain number now.
+- `fancy-text.ts` and `corner-rounder.ts` moved into the library's `src/`.  The import script had missed them, because nothing in the player uses them.
+- The "Pixel Perfect Freaky Dot Patterns" slide is in `freaky-dots.ts` but not on the list, as in canvas-recorder:  not ready.
+- New:  `fourier-morph.ts`, an experiment.  It morphs one shape into another by decomposing their difference.
 
 ### canvas-recorder's other pages
 
@@ -159,5 +164,6 @@ Problems that affect every project using the library, like the separate projects
 ## Questions
 
 - **Name.** `test-project/` is a placeholder.  `playground/`, `examples/` or `tools/` say different things about who it's for.
-  Sound Explorer and the voice recorder lean toward `tools/`.
+  Sound Explorer and the voice recorder lean toward `tools/`, the showcase toward `examples/`.
+  Renaming means changing the port table, CLAUDE.md, docs.yml and the published URL (`/tests/`).
 - **Shared code.** If two pages want the same helper, it goes in `test-project/src/`.  If a third wants it, maybe it belongs in the library.

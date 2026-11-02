@@ -1,6 +1,7 @@
 # Build the website and publish it to GitHub Pages on every push to master:
 #   /                        the API docs, from TypeDoc
 #   /simple-video-editor/    the simple video editor, built from this commit's library
+#   /tests/                  test-project:  the showcase, test pages and tools, built the same way
 # Nothing generated gets committed.  Same pattern as riemann-surfaces-3d's deploy.yml.
 # One-time setup:  Settings → Pages → Source:  "GitHub Actions".
 name: Deploy docs and editor to GitHub Pages
@@ -33,6 +34,7 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             simple-video-editor/package-lock.json
+            test-project/package-lock.json
       - run: npm ci
       # The library's dist/, which the editor uses.
       - run: npm run build
@@ -43,11 +45,18 @@ jobs:
       # tsc, then vite build into simple-video-editor/dist.
       - run: npm run build
         working-directory: simple-video-editor
+      - run: npm ci
+        working-directory: test-project
+      # tsc, then vite build into test-project/dist.  The tsc is a regression test:  it fails
+      # when a library change breaks the showcase.
+      - run: npm run build
+        working-directory: test-project
       - name: Put the site together
         run: |
           mkdir _site
           cp -R docs/. _site/
           cp -R simple-video-editor/dist _site/simple-video-editor
+          cp -R test-project/dist _site/tests
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:

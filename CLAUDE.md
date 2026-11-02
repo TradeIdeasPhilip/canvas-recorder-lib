@@ -36,7 +36,7 @@ There's no page in this repo.  Run a project that uses the library (add it with 
 | --- | --- | --- |
 | `../affine-transforms` | 5175 | The video in active development (formerly canvas-recorder's `some5`) |
 | `../riemann-surfaces-3d` | 5174 | three.js robots, recorded with `src/full-screen-component.ts` |
-| `test-project/` | 5176 | Planned:  test and tool pages, in this repo.  See `development-plans/test-project.md` |
+| `test-project/` | 5176 | In this repo:  the **showcase** (`src/showcase/`, one file per slide, order in `scene-list.ts`), and later test and tool pages.  Uses `file:..`.  Published at `/tests/` |
 | `simple-video-editor/` | 5177 | In this repo:  the library's editor with an empty project, for non-programmers.  Uses `file:..`.  Published at `/simple-video-editor/` |
 
 Every project gets its own fixed port.  README.md's "Ports" table is the master list; add new projects there.
@@ -72,6 +72,7 @@ src/                  ← Showable, components, interpolation, glib…
 src/slide-components/ ← everything the Visual Editor can create; registry.ts lists them
 src/local-files.ts    ← `local:<name>` URLs for files on the user's computer; fetchMedia()
 simple-video-editor/  ← a small app in this repo; .github/workflows/docs.yml builds and publishes it
+test-project/         ← the showcase, and test pages; built and published the same way.  A new feature gets a slide here.
 scripts/              ← build helpers (and the old import script)
 dist/                 ← build output, gitignored
 README.md             ← for users of the library, including notes for consumer projects

@@ -13,6 +13,10 @@ It's still growing:  while the version is 0.x, a change that could break your pr
 **Try it:** the [Simple Video Editor](https://tradeideasphilip.github.io/canvas-recorder-lib/simple-video-editor/) is this library's player and Visual Editor with an empty project:  open video clips from your computer, add text and callouts, and save an MP4.
 Its source is in [simple-video-editor/](https://github.com/TradeIdeasPhilip/canvas-recorder-lib/tree/master/simple-video-editor).
 
+**Showcase:** the [showcase](https://tradeideasphilip.github.io/canvas-recorder-lib/tests/showcase.html) is a series of slides that show what the library can do, one topic per slide.
+Looking for code or ideas to copy?  Start there.
+Its source is in [test-project/src/showcase/](https://github.com/TradeIdeasPhilip/canvas-recorder-lib/tree/master/test-project/src/showcase), one file per slide.
+
 ## Use
 
 ```ts
@@ -130,7 +134,7 @@ For a new project, take the next number and add it here.
 | 5173 | [canvas-recorder](https://github.com/TradeIdeasPhilip/canvas-recorder) (Vite's default; historical) |
 | 5174 | [riemann-surfaces-3d](https://github.com/TradeIdeasPhilip/riemann-surfaces-3d) |
 | 5175 | [affine-transforms](https://github.com/TradeIdeasPhilip/affine-transforms) |
-| 5176 | `test-project/` in this repo (planned; see [development-plans/test-project.md](development-plans/test-project.md)) |
+| 5176 | [`test-project/`](https://github.com/TradeIdeasPhilip/canvas-recorder-lib/tree/master/test-project) in this repo:  the showcase, tests and tools |
 | 5177 | [`simple-video-editor/`](https://github.com/TradeIdeasPhilip/canvas-recorder-lib/tree/master/simple-video-editor) in this repo |
 | 5178 | 7-pointed-star |
 
