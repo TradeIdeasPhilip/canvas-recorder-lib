@@ -16,9 +16,17 @@ import {
   Showable,
 } from "canvas-recorder-lib/src/showable";
 import {
+  DurationAgnosticComponent,
+  Scalar,
+  ShowOptions,
+} from "canvas-recorder-lib";
+import {
   FourierSource,
   orderTerms,
+  parseTermGroups,
 } from "canvas-recorder-lib/src/slide-components/fourier";
+import { ParallelChildInfo } from "canvas-recorder-lib/src/slide-components/in-parallel";
+import { Mutable } from "canvas-recorder-lib/src/utility";
 import { initializedArray, makeBoundedLinear, makeLinear } from "phil-lib/misc";
 import { sum } from "../utility.ts";
 import {
@@ -184,6 +192,25 @@ export const circleShape: MiddleShape = (before, after) => {
   });
 };
 
+/**
+ * Decompose before and after, and for each frequency keep whichever term is bigger.
+ * Nothing shrinks in the middle:  each of the big circles from both shapes is there, at full
+ * size.  It has corners from both shapes, so round it off with {@link rounded}.
+ */
+export const maxAmplitudeShape: MiddleShape = (before, after) => {
+  const strongest = new Map<number, FourierTerm>();
+  for (const term of [
+    ...samplesToFourier(before),
+    ...samplesToFourier(after),
+  ]) {
+    const existing = strongest.get(term.frequency);
+    if (!existing || term.amplitude > existing.amplitude) {
+      strongest.set(term.frequency, term);
+    }
+  }
+  return addTerms([...strongest.values()], before.length);
+};
+
 // MARK: Term groups
 
 /**
@@ -246,6 +273,21 @@ export function weightedMorphGroups(
 }
 
 /**
+ * The Fourier component's default Term Groups, `0, 1, 2, 3, 4, 5-9, 10-19, 20-39`, then all of
+ * the rest in one last group, so the morph ends exactly at after.
+ * The biggest changes first and the smallest last, like ease-out.
+ */
+export function fourierComponentGroups(
+  terms: readonly FourierTerm[],
+): number[][] {
+  const groups = parseTermGroups("0, 1, 2, 3, 4, 5-9, 10-19, 20-39").groups.map(
+    (group) => [...group],
+  );
+  groups.push(initializedArray(Math.max(0, terms.length - 40), (i) => i + 40));
+  return groups;
+}
+
+/**
  * The first version's grouping, three steps:  the largest term, then everything but the three
  * largest, then the second and third largest.  The middle group holds all the small terms, so
  * it's the one that fixes the corners.
@@ -298,11 +340,26 @@ export type FourierMorphOptions = {
   readonly termGroups?: TermGrouper;
 };
 
+/** A curve at every sample's `t`. */
+type State = { readonly x: Float64Array; readonly y: Float64Array };
+
+/** One step of a morph:  a sweep from one state to the next. */
+type Step = {
+  readonly from: State;
+  readonly to: State;
+  /**
+   * The width of the sweep's soft boundary, in t.
+   * Undefined when the step adds no terms, so nothing moves.
+   */
+  readonly r: number | undefined;
+};
+
 /** One leg of the trip:  one shape to the next, one decomposition. */
 type Leg = {
   /** The difference's terms, largest first. */
   readonly terms: readonly FourierTerm[];
   readonly groups: readonly (readonly number[])[];
+  readonly steps: readonly Step[];
   /** One function per step, from progress (0 to 1) to the path. */
   readonly rules: readonly ((progress: number) => PathShape)[];
 };
@@ -322,6 +379,21 @@ function polyline(
   return new PathShape(commands);
 }
 
+/**
+ * How much of a step's change is in at each `t`, at this point in the step.
+ *
+ * The sweep is getAnimationRules()'s common case:  a soft boundary moves from t = 0 to
+ * t = 1.  Behind it the new terms are in (1), ahead of it they're not (0).
+ */
+function sweepAt(step: Step, progress: number): (t: number) => number {
+  const r = step.r;
+  if (r === undefined || progress <= 0) return () => 0;
+  if (progress >= 1) return () => 1;
+  const centerOfChange = makeBoundedLinear(0, -r, 1, 1 + r)(progress);
+  const getFraction = makeEasing(centerOfChange - r, centerOfChange + r);
+  return (t) => 1 - getFraction(t);
+}
+
 function createLeg(from: Samples, to: Samples, termGroups: TermGrouper): Leg {
   const sampleCount = from.length;
   const difference = from.map(
@@ -333,12 +405,12 @@ function createLeg(from: Samples, to: Samples, termGroups: TermGrouper): Leg {
 
   /**
    * The curve at each keyframe:  `from`, plus the first `keyframes[k]` ordered terms, at every
-   * sample's `t`.  Computed once, so a frame only has to blend two of these.
+   * sample's `t`.  Computed once, so a frame only has to blend these.
    */
   const states = (() => {
     const x = Float64Array.from(from, ([x]) => x);
     const y = Float64Array.from(from, ([, y]) => y);
-    const result: { x: Float64Array; y: Float64Array }[] = [];
+    const result: State[] = [];
     let added = 0;
     for (const keyframe of ordered.keyframes) {
       for (; added < keyframe; added++) {
@@ -354,47 +426,42 @@ function createLeg(from: Samples, to: Samples, termGroups: TermGrouper): Leg {
     return result;
   })();
 
-  /**
-   * The sweep is getAnimationRules()'s common case:  a soft boundary moves from t = 0 to
-   * t = 1.  Behind it the new terms are in, ahead of it they're not.
-   */
-  const rules = initializedArray(
+  const steps = initializedArray(
     ordered.keyframes.length - 1,
-    (index): ((progress: number) => PathShape) => {
-      const before = states[index];
-      const after = states[index + 1];
-      const staticPath = (state: typeof before) =>
-        polyline(sampleCount, (i) => ({ x: state.x[i], y: state.y[i] }));
+    (index): Step => {
       const start = ordered.keyframes[index];
       const end = ordered.keyframes[index + 1];
-      if (start === end) {
-        const path = staticPath(before);
-        return () => path;
-      }
       // orderTerms() puts frequency 0 last in a group, so this is 0 only if the whole group is.
       const firstInterestingFrequency =
-        Math.abs(ordered.terms[start].frequency) || 1;
-      /** The width of the soft boundary, in t. */
-      const r = 0.2 / firstInterestingFrequency;
-      const tToCenter = makeBoundedLinear(0, -r, 1, 1 + r);
-      const beforePath = staticPath(before);
-      const afterPath = staticPath(after);
-      return (progress: number): PathShape => {
-        if (progress <= 0) return beforePath;
-        if (progress >= 1) return afterPath;
-        const centerOfChange = tToCenter(progress);
-        const getFraction = makeEasing(centerOfChange - r, centerOfChange + r);
-        return polyline(sampleCount, (i, t) => {
-          const fraction = 1 - getFraction(t);
-          return {
-            x: before.x[i] + fraction * (after.x[i] - before.x[i]),
-            y: before.y[i] + fraction * (after.y[i] - before.y[i]),
-          };
-        });
+        start === end ? 0 : Math.abs(ordered.terms[start].frequency) || 1;
+      return {
+        from: states[index],
+        to: states[index + 1],
+        r: start === end ? undefined : 0.2 / firstInterestingFrequency,
       };
     },
   );
-  return { terms, groups, rules };
+
+  const rules = steps.map((step): ((progress: number) => PathShape) => {
+    const { from, to } = step;
+    const staticPath = (state: State) =>
+      polyline(sampleCount, (i) => ({ x: state.x[i], y: state.y[i] }));
+    const fromPath = staticPath(from);
+    const toPath = step.r === undefined ? fromPath : staticPath(to);
+    return (progress: number): PathShape => {
+      if (progress <= 0 || step.r === undefined) return fromPath;
+      if (progress >= 1) return toPath;
+      const fractionAt = sweepAt(step, progress);
+      return polyline(sampleCount, (i, t) => {
+        const fraction = fractionAt(t);
+        return {
+          x: from.x[i] + fraction * (to.x[i] - from.x[i]),
+          y: from.y[i] + fraction * (to.y[i] - from.y[i]),
+        };
+      });
+    };
+  });
+  return { terms, groups, steps, rules };
 }
 
 /**
@@ -421,7 +488,12 @@ export function createFourierMorph(options: FourierMorphOptions) {
   const legs = initializedArray(shapes.length - 1, (index) =>
     createLeg(shapes[index], shapes[index + 1], termGroups),
   );
-  return { legs, rules: legs.flatMap((leg) => leg.rules) };
+  return {
+    legs,
+    rules: legs.flatMap((leg) => leg.rules),
+    steps: legs.flatMap((leg) => leg.steps),
+    sampleCount,
+  };
 }
 
 /**
@@ -514,20 +586,22 @@ const pentagram = makePolygon(5, 1, "unused", 0).transform(
 );
 
 /**
- * A slide showing one morph, square to pentagram.
+ * Every slide's before and after:  square to pentagram.
  * Swap the shapes out to try others.  Any FourierSource works:  a path, a parametric function,
  * or terms.  makeItFit() puts each one in the same place, the same size.
  */
-function morphSlide(
-  title: string,
-  options: Omit<FourierMorphOptions, "before" | "after">,
-  pauseMs: number,
-): Showable {
-  const morph = createFourierMorph({
+function squareToPentagram(): Pick<FourierMorphOptions, "before" | "after"> {
+  return {
     before: { path: square.makeItFit(DEST_RECT, "meet") },
     after: { path: pentagram.makeItFit(DEST_RECT, "meet") },
-    ...options,
-  });
+  };
+}
+
+/** Every leg's terms and groups, on the console. */
+function reportMorph(
+  title: string,
+  morph: ReturnType<typeof createFourierMorph>,
+) {
   morph.legs.forEach((leg, index) =>
     reportTerms(
       morph.legs.length === 1 ? title : `${title}, leg ${index + 1}`,
@@ -535,28 +609,53 @@ function morphSlide(
       leg.groups,
     ),
   );
-  const timeline = morphTimeline(morph.rules, 4000, pauseMs);
+}
 
-  const scene = new MakeShowableInParallel(title);
-  const titlePath = ParagraphLayout.singlePathShape({
+function makeTitlePath(title: string) {
+  return ParagraphLayout.singlePathShape({
     text: title,
     font: titleFont,
     alignment: "center",
     width: 16,
   }).canvasPath;
+}
+
+/** The title, and the morph as it is right now. */
+function drawMorph(
+  context: CanvasRenderingContext2D,
+  titlePath: Path2D,
+  pathShape: PathShape,
+) {
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.lineWidth = titleFont.strokeWidth;
+  context.strokeStyle = myRainbow.myBlue;
+  context.stroke(titlePath);
+  context.lineWidth = 0.06;
+  context.strokeStyle = myRainbow.yellow;
+  context.stroke(pathShape.canvasPath);
+}
+
+/** A slide showing one morph, square to pentagram, one step at a time. */
+function morphSlide(
+  title: string,
+  options: Omit<FourierMorphOptions, "before" | "after">,
+  pauseMs: number,
+): Showable {
+  const morph = createFourierMorph({ ...squareToPentagram(), ...options });
+  reportMorph(title, morph);
+  const timeline = morphTimeline(morph.rules, 4000, pauseMs);
+  const titlePath = makeTitlePath(title);
+  const scene = new MakeShowableInParallel(title);
   scene.add({
     description: "morph",
     duration: DEFAULT_PRE_ROLL_MS + timeline.duration + DEFAULT_POST_ROLL_MS,
     show({ context, timeInMs }) {
-      context.lineCap = "round";
-      context.lineJoin = "round";
-      context.lineWidth = titleFont.strokeWidth;
-      context.strokeStyle = myRainbow.myBlue;
-      context.stroke(titlePath);
-      const pathShape = timeline.pathAt(timeInMs - DEFAULT_PRE_ROLL_MS);
-      context.lineWidth = 0.06;
-      context.strokeStyle = myRainbow.yellow;
-      context.stroke(pathShape.canvasPath);
+      drawMorph(
+        context,
+        titlePath,
+        timeline.pathAt(timeInMs - DEFAULT_PRE_ROLL_MS),
+      );
     },
   });
   return scene.build();
@@ -569,6 +668,18 @@ function morphSlide(
  */
 export function fourierMorph(): Showable {
   return morphSlide("Fourier Morph", {}, 500);
+}
+
+/**
+ * The "Fourier Morph w/ ease-out" slide:  one leg, with the terms in the same groups the Fourier
+ * component uses.  Biggest first, then the small ones in bigger and bigger groups.
+ */
+export function fourierMorphEaseOut(): Showable {
+  return morphSlide(
+    "Fourier Morph w/ ease-out",
+    { termGroups: fourierComponentGroups },
+    500,
+  );
 }
 
 /**
@@ -605,4 +716,109 @@ export function fourierMorphViaCircle(): Showable {
     { ...viaOptions, via: [circleShape] },
     0,
   );
+}
+
+// MARK: Overlapping steps
+
+/** How long one step's sweep takes. */
+const STEP_MS = 4000;
+
+/**
+ * A morph whose steps can overlap in time, so parts of more than two steps show at once.
+ *
+ * Each step is a sweep that adds its change, a little at a time, along the curve.
+ * The sweeps don't depend on each other, so each one adds its own share of its own change, and
+ * any number of them can be running at once:  a cross fade applied to a cross fade.
+ *
+ * **Step Spacing**, in the Visual Editor, is the time from the start of one step to the start
+ * of the next, measured in steps.  1 plays them one after another.  More adds a pause in
+ * between.  Less overlaps them, and the whole morph is shorter.
+ */
+export class OverlappingFourierMorph extends DurationAgnosticComponent {
+  readonly stepSpacingScalar: Scalar<"number">;
+  /** Undefined only while the base class's constructor runs. */
+  private readonly morph: ReturnType<typeof createFourierMorph> | undefined;
+  private readonly titlePath: Path2D;
+  /**
+   * @param stepSpacing The starting value for Step Spacing.
+   */
+  constructor(title: string, options: FourierMorphOptions, stepSpacing = 0.5) {
+    super(title);
+    this.morph = createFourierMorph(options);
+    reportMorph(title, this.morph);
+    this.titlePath = makeTitlePath(title);
+    this.stepSpacingScalar = this.makeNotifyingScalar(
+      "number",
+      "Step Spacing",
+      stepSpacing,
+    );
+    this.scalars.push(this.stepSpacingScalar);
+  }
+  /** Step Spacing.  A negative spacing means nothing, so it's treated as 0. */
+  private get stepSpacing() {
+    return Math.max(0, this.stepSpacingScalar?.value ?? 1);
+  }
+  /** From the start of the first step to the end of the last. */
+  private get morphDuration() {
+    const stepCount = this.morph?.steps.length ?? 0;
+    return ((stepCount - 1) * this.stepSpacing + 1) * STEP_MS;
+  }
+  protected override recomputeDuration(children: Mutable<ParallelChildInfo>[]) {
+    return Math.max(
+      super.recomputeDuration(children),
+      DEFAULT_PRE_ROLL_MS + this.morphDuration + DEFAULT_POST_ROLL_MS,
+    );
+  }
+  /** The morph at this time, 0 being the start of the first step. */
+  private pathAt(timeInMs: number): PathShape | undefined {
+    const morph = this.morph;
+    if (!morph || morph.steps.length === 0) return undefined;
+    const { steps, sampleCount } = morph;
+    const start = steps[0].from;
+    const spacingMs = this.stepSpacing * STEP_MS;
+    const fractions = steps.map((step, index) =>
+      sweepAt(step, (timeInMs - index * spacingMs) / STEP_MS),
+    );
+    return polyline(sampleCount, (i, t) => {
+      let x = start.x[i];
+      let y = start.y[i];
+      steps.forEach((step, index) => {
+        const fraction = fractions[index](t);
+        if (fraction !== 0) {
+          x += fraction * (step.to.x[i] - step.from.x[i]);
+          y += fraction * (step.to.y[i] - step.from.y[i]);
+        }
+      });
+      return { x, y };
+    });
+  }
+  override show(options: ShowOptions): void {
+    const pathShape = this.pathAt(options.timeInMs - DEFAULT_PRE_ROLL_MS);
+    if (pathShape) drawMorph(options.context, this.titlePath, pathShape);
+    super.show(options);
+  }
+}
+
+/**
+ * The "Fourier Morph Overlapping" slide:  the same as "Fourier Morph via Mean", but the steps
+ * overlap.  Try different values of Step Spacing in the Visual Editor.
+ */
+export function fourierMorphOverlapping(): Showable {
+  return new OverlappingFourierMorph("Fourier Morph Overlapping", {
+    ...squareToPentagram(),
+    ...viaOptions,
+    via: [rounded(meanShape)],
+  });
+}
+
+/**
+ * The "Fourier Morph via Max Amplitude" slide:  like "Fourier Morph Overlapping", through
+ * {@link maxAmplitudeShape}, rounded off, so the shape doesn't shrink in the middle.
+ */
+export function fourierMorphViaMaxAmplitude(): Showable {
+  return new OverlappingFourierMorph("Fourier Morph via Max Amplitude", {
+    ...squareToPentagram(),
+    ...viaOptions,
+    via: [rounded(maxAmplitudeShape)],
+  });
 }

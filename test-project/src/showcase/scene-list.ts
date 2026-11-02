@@ -14,8 +14,11 @@ import { formattingPiecesOfText } from "./formatting-text.ts";
 import { fourierComponent } from "./fourier-component.ts";
 import {
   fourierMorph,
+  fourierMorphEaseOut,
+  fourierMorphOverlapping,
   fourierMorphViaCircle,
   fourierMorphViaHalfway,
+  fourierMorphViaMaxAmplitude,
   fourierMorphViaMean,
 } from "./fourier-morph.ts";
 import { functionGraphing } from "./function-graphing.ts";
@@ -80,9 +83,12 @@ export const showcaseSlides: (() => Showable)[] = [
   calligraphyEffect,
   fourierComponent,
   fourierMorph,
+  fourierMorphEaseOut,
   fourierMorphViaHalfway,
   fourierMorphViaMean,
   fourierMorphViaCircle,
+  fourierMorphOverlapping,
+  fourierMorphViaMaxAmplitude,
   functionGraphing,
   morphingText,
   dotsAndDashes,
