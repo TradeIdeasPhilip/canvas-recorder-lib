@@ -12,7 +12,12 @@ import { flowersWithNPetals } from "./flowers.ts";
 import { fontSamples } from "./font-samples.ts";
 import { formattingPiecesOfText } from "./formatting-text.ts";
 import { fourierComponent } from "./fourier-component.ts";
-import { fourierMorph } from "./fourier-morph.ts";
+import {
+  fourierMorph,
+  fourierMorphViaCircle,
+  fourierMorphViaHalfway,
+  fourierMorphViaMean,
+} from "./fourier-morph.ts";
 import { functionGraphing } from "./function-graphing.ts";
 import { heartCurve } from "./heart-curve.ts";
 import { imageSlide } from "./image.ts";
@@ -75,6 +80,9 @@ export const showcaseSlides: (() => Showable)[] = [
   calligraphyEffect,
   fourierComponent,
   fourierMorph,
+  fourierMorphViaHalfway,
+  fourierMorphViaMean,
+  fourierMorphViaCircle,
   functionGraphing,
   morphingText,
   dotsAndDashes,
