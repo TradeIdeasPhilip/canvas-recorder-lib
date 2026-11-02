@@ -132,6 +132,7 @@ For a new project, take the next number and add it here.
 | 5175 | [affine-transforms](https://github.com/TradeIdeasPhilip/affine-transforms) |
 | 5176 | `test-project/` in this repo (planned; see [development-plans/test-project.md](development-plans/test-project.md)) |
 | 5177 | [`simple-video-editor/`](https://github.com/TradeIdeasPhilip/canvas-recorder-lib/tree/master/simple-video-editor) in this repo |
+| 5178 | 7-pointed-star |
 
 ### Starting the editor
 

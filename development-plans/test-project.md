@@ -50,16 +50,16 @@ test-project/
 
 ### `vite.config.js`
 
-Start from [affine-transforms' copy](https://github.com/TradeIdeasPhilip/affine-transforms/blob/f73595cecfc7399f278eddd699a7befa880ad78a/vite.config.js), and change:
+Start from [simple-video-editor's copy](../simple-video-editor/vite.config.js).
+It's already in this repo and uses the library from `..`, and it has the `optimizeDeps` line the transcriber needs (Sound Explorer and the [voice recorder](voice-recording.md) will use it).
+Change:
 
 - **`server.port: 5176`**, with `strictPort: true`.  See [Ports](../README.md#ports).
-- **`fs.allow`:** `[".."]` covers the library and this folder.
-- **`build.rollupOptions.input`:** list every HTML file.
+- **`build.rolldownOptions.input`:** list every HTML file.
   Otherwise a page works under `npm run dev`, but silently disappears from `npm run build`.
-  [canvas-recorder's vite.config.js](https://github.com/TradeIdeasPhilip/canvas-recorder/blob/master/vite.config.js) shows the pattern.
-- **`build.outDir`:** wherever the workflow wants it (see [Deploy](#deploy)).
+  [canvas-recorder's vite.config.js](https://github.com/TradeIdeasPhilip/canvas-recorder/blob/master/vite.config.js) shows the pattern, under Vite 7's older name, `rollupOptions`.
 
-Keep `base: "./"`, `target: "esnext"` and `resolve.dedupe: ["phil-lib"]`.
+Keep `base: "./"`, `target: "esnext"`, `fs.allow: [".."]`, `keepNames`, and `resolve.dedupe: ["phil-lib"]`.
 The library's own `node_modules` has a copy of phil-lib (a devDependency), and without `dedupe` the page can end up with two.
 
 ### `index.html`
@@ -88,14 +88,14 @@ The test project uses the library's compiled `dist/`, like every other consumer,
 
 ## Deploy
 
-Extend [.github/workflows/docs.yml](../.github/workflows/docs.yml), which already publishes the API docs:
+Extend [.github/workflows/docs.yml](../.github/workflows/docs.yml), which already publishes the API docs and simple-video-editor.
+Do the same steps it does for `simple-video-editor/`:
 
-1. `npm ci` and `npm run build` in the root, so `dist/` exists.
-2. `npm run docs`.
-3. `npm ci`, `npx tsc --noEmit` and `npm run build` in `test-project/`.
-   The `tsc` is the regression test.
-4. Upload one site:
+1. `npm ci` and `npm run build` in `test-project/`.  Its `build` script runs `tsc` first, which is the regression test.
+2. Add its `package-lock.json` to `cache-dependency-path`.
+3. Copy its `dist` into the site:
    - `/` is the API docs (today's https://tradeideasphilip.github.io/canvas-recorder-lib/);
+   - `/simple-video-editor/` is already there;
    - `/tests/` is the test project's `index.html` and pages.
 
 Then the README can link to live examples, and so can the docs.
@@ -110,6 +110,7 @@ That's fine for test pages; just don't make them the first thing a stranger sees
 | --- | --- | --- |
 | `index.html` | Planned | The list. |
 | 🐢 Slow Fonts | Planned | [slow-fonts.md](slow-fonts.md):  the delay-files service worker, and the slides it was made for. |
+| 🎤 Sound Explorer | Planned | Moved from canvas-recorder, plus a 🎙 voice recorder.  See [voice-recording.md](voice-recording.md). |
 | 🔍 Font Inspector + Kerning | Idea | See below. |
 | ❓ Help / sample | Idea | See below. |
 
@@ -133,10 +134,23 @@ That may be a better fit for the public site's `/tests/` front page than for a t
 [library-split.md](from-previous-project/library-split.md#things-in-the-code-that-will-have-to-change) says to decide, for each one, whether it belongs in the library, in a tools project, or nowhere.
 This folder is the tools project.
 
-- 🎤 `sound-explorer.html`
-- 🎬 `media-browser.html`
-- 🧪 `random-tests.html`
-- 🧐 `test-rig.html`
+| Page | Suggestion |
+| --- | --- |
+| 🎤 `sound-explorer.html` | **Move it here first**, with the voice recorder.  [voice-recording.md](voice-recording.md) has the steps. |
+| 🎬 `media-browser.html` | A "quick strawman" for a CapCut-style media list (350 lines).  Easy to port:  it only imports Mediabunny and `src/slide-components/video-info.ts`, both in the library.  But first check whether the editor's Video Clip panel, now with local files, already does its job.  If it does, leave it in canvas-recorder's history. |
+| 🧪 `random-tests.html` | "Scratch space for trying out browser APIs":  file handles, video, Mediabunny, fonts.  The experiments behind features that now exist.  History, unless one of them is needed again. |
+| 🧐 `test-rig.html` | Opens every video on canvas-recorder's menu and clicks each one's save button.  The videos are separate projects now, with no shared menu.  History. |
+
+### canvas-recorder's scripts
+
+They're in canvas-recorder's [record/](https://github.com/TradeIdeasPhilip/canvas-recorder/tree/00058ed3fa7d3beec6bb21eebf6aa34094d355bf/record), run with `tsx`.
+These belong in the library or nowhere, not in this folder.
+
+| Script | Suggestion |
+| --- | --- |
+| `cli-info.ts` (`npm run info`) | An `ffprobe` replacement built on Mediabunny, which is already a library dependency.  Useful in every video project.  Maybe a `bin` in the library, so any project can run it with `npx`. |
+| `cli-internals.ts` (`npm run internals`) | Writes `internals.md`.  CLAUDE.md notes that the library doesn't have this generator yet.  It belongs in the library's `scripts/`, with `@napi-rs/canvas` as a new devDependency. |
+| `cli-record.ts` (`npm run record`) | Renders a video without a browser, with `@napi-rs/canvas`, and pipes it to ffmpeg as ProRes 4444 with alpha.  Tied to canvas-recorder's `dynamic-exports.ts`.  Leave it unless alpha output is needed again.  See [puppeteer-and-ffmpeg.md](from-previous-project/puppeteer-and-ffmpeg.md). |
 
 ## Open items
 
@@ -145,4 +159,5 @@ Problems that affect every project using the library, like the separate projects
 ## Questions
 
 - **Name.** `test-project/` is a placeholder.  `playground/`, `examples/` or `tools/` say different things about who it's for.
+  Sound Explorer and the voice recorder lean toward `tools/`.
 - **Shared code.** If two pages want the same helper, it goes in `test-project/src/`.  If a third wants it, maybe it belongs in the library.
