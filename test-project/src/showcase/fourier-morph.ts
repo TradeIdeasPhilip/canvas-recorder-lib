@@ -102,18 +102,82 @@ export type FourierMorphOptions = {
   readonly after: FourierSource;
   /**
    * Which of the difference's terms each step adds, by size:  0 is the largest.
-   * The default is three steps:  the largest term, then everything but the three largest, then
-   * the second and third largest.  The middle group holds all the small terms, so it's the one
-   * that fixes the corners.
+   * Given the terms, largest first.
+   * The default is {@link weightedMorphGroups}, with its default weights.
    */
-  readonly termGroups?: (termCount: number) => number[][];
+  readonly termGroups?: (terms: readonly FourierTerm[]) => number[][];
 };
 
-/** The default for {@link FourierMorphOptions.termGroups}. */
-export function defaultMorphGroups(termCount: number): number[][] {
+/**
+ * Split the terms into groups with about the same total amplitude, so each step moves about
+ * the same amount.  Greedy:  starting from the largest term, add each term to the group with
+ * the smallest total so far.  A tie goes to the earlier group.
+ */
+export function balancedMorphGroups(
+  terms: readonly FourierTerm[],
+  groupCount = 2,
+): number[][] {
+  const groups = initializedArray(groupCount, (): number[] => []);
+  const totals = new Array<number>(groupCount).fill(0);
+  terms.forEach((term, index) => {
+    const smallest = totals.indexOf(Math.min(...totals));
+    groups[smallest].push(index);
+    totals[smallest] += term.amplitude;
+  });
+  return groups;
+}
+
+/**
+ * Small changes first and last, the biggest in the middle, like ease-in-out.
+ *
+ * `weights` is each step's share of the total amplitude, in order.
+ * The step with the biggest weight gets whatever is left over.
+ * The others are filled first, smallest weight first (a tie goes to the earlier step), each
+ * from the smallest terms still unused, as close to its share as possible without going over.
+ * The small terms are the ones we can always get close to perfect, so the middle can vary
+ * without changing the basic shape.
+ */
+export function weightedMorphGroups(
+  terms: readonly FourierTerm[],
+  weights: readonly number[] = [0.05, 0.1, 0.7, 0.1, 0.05],
+): number[][] {
+  const totalAmplitude = sum(terms.map((term) => term.amplitude));
+  const totalWeight = sum([...weights]);
+  const middle = weights.indexOf(Math.max(...weights));
+  /** Unused term numbers, smallest amplitude first. */
+  const unused = terms.map((_, index) => index).reverse();
+  const groups = weights.map((): number[] => []);
+  const fillOrder = weights
+    .map((weight, index) => ({ weight, index }))
+    .filter(({ index }) => index !== middle)
+    .sort((a, b) => a.weight - b.weight || a.index - b.index);
+  for (const { weight, index } of fillOrder) {
+    const goal = (totalAmplitude * weight) / totalWeight;
+    let total = 0;
+    // Smallest first, so once one doesn't fit, none of the rest will.
+    while (unused.length > 0 && total + terms[unused[0]].amplitude <= goal) {
+      const term = unused.shift()!;
+      groups[index].push(term);
+      total += terms[term].amplitude;
+    }
+  }
+  groups[middle].push(...unused);
+  // Largest first within each group.  getAnimationRules() times a step by its first term.
+  groups.forEach((group) => group.sort((a, b) => a - b));
+  return groups;
+}
+
+/**
+ * The first version's grouping, three steps:  the largest term, then everything but the three
+ * largest, then the second and third largest.  The middle group holds all the small terms, so
+ * it's the one that fixes the corners.
+ */
+export function threeStepMorphGroups(
+  terms: readonly FourierTerm[],
+): number[][] {
   return [
     [0],
-    initializedArray(Math.max(0, termCount - 3), (i) => i + 3),
+    initializedArray(Math.max(0, terms.length - 3), (i) => i + 3),
     [1, 2],
   ];
 }
@@ -139,7 +203,7 @@ export function createFourierMorph(options: FourierMorphOptions) {
   );
   /** Sorted by size, largest first. */
   const terms = samplesToFourier(difference);
-  const groups = (options.termGroups ?? defaultMorphGroups)(terms.length);
+  const groups = (options.termGroups ?? weightedMorphGroups)(terms);
   const ordered = orderTerms(terms, groups);
 
   /**
@@ -296,6 +360,8 @@ export function fourierMorph(): Showable {
   const before: FourierSource = { path: square.makeItFit(DEST_RECT, "meet") };
   const after: FourierSource = { path: pentagram.makeItFit(DEST_RECT, "meet") };
 
+  // Try other groupings, e.g. termGroups: (terms) => weightedMorphGroups(terms, [0.1, 0.8, 0.1]),
+  // termGroups: balancedMorphGroups, or termGroups: threeStepMorphGroups.
   const morph = createFourierMorph({ before, after });
   reportTerms("Fourier Morph", morph.terms, morph.groups);
 
