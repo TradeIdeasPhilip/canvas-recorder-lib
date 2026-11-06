@@ -107,21 +107,26 @@ Collect them here before release.  So far:
     The generated TypeScript in the diff files (`properties/*.txt`) uses class names, so it says `Component` from the next sync on.
   - Users:  18 lines in the library, `affine-transforms.ts`, and the showcase.
   - Docs:  `Showable` is the interface; `Component` is the standard implementation.  A plain object can still be a `Showable` in the tree.
+- **`samplesFromParametric()` samples at `i / (N - 1)`** ([src/peano-fourier/fourier-shared.ts](../src/peano-fourier/fourier-shared.ts)), 7-pointed-star's issue 10.
+  For a closed curve the last sample repeats the first; `i / N` spaces them evenly.
+  `FourierComponent` uses it for parametric sources, so the fix changes how those slides look:  breaking.
 
-Additions aren't breaking and can come any time, e.g. 7-pointed-star's issues 5 and 9:  export `FourierComponent` and `LatticeValue` from the package root.
+Additions aren't breaking and can come any time.  7-pointed-star's issues 5 and 9 (export `FourierComponent` and `LatticeValue` from the package root) went into 0.6.0.
 
 ## Order
 
 The sound work in [live-sound-mixing.md](live-sound-mixing.md) changes no public API, so it doesn't have to wait for 1.0.0, or hold it up.
 
-1. Items 1–3 above.  Small.
-2. Release 1.0.0.  7-pointed-star gets the 23+ commits of fixes since 0.5.0 before its production work starts.
+0.6.0 (2026-11-05) came first, so 7-pointed-star could have the fixes since 0.5.0, including the new diff file.
+
+1. Items 1–4 above.  Small.
+2. Release 1.0.0.
 3. The sound work, as 1.1.0.
 
 ## The release itself
 
-1. BREAKING-CHANGES.md:  "Unreleased (will be 0.6.0)" becomes "1.0.0 (date)".
-2. `npm version major --no-git-tag-version` (0.5.0 → 1.0.0).  Commit and push.
+1. BREAKING-CHANGES.md:  an "Unreleased" section, with every entry from above, becomes "1.0.0 (date)".
+2. `npm version major --no-git-tag-version` (0.6.x → 1.0.0).  Commit and push.
 3. `npm publish` (you:  login and 2FA).
 4. In affine-transforms, riemann-surfaces-3d and 7-pointed-star:  `npm install canvas-recorder-lib@1.0.0`, `npx tsc --noEmit`, commit both package files.
 5. Update CLAUDE.md's "Releasing a change":  from now on, an Unreleased section in BREAKING-CHANGES.md means `npm version major`; new features `minor`; fixes `patch`.

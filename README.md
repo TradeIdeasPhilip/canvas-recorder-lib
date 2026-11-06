@@ -71,6 +71,8 @@ npm install-scripts ls     # should say "No packages with unreviewed install scr
   `deny` records that in your `package.json`'s `allowScripts`.
   - That field replaces any `allow-scripts` setting in your `~/.npmrc`.
     If your `~/.npmrc` approves `fsevents` (Vite's file watcher on macOS), approve it again here:  `npm install-scripts approve fsevents --no-allow-scripts-pin`.
+    In a new project that fails with `ENOMATCH`, because the first `npm install` doesn't put `fsevents` in `node_modules`.
+    Run `npm install` again (it warns that `fsevents` isn't approved), then approve it.
 - **Expect a big `package-lock.json`.** The library's dependencies are installed in your project, including some that only Node.js uses.
 
 ### Working on the library at the same time
@@ -95,6 +97,10 @@ Add this to your `vite.config.js`:
 import { defineConfig, searchForWorkspaceRoot } from "vite";
 
 export default defineConfig({
+  base: "./",
+  resolve: {
+    dedupe: ["phil-lib"],
+  },
   server: {
     port: 5174, // Pick one per project, and keep it.
     strictPort: true,
@@ -111,6 +117,8 @@ export default defineConfig({
 });
 ```
 
+- **`base: "./"`:** relative paths, so the build works on GitHub Pages, or in any subdirectory.
+- **`dedupe`:** one copy of phil-lib.  With the library linked, Vite would otherwise load two:  yours, and the one in the library's `node_modules`.
 - **`fs.allow`:** needed while the library is linked.
   Without it, the server console says the transcription worker is "outside of Vite serving allow list", and transcripts fail.
   A linked library lives outside your project. Vite serves files that are imported, but the worker is loaded by URL.
@@ -158,6 +166,15 @@ For a new project, take the next number and add it here.
   Add a `properties/README.md` explaining the three files; copy [riemann-surfaces-3d's](https://github.com/TradeIdeasPhilip/riemann-surfaces-3d/blob/master/properties/README.md).
 - **Register your own components** with `componentRegistry.set(key, { create })`.
   Then the Visual Editor can add, save and load them, and "TypeScript defaults" can rebuild them.
+- **A mistake in the Visual Editor is a state, not an error.** Your components should treat it that way:
+  - Show a warning, in the editor or on the canvas.  Never throw, and never a dialog box.
+  - Save it like any other state.  Editing between two good states often passes through bad ones.
+  - Draw as much as still makes sense.  Values in worse shape can come back from IndexedDB or a file, so fail gracefully and make them easy to fix.
+  - Throwing while saving a video is only for external failures, like an image or video that doesn't load.
+  - Assertions are still fine for the programmer's own mistakes, like a table of values checked when the program starts.
+- **Name a replaceable child with `userEditableDescription`,** not the constructor's `description`, when your code adds one with `replaceableComponents.push()`.
+  When the editor loads saved changes, it rebuilds those children from the registry, so a `description` from your constructor comes back as the registry's default.
+  `userEditableDescription` is saved with the rest, and the diff file uses it to match each child with its TypeScript.
 
 ### Recording a program that has its own state
 

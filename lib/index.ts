@@ -23,6 +23,7 @@ export * from "../src/interpolate.ts";
 export * from "../src/schedule-helper.ts";
 export * from "../src/stroke-colors.ts";
 export * from "../src/local-files.ts";
+export * from "../src/lattice.ts";
 
 // MARK: Components
 // Everything the Visual Editor knows how to create, save and load.
@@ -40,3 +41,4 @@ export * from "../src/slide-components/multi-text.ts";
 export * from "../src/slide-components/traditional-text.ts";
 export * from "../src/slide-components/handwriting-effect.ts";
 export * from "../src/slide-components/video-clip.ts";
+export * from "../src/slide-components/fourier.ts";

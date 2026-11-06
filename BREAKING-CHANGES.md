@@ -6,7 +6,7 @@ This is not a full list of changes:  new features and fixes aren't here.
 While the version is 0.x, every breaking change comes with a new minor version (0.5 → 0.6), and nothing else does.
 A project that depends on `"^0.5.0"` gets 0.5.x updates but never 0.6.0, so it only meets these changes when someone installs the new version on purpose.
 
-## Unreleased (will be 0.6.0)
+## 0.6.0 (2026-11-05)
 
 - **`CANVAS_WIDTH_UNITS`, `CANVAS_HEIGHT_UNITS` and `PIXELS_PER_UNIT` are gone** from `src/slide-components/video-info`.
   The video's size can change now, from the GUI or from `canvasRecorder.size`, so a constant can't hold it.

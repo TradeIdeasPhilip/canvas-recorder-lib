@@ -16,7 +16,7 @@ import { getLocalFile, isLocalFileUrl, localFilesGeneration } from "./local-file
  *
  * This class explicitly hides any and all HTML elements.
  * Those are part of the implementation.
- * All code in /src should (ideally) be able to run in node.js or in a browser thread.
+ * Like every module in /src, this one doesn't touch the DOM while it loads.
  */
 export abstract class SlowImage {
   /**
@@ -28,6 +28,7 @@ export abstract class SlowImage {
    * This draws a red rectangle showing the borders edges of the area, and a red x going through the middle.
    * This is an old standard for showing missing images.
    * This is always available, so we're not worried about an await or another exception in an exception handler.
+   * An empty rectangle, e.g. a Dest Rect with no width, draws nothing.
    *
    * Side effects:
    * This will take the same liberties with your canvas as described in {@link ShowOptions.context}.
@@ -47,7 +48,8 @@ export abstract class SlowImage {
   ) {
     assertFinite(x, y, width, height);
     if (width <= 0 || height <= 0) {
-      throw new Error("wtf");
+      // Probably mid-edit in the Visual Editor.  A user error is a state, not an exception.
+      return;
     }
     const lineWidth = 0.1;
     if (width < lineWidth * 2 || height < lineWidth * 2) {

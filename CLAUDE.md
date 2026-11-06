@@ -173,7 +173,7 @@ Strokes a `PathShape` with multiple colors, cycling through them. Key options:
 **`src/glib/grid.ts`** — `drawGrid(context, { destRect, viewRect, ... })`:
 Draws a labeled Cartesian grid. Uses math y-up convention. Labels render _outside_ `destRect`, so inset it from canvas edges to keep them visible.
 
-**`src/glib/my-rainbow.ts`** — `myRainbow`: a curated array of colors used as the default palette throughout.
+**`src/glib/my-rainbow.ts`** — `myRainbow`: a curated array of colors used as the default palette throughout.  Its blue is `myRainbow.myBlue`; there's no `.blue`.  `cssBlue` is the darker one.
 
 **`src/glib/line-font.ts`** + **`src/glib/paragraph-layout.ts`** — stroke-based text rendered as `PathShape` (encoder-friendly, no raster fonts).
 
@@ -184,6 +184,12 @@ Draws a labeled Cartesian grid. Uses math y-up convention. Labels render _outsid
 - **Avoid blurs, noise, and gradients** — they look fine on screen but degrade badly after HEVC encoding and YouTube compression.
 - **Prefer filled/stroked paths** — solid objects with crisp edges survive encoding best.
 - Time and space stay continuous until the last moment; never convert to pixels/frames early.
+
+## User Errors
+
+A mistake in the Visual Editor is a state, not an error.  Show a warning (in the editor or on the canvas), save it like any other state, and draw as much as still makes sense.
+Never throw from `show()` over a user's value, and never a dialog box.  Throwing while saving a video is only for external failures, like a file that doesn't load.
+Assertions are fine for the programmer's own mistakes.  README.md's "Starting the editor" says the same for consumers.
 
 ## GUI Inputs
 

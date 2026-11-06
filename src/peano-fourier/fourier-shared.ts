@@ -138,6 +138,19 @@ export function samplesToFourier(samples: readonly Complex[]): FourierTerm[] {
   return keepNonZeroTerms(terms);
 }
 
+/**
+ * Hits and misses for the small cache inside each function {@link termsToParametricFunction}
+ * returns:  one `Map` from `t` to a point.  Shown as `philDebug.cacheHealth`.
+ *
+ * Probably not the cache you're looking for.  The big ones are `#termsCache` and
+ * `#animationCache` in `FourierComponent`.
+ *
+ * This one helps because `addParametricPath()` estimates each sample's direction from
+ * `f(t ± ε)`, and the same values of `t` come back every frame.
+ * Its `Map` never removes anything.  While the dot grows into the first curve, `t` is scaled
+ * by `safePartEnds`, which changes every frame, so each frame adds a few hundred entries.
+ * They're freed when `FourierComponent` replaces its animation cache.
+ */
 const cacheHealth = { miss: 0, hit: 0 };
 philDebug.cacheHealth = cacheHealth;
 
