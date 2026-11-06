@@ -3059,10 +3059,6 @@ function buildDiffText(): string {
       : JSON.stringify(s.value);
   }
 
-  /**
-   * Generate TypeScript constructor + .set() lines for a removable component,
-   * omitting any property whose value matches the class default.
-   */
   /** Variable names already used in this diff, so generated code never declares one twice. */
   const usedVarNames = new Set<string>();
   function uniqueVarName(base: string): string {
@@ -3074,14 +3070,15 @@ function buildDiffText(): string {
 
   /**
    * TypeScript that recreates `comp`, a component added in the Visual Editor, and adds it to
-   * `parentExpr`.  Covers everything the save file stores for such a component:  schedules
+   * `parentExpr`'s replaceable children, so the Visual Editor can still edit or delete it.
+   * Covers everything the save file stores for such a component:  schedules
    * and scalars that differ from the class's defaults, the user's name for it, its own
    * replaceable children (recursively), its duration, and its sound clips.
    */
   function generateComponentCode(
     comp: Showable,
     indent: string,
-    parentExpr = "this",
+    parentExpr: string,
   ): string[] {
     const out: string[] = [];
     const rk = comp.registryKey ?? "unknown";
@@ -3182,13 +3179,45 @@ function buildDiffText(): string {
       );
     }
 
-    out.push(`${indent}${parentExpr}.addFixed({ child: ${varName} });`);
+    out.push(
+      `${indent}${parentExpr}.replaceableComponents!.push(${varName});`,
+    );
 
     return out;
   }
 
-  function diffNode(
-    defaultEntry: SerializedFixedChild,
+  /** A component's name in the diff:  the user's name for it, or its own. */
+  function displayName(comp: Showable): string {
+    return comp.userEditableDescription ?? comp.description;
+  }
+
+  /** `names`, with " #1", " #2"… added to any name used more than once. */
+  function numberedNames(names: readonly string[]): string[] {
+    const total = new Map<string, number>();
+    for (const name of names) total.set(name, (total.get(name) ?? 0) + 1);
+    const seen = new Map<string, number>();
+    return names.map((name) => {
+      if (total.get(name)! < 2) return name;
+      const n = (seen.get(name) ?? 0) + 1;
+      seen.set(name, n);
+      return `${name} #${n}`;
+    });
+  }
+
+  /**
+   * The differences in one component's own properties.  The same for a fixed child, whose
+   * default is its TypeScript, and for a replaceable child, whose default is its counterpart
+   * in the TypeScript's list.
+   */
+  function diffProperties(
+    defaultEntry: Pick<
+      SerializedFixedChild,
+      | "schedules"
+      | "scalars"
+      | "duration"
+      | "userEditableDescription"
+      | "soundClips"
+    >,
     sel: Showable,
     path: string[],
   ): void {
@@ -3262,14 +3291,90 @@ function buildDiffText(): string {
       lines.push(`TypeScript: ${JSON.stringify(defClips)}`);
       lines.push(`Current:    ${JSON.stringify(curClips)}`);
     }
+  }
 
-    const currentComponents = sel.replaceableComponents?.get() ?? [];
-    if (currentComponents.length > 0) {
+  /**
+   * The differences between a component's replaceable children and the TypeScript's.
+   *
+   * Children pair up by kind and name, in order, the way fixed children pair up by description.
+   * Then any left over pair up by kind alone, so a child renamed in the Visual Editor is one
+   * child with a new name, not one deleted and one added.
+   *
+   * A pair prints its property changes, the same way a fixed child does.  A child with no
+   * counterpart in the TypeScript prints as the TypeScript that makes it.  A deleted child, or
+   * an order that deleting and adding wouldn't give, gets one line.  No changes, no lines.
+   */
+  function diffReplaceable(
+    defaults: readonly SerializedChild[],
+    sel: Showable,
+    path: string[],
+  ): void {
+    // Only components with a registry key are saved, so only they can differ.
+    const live = (sel.replaceableComponents?.get() ?? []).filter(
+      (comp) => comp.registryKey !== undefined,
+    );
+    const key = (registryKey: string, name: string | undefined) =>
+      `${registryKey}\0${name ?? ""}`;
+    const liveFor = counterparts(
+      defaults.map((d) => ({
+        description: key(d.registryKey, d.userEditableDescription),
+      })),
+      live.map((comp) => ({
+        description: key(comp.registryKey!, comp.userEditableDescription),
+        comp,
+      })),
+    ).map((match) => match?.comp);
+    for (const [index, d] of defaults.entries()) {
+      liveFor[index] ??= live.find(
+        (comp) => comp.registryKey === d.registryKey && !liveFor.includes(comp),
+      );
+    }
+    const added = live.filter((comp) => !liveFor.includes(comp));
+    const names = new Map(
+      numberedNames(live.map(displayName)).map((name, index) => [
+        live[index],
+        name,
+      ]),
+    );
+
+    const expectedOrder = [
+      ...liveFor.filter((comp) => comp !== undefined),
+      ...added,
+    ];
+    if (expectedOrder.some((comp, index) => comp !== live[index])) {
       printPathIfNeeded(path);
-      for (const comp of currentComponents) {
-        lines.push(...generateComponentCode(comp, "  "));
+      lines.push(
+        `  [new order:  ${live.map((comp) => names.get(comp)).join(", ")}]`,
+      );
+    }
+
+    for (const [index, d] of defaults.entries()) {
+      const comp = liveFor[index];
+      if (comp) {
+        const childPath = [...path, names.get(comp)!];
+        diffProperties(d, comp, childPath);
+        diffReplaceable(d.components ?? [], comp, childPath);
+      } else {
+        printPathIfNeeded([...path, d.userEditableDescription ?? d.registryKey]);
+        lines.push(`  [deleted]`);
       }
     }
+
+    const parentExpr = toVarName(path.at(-1) ?? "") || "parent";
+    for (const comp of added) {
+      printPathIfNeeded([...path, names.get(comp)!]);
+      lines.push(`  [added]`);
+      lines.push(...generateComponentCode(comp, "  ", parentExpr));
+    }
+  }
+
+  function diffNode(
+    defaultEntry: SerializedFixedChild,
+    sel: Showable,
+    path: string[],
+  ): void {
+    diffProperties(defaultEntry, sel, path);
+    diffReplaceable(defaultEntry.components ?? [], sel, path);
 
     const liveFixed = getFixedComponents(sel);
     const defaultFixed = defaultEntry.fixedComponents ?? [];
@@ -3299,10 +3404,12 @@ function buildDiffText(): string {
     diffNode(tsDefaultsTree, toShow, [toShow.description]);
   }
 
-  if (lines.length === 1) lines.push("(no differences found)");
+  if (lines.length === 0) lines.push("(no differences found)");
 
   return lines.join("\n");
 }
+/** The diff file's text, from the console, with or without syncing the file. */
+philDebug.diffText = () => console.log(buildDiffText());
 
 // MARK: Load-source helpers
 
