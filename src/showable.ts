@@ -736,12 +736,34 @@ function notNegative(value: number) {
   }
 }
 
+// MARK: Old builders
+//
+// Everything from here to the end of the file is deprecated:  MakeShowableInParallel,
+// MakeShowableInSeries, makeRepeater(), addMargins() and reschedule().
+// They're from canvas-recorder, before components, and nothing in the library uses them.
+// See development-plans/release-1.0.md.
+//
+// **They only pass along show().**  Not getFramePromises(), not getReady(), and not anything
+// added to Showable since.  So they're only safe for *fast content*:  something that draws its
+// complete, final picture the first time show() is called, from code alone.
+//
+// Not fast content:  anything that loads a file or a font, or decodes video.
+// That's SingleImageComponent, VideoClipComponent and TraditionalTextComponent, any component
+// with a getFramePromises() or getReady() of its own, and any container holding one of those.
+// Inside an old builder, recording doesn't wait for them, so it can save a fallback font, a
+// blank image or a red ✕.  And live playback doesn't warn them before they start.
+
 /**
  * Creates a new Showable object which passes each show() call to all of its children.
  *
  * You might have multiple things all running at the same time.
  * You might have things that overlap arbitrarily.
  * For example, the background is **always** showing.
+ *
+ * @deprecated Use `InParallelComponent`, or one of its subclasses like
+ * `ComponentWithFixedDuration` or `DurationAgnosticComponent`.
+ * This only passes along show(), not getFramePromises() or getReady(), so only use it for fast
+ * content:  nothing that loads an image, a video or a font.  See "Old builders" in showable.ts.
  */
 export class MakeShowableInParallel {
   constructor(readonly description: string) {}
@@ -853,6 +875,10 @@ export class MakeShowableInParallel {
 /**
  * Build a new Showable that contains a set of Showable children.
  * Each one runs right after the previous one.
+ *
+ * @deprecated Use `InSeriesComponent`.
+ * This only passes along show(), not getFramePromises() or getReady(), so only use it for fast
+ * content:  nothing that loads an image, a video or a font.  See "Old builders" in showable.ts.
  */
 export class MakeShowableInSeries {
   constructor(readonly description: string) {}
@@ -971,6 +997,9 @@ export class MakeShowableInSeries {
  * This only affects the duration.
  * If you continue calling this it will repeat forever.
  * @returns A new `Showable` object that will call the original multiple times.
+ * @deprecated There's no component that does this yet.
+ * This only passes along show(), not getFramePromises() or getReady(), so only use it for fast
+ * content:  nothing that loads an image, a video or a font.  See "Old builders" in showable.ts.
  */
 export function makeRepeater(showable: Showable, count = Infinity): Showable {
   const period = showable.duration;
@@ -997,6 +1026,10 @@ export function makeRepeater(showable: Showable, count = Infinity): Showable {
  * * frozenBefore Hold the initial image of `base` for this many milliseconds.  Default is 0.
  * * frozenAfter Hold the final image of `base` for this many milliseconds.  Default is 0.
  * @returns
+ * @deprecated Use `PaddingComponent`:  Initial Time and Extra Time add the time, and Show
+ * Before and Show After choose hide or freeze.
+ * This only passes along show(), not getFramePromises() or getReady(), so only use it for fast
+ * content:  nothing that loads an image, a video or a font.  See "Old builders" in showable.ts.
  */
 export function addMargins(
   base: Showable,
@@ -1046,6 +1079,10 @@ export function addMargins(
  * @param offset Start this many milliseconds into the new Showable.
  * Defaults to 0, starting at the beginning.
  * @returns The newly created Showable
+ * @deprecated Use `PaddingComponent`, with Show Before and Show After set to "live".
+ * A negative Initial Time starts the child partway through.
+ * This only passes along show(), not getFramePromises() or getReady(), so only use it for fast
+ * content:  nothing that loads an image, a video or a font.  See "Old builders" in showable.ts.
  */
 export function reschedule(
   base: Showable,

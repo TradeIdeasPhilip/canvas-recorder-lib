@@ -118,13 +118,17 @@ type Showable = {
 
 ## Composing Showables
 
-| Class                                | Purpose                                                                                                     |
-| ------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| `MakeShowableInSeries`               | Plays children one after another. `duration=0` children are hidden in the GUI — give them nonzero duration. |
-| `MakeShowableInParallel`             | Plays all children simultaneously; total duration = max of children. `duration=0` children are fine here.   |
-| `makeRepeater(showable, count)`      | Loops a showable. `count` can be `Infinity`.                                                                |
-| `addMargins(base, extra)`            | Adds hidden/frozen time before or after a showable.                                                         |
-| `reschedule(base, duration, offset)` | Changes duration and/or start time.                                                                         |
+Use the components in `src/slide-components/`:
+
+| Class                     | Purpose                                                                                                     |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `InSeriesComponent`       | Plays children one after another. `duration=0` children are hidden in the GUI — give them nonzero duration. |
+| `InParallelComponent`     | Plays all children simultaneously.  `ComponentWithFixedDuration` and `DurationAgnosticComponent` build on it. |
+| `PaddingComponent`        | Adds hidden, frozen or live time before or after its child, and shifts its start.                           |
+
+**Deprecated:** `MakeShowableInSeries`, `MakeShowableInParallel`, `makeRepeater()`, `addMargins()` and `reschedule()` in `src/showable.ts`.
+They only pass along `show()`, not `getFramePromises()` or `getReady()`, so recording won't wait for an image, video or font inside one.
+Don't use them in new code.  See "Old builders" in `src/showable.ts` and `development-plans/release-1.0.md`.
 
 ## Seamless Loops
 

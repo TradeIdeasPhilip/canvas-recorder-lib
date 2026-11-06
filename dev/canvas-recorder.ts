@@ -1155,7 +1155,7 @@ async function startRecording(
       suggestedName: "canvas-recording.mp4",
       types: [
         {
-          description: "WebM Video",
+          description: "MP4 Video",
           accept: { "video/mp4": [".mp4"] },
         },
       ],
@@ -1169,10 +1169,12 @@ async function startRecording(
       target: new StreamTarget(writableStream, { chunked: true }), // Batch writes for speed
     });
 
-    // Canvas source (VP9 for good quality/size on macOS)
+    // HEVC (H.265):  Macs encode it in hardware, fast and well.
     const videoSource = new CanvasSource(canvas, {
       codec: "hevc",
-      bitrate: 16_000_000, // ~8Mbps — tune higher for better quality
+      // 16 Mbps.  This file is the master that YouTube re-encodes, so a higher rate costs only
+      // file size.  See "Export bit rate" in development-plans/review-2026-11.md.
+      bitrate: 16_000_000,
     });
 
     output.addVideoTrack(videoSource, { frameRate: FPS });

@@ -3,7 +3,66 @@
 Let the browser mix the sound clips while it plays them, instead of building one big buffer first.
 Then a small change on the timeline doesn't rebuild the whole soundtrack.
 
-**Status (2026-10-20):** Planning. No code yet.
+**Status (2026-11-03):** Planning.  No code yet.  **High priority:**  next after the 7-pointed-star setup.
+The review on 2026-11-03 added three things to fix in the same pass.  See [Also in this pass](#also-in-this-pass-2026-11-03).
+The line numbers in "How it works now" are from 2026-10-20 and have drifted; the ones in the new section are current.
+
+## Also in this pass (2026-11-03)
+
+From [review-2026-11.md](review-2026-11.md).
+
+### 1.  The soundtrack owns its own rate limit
+
+**The rule:**  asking for a new soundtrack must be safe to do as often as anyone likes, even several times per mouse move.
+The soundtrack, not the caller, makes sure that's cheap.
+At most one rebuild runs at a time, and at most one waits behind it:  the newest request.
+Older waiting requests are simply dropped.
+
+**Today the callers do it.**  Six places each keep their own 300 ms debounce with the shared `_durationAudioTimer`:
+[canvas-recorder.ts:1971-1972](../dev/canvas-recorder.ts#L1971-L1972), [:1994-1995](../dev/canvas-recorder.ts#L1994-L1995), [:2210-2211](../dev/canvas-recorder.ts#L2210-L2211), [:2288-2289](../dev/canvas-recorder.ts#L2288-L2289), [:5372-5373](../dev/canvas-recorder.ts#L5372-L5373), [:5720-5721](../dev/canvas-recorder.ts#L5720-L5721).
+Five more call `initAudio()` directly:  [:476](../dev/canvas-recorder.ts#L476), [:858](../dev/canvas-recorder.ts#L858), [:1716](../dev/canvas-recorder.ts#L1716), [:1742](../dev/canvas-recorder.ts#L1742), [:7434](../dev/canvas-recorder.ts#L7434).
+
+**Why calling it from a drag crashed.**  `initAudio()` ([:805](../dev/canvas-recorder.ts#L805)) does have a generation counter, but it allocates first and checks later:
+
+- Every call makes a new `AudioBuilder` right away ([:811](../dev/canvas-recorder.ts#L811)).
+  That's a mono `Float32Array` as long as the whole video (about 115 MB for 10 minutes), and an `OfflineAudioContext` sized `totalDurationMs * 1000` frames.
+- An older call only notices it's been replaced at its next `await`, after a fetch or a decode finishes.
+  Until then its builder stays alive.
+- So a drag that calls it many times per frame has dozens of full-length buffers alive at once.
+
+That's the memory error.  The debounces in the callers hid it.
+
+**The fix:**  one function, e.g. `requestSoundtrack()`, that the callers call directly, with no timers of their own.
+
+- If nothing is running, start a rebuild.
+- If one is running, set "another one is wanted" and return.  When the running one finishes, it starts one more if that flag is set.
+- Allocate nothing until a rebuild actually starts.
+
+With step 1's cache a rebuild only mixes, and with step 2 it only schedules nodes, so most requests will finish before the next one arrives.
+The rule still holds when they don't:  "APIs are sacred."
+
+### 2.  Recording waits for the soundtrack
+
+`startRecording()` takes `audioBuilder.getAudioBuffer()` without checking `audioReady`.
+`initAudio()` only swaps the new builder in when it's done.
+So Record, clicked right after a reload, saves silence.  Clicked within a few seconds of a sound edit, it saves the old soundtrack.
+🎤 Record Just Sound ([:7426](../dev/canvas-recorder.ts#L7426)) has the same problem.
+
+Fix:  keep the current rebuild's promise, and have both buttons wait for the newest soundtrack.
+Show "Waiting for the sound…" in the info area while they wait.
+
+No one has seen this happen; a pause to look before recording hides it.
+
+### 3.  Video files as sound sources
+
+Import audio makes the video file itself the sound clip's source.
+So today, every rebuild re-reads every **whole video file** into memory and decodes its sound.
+At the size of the 7.2 GB screen recording in [audio-from-large-videos.md](audio-from-large-videos.md) (about 410 MB a minute), 4½ minutes of screen recordings is about 1.8 GB per edit.
+Arithmetic, not measured.
+
+Step 1's cache fixes the "every edit" part:  each file is read once per page load.
+audio-from-large-videos.md fixes the "whole file" part, and the files over about 2 GB that can't be read at all.
+Do both in this pass if it's convenient; they touch the same code.
 
 ## The problem
 
@@ -155,11 +214,14 @@ Either way, the live player no longer needs a buffer as long as the video.
 ### Steps
 
 1. Turn on the timing log, and write down rebuild times for affine-transforms.
-2. Step 1, the long-lived cache.  Measure again.
-3. `collectSoundClips()`, and make `initAudio()` use it.  No change in behavior.
-4. Step 2:  `startAudio()`, `stopAudio()` and `setPlaybackRate()` work with a list of nodes.
+2. `requestSoundtrack()`, and remove the six debounces.  See [the rate limit](#1--the-soundtrack-owns-its-own-rate-limit).
+   Test it the hard way:  call it from a drag handler with no debounce.
+3. Recording and Record Just Sound wait for the newest soundtrack.
+4. Step 1, the long-lived cache.  Measure again.
+5. `collectSoundClips()`, and make `initAudio()` use it.  No change in behavior.
+6. Step 2:  `startAudio()`, `stopAudio()` and `setPlaybackRate()` work with a list of nodes.
    `initAudio()` becomes "decode whatever is missing, then schedule again if playing."
-5. Export through `AudioBuilder`, built from the cache when needed.
+7. Export through `AudioBuilder`, built from the cache when needed.
 
 ## How to test
 
