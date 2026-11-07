@@ -62,7 +62,7 @@ import {
 } from "../src/snapshot.ts";
 import { downloadBlob, philDebug } from "../src/utility.ts";
 import { debugLog, getNewDebugLogEntries } from "../src/debug-log.ts";
-import { AudioBuilder } from "./audio-builder.ts";
+import { Soundtrack } from "./soundtrack.ts";
 import { openColorPickerDialog } from "./color-picker.ts";
 import { setSwatchColor } from "./color-utils.ts";
 import {
@@ -472,8 +472,8 @@ onLocalFilesChange(updateLocalFilesButton);
 /** Ask about every file that needs it.  Then the sounds can load. */
 async function allowLocalFiles() {
   await requestLocalFileAccess();
-  // The images and video clips try again by themselves.  The sounds are loaded all at once.
-  void initAudio();
+  // The images and video clips try again by themselves.
+  soundtrack.forgetFailures();
 }
 localFilesBtn.addEventListener("click", () => void allowLocalFiles());
 
@@ -657,12 +657,29 @@ console.log(audioContext);
 const gainNode = audioContext.createGain();
 gainNode.connect(audioContext.destination);
 
-/** Set to true once the AudioBuffer has been fully built and is safe to play. */
-let audioReady = false;
-let audioSourceNode: AudioBufferSourceNode | null = null;
-/** audioContext.currentTime at the moment startAudio() last started a source node. */
+/**
+ * Every sound clip in the video, playing live.  Ask it for a new soundtrack with
+ * `soundtrack.request()`, as often as you like:  it does the rate limiting.
+ */
+const soundtrack = new Soundtrack({
+  context: audioContext,
+  destination: gainNode,
+  root: () => toShow,
+  // Sound clips on the timeline can now show their waveforms, and the ones
+  // that play to the end of their file now know how long that is.
+  onDecoded: () => timelineDisplay.redraw(),
+  // The new file may be a local one that needs 🔓.
+  onNewSource: () => checkVideosLocalFiles(),
+});
+soundtrack.request();
+// The images and videos may be local files too, even with no sound.
+checkVideosLocalFiles();
+
+/** True between startAudio() and stopAudio(), unless {@link rafFallbackMode}. */
+let audioPlaying = false;
+/** audioContext.currentTime at the moment startAudio() last anchored the clock. */
 let audioContextStartTime = 0;
-/** Media position (ms) at the moment startAudio() last started a source node. */
+/** Media position (ms) at the moment startAudio() last anchored the clock. */
 let audioMediaStartMs = 0;
 let audioPlaybackRate = 1;
 
@@ -675,7 +692,7 @@ let audioPlaybackRate = 1;
  * https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame
  */
 let rafFallbackMode = false;
-/** True when fallback-mode "playback" is running (mirrors audioSourceNode !== null). */
+/** True when fallback-mode "playback" is running (mirrors {@link audioPlaying}). */
 let rafFallbackPlaying = false;
 /** performance.now() at the moment fallback playback last started. */
 let rafFallbackStartPerf = 0;
@@ -719,7 +736,6 @@ function startAudio(fromMs: number): void {
     rafFallbackPlaying = true;
     return;
   }
-  if (!audioReady) return;
   if (audioContext.state !== "running") {
     if (!navigator.userActivation.isActive) {
       // No user gesture available (e.g. restoring play state on page load).
@@ -727,30 +743,31 @@ function startAudio(fromMs: number): void {
       enterRafFallback(fromMs, false);
       return;
     }
-    // Has a user gesture.  resume() is async — the source node below plays
+    // Has a user gesture.  resume() is async — the source nodes below play
     // once the context transitions to running.  Do NOT check state synchronously
     // after this call; it will still read "suspended" before the promise resolves.
     audioContext.resume().catch(() => {});
   }
-  const source = audioContext.createBufferSource();
-  source.buffer = audioBuilder.getAudioBuffer();
-  source.playbackRate.value = audioPlaybackRate;
-  source.connect(gainNode);
   const contextNow = audioContext.currentTime;
-  source.start(contextNow, fromMs / 1000);
-  audioSourceNode = source;
   audioContextStartTime = contextNow;
   audioMediaStartMs = fromMs;
+  soundtrack.play({
+    contextTime: contextNow,
+    mediaMs: fromMs,
+    rate: audioPlaybackRate,
+  });
+  audioPlaying = true;
 }
 
+/**
+ * Stop the sound and the clock.  Called for every seek too:  the animation loop
+ * starts again from the play position on its next frame.
+ */
 function stopAudio(): void {
   rafFallbackPlaying = false;
-  if (audioSourceNode) {
-    try {
-      audioSourceNode.stop();
-    } catch (_) {}
-    audioSourceNode.disconnect();
-    audioSourceNode = null;
+  if (audioPlaying) {
+    soundtrack.stop();
+    audioPlaying = false;
   }
 }
 
@@ -763,11 +780,15 @@ function setPlaybackRate(rate: number): void {
     const currentMs = currentAudioTimeMs();
     rafFallbackStartMs = currentMs;
     rafFallbackStartPerf = performance.now();
-  } else if (audioSourceNode) {
+  } else if (audioPlaying) {
     const currentMs = currentAudioTimeMs();
     audioContextStartTime = audioContext.currentTime;
     audioMediaStartMs = currentMs;
-    audioSourceNode.playbackRate.value = rate;
+    soundtrack.changeRate({
+      contextTime: audioContextStartTime,
+      mediaMs: audioMediaStartMs,
+      rate,
+    });
   }
   audioPlaybackRate = rate;
 }
@@ -798,65 +819,6 @@ function setPlaybackRate(rate: number): void {
   });
 }
 
-let audioBuilder = new AudioBuilder(toShow.duration);
-
-let reloadGeneration = 0;
-
-async function initAudio(): Promise<void> {
-  // The sound clips are being re-read, so this is a good time to look for files needing 🔓.
-  checkVideosLocalFiles();
-  const myGen = ++reloadGeneration;
-  audioReady = false;
-  stopAudio();
-  const newBuilder = new AudioBuilder(toShow.duration);
-
-  async function doIt(item: Showable, offset: number): Promise<boolean> {
-    if (myGen !== reloadGeneration) return false;
-    if (item.soundClips) {
-      for (const clip of item.soundClips) {
-        // A brand new clip has no source yet, and a URL being typed is wrong
-        // until it's finished.  Either way, skip that one clip, not all audio.
-        if (clip.source === "") continue;
-        try {
-          await newBuilder.add(
-            clip.source,
-            offset + clip.startMsIntoScene,
-            clip.startMsIntoClip,
-            clip.lengthMs,
-          );
-        } catch (reason) {
-          debugLog("audio", `Skipped "${clip.source}": ${reason}`);
-        }
-        if (myGen !== reloadGeneration) return false;
-      }
-    }
-    if (item.children) {
-      for (const { child, start } of item.children) {
-        if (!(await doIt(child, offset + start))) return false;
-      }
-    }
-    return true;
-  }
-
-  const time1 = performance.now();
-  const completed = await doIt(toShow, 0);
-  const time2 = performance.now();
-  if (!completed) {
-    console.log(
-      `Audio init superseded after ${(time2 - time1).toFixed(0)} ms.`,
-    );
-    return;
-  }
-  audioBuilder = newBuilder;
-  audioReady = true;
-  console.log(`Audio ready in ${(time2 - time1).toFixed(0)} ms.`);
-  // Sound clips on the timeline can now show their waveforms, and the ones
-  // that play to the end of their file now know how long that is.
-  timelineDisplay.redraw();
-}
-
-initAudio();
-
 /**
  * We disable {@link animationLoop} while rendering to a file.
  * We can reenable it when we are done rendering.
@@ -883,8 +845,9 @@ const animationLoop = new AnimationLoop((_rAFTimeInMs: number) => {
   // Playing.
   playPositionSeconds.disabled = true;
 
-  if (!audioSourceNode && !rafFallbackPlaying) {
-    // No source node running: first play, after pause/seek, or after repeat.
+  if (!audioPlaying && !rafFallbackPlaying) {
+    // Not running: first play, after pause/seek, or after repeat.
+    // Clips whose file isn't decoded yet join in when it is, so nothing waits for them.
     let startMs = playPositionSeconds.valueAsNumber * 1000;
     if (startMs >= sectionEndTime - 0.05) {
       // At the end — jump to the beginning.
@@ -893,11 +856,6 @@ const animationLoop = new AnimationLoop((_rAFTimeInMs: number) => {
       loadPlayPositionRange();
     }
     startAudio(startMs);
-    // If audio isn't built yet (and not in fallback mode), hold the current frame.
-    if (!audioSourceNode && !rafFallbackPlaying) {
-      showFrame(playPositionSeconds.valueAsNumber * 1000, true);
-      return;
-    }
   }
 
   const timeInMs = currentAudioTimeMs();
@@ -1184,30 +1142,13 @@ async function startRecording(
     // The file starts where its first frame starts, so the sound starts there too.
     const audioStartMs = (firstFrame * 1000) / FPS;
 
-    const fullAudioBuffer = audioBuilder.getAudioBuffer();
-    let audioBuffer: AudioBuffer;
-    if (firstFrame === 0 && saveEndMs >= toShow.duration) {
-      audioBuffer = fullAudioBuffer;
-    } else {
-      const sr = fullAudioBuffer.sampleRate;
-      const s0 = Math.round((audioStartMs / 1000) * sr);
-      const s1 = Math.min(
-        Math.round((saveEndMs / 1000) * sr),
-        fullAudioBuffer.length,
-      );
-      const len = Math.max(0, s1 - s0);
-      audioBuffer = new AudioBuffer({
-        numberOfChannels: fullAudioBuffer.numberOfChannels,
-        length: len,
-        sampleRate: sr,
-      });
-      for (let ch = 0; ch < fullAudioBuffer.numberOfChannels; ch++) {
-        audioBuffer.copyToChannel(
-          fullAudioBuffer.getChannelData(ch).subarray(s0, s0 + len),
-          ch,
-        );
-      }
-    }
+    // The newest soundtrack, with every file in it decoded.  Right after a reload or an
+    // edit, that can take a moment.  (After the file picker, which needs the click.)
+    infoDiv.innerHTML = "Waiting for the sound…";
+    await soundtrack.ready();
+    const audioBuffer = soundtrack
+      .mix(audioStartMs, Math.min(saveEndMs, toShow.duration))
+      .getAudioBuffer();
     const audioSource = new AudioBufferSource({
       codec: "aac",
       bitrate: QUALITY_HIGH,
@@ -1713,7 +1654,7 @@ const visualEditorAPI: VisualEditorAPI = {
     const selectable = currentRoot();
     if (!selectable) return;
     if (howMuch === "sound") {
-      void initAudio();
+      soundtrack.request();
     } else if (howMuch === "properties") {
       updateScheduleEditor(selectedSlideChild ?? selectable);
     } else {
@@ -1733,13 +1674,16 @@ const visualEditorAPI: VisualEditorAPI = {
     return playheadInRootMs();
   },
   getDecodedBuffer(url: string): AudioBuffer | null {
-    return audioBuilder.getDecodedBuffer(url);
+    return soundtrack.getDecodedBuffer(url);
   },
 };
 
 // MARK: Console API
 philDebug.chapterList = chapterList;
-philDebug.refreshSounds = () => void initAudio();
+/** Read and decode every sound file again, e.g. one re-recorded under the same name. */
+philDebug.refreshSounds = () => soundtrack.forget();
+/** The live soundtrack.  See dev/soundtrack.ts. */
+philDebug.soundtrack = soundtrack;
 /**
  * Transcribe one file from scratch, skipping the cache, and report how long
  * it took.  `device` is "webgpu" or "wasm"; leave it out for the normal choice.
@@ -1954,22 +1898,19 @@ const schedulesShowingDurations = new WeakSet<ScheduleInfo>();
 /** The selectable whose `.parent` is currently set to {@link veRootParent}. */
 let _veRootSelectable: Showable | undefined;
 
-let _durationAudioTimer: ReturnType<typeof setTimeout> | undefined;
-
 /**
  * Synthetic {@link ShowableParent} that acts as the root of the editable tree.
  * When a selectable's `scheduleHasChanged()` chain reaches this object we:
  * - refresh all visible duration inputs,
  * - kick the auto-save / dirty-status machinery, and
- * - debounce an audio reload.
+ * - ask for a new soundtrack (which does nothing if no sound clip moved).
  */
 const veRootParent: ShowableParent = {
   scheduleHasChanged() {
     for (const cb of durationSyncCallbacks) cb();
     for (const cb of scheduleEditorRefreshers) cb();
     markDirty();
-    clearTimeout(_durationAudioTimer);
-    _durationAudioTimer = setTimeout(() => void initAudio(), 300);
+    soundtrack.request();
     // Redraw the timeline so block positions/sizes update during drags.
     refreshTimeline();
     scheduleChapterRefresh();
@@ -1991,8 +1932,7 @@ const toShowParent: ShowableParent = {
     for (const cb of durationSyncCallbacks) cb();
     for (const cb of scheduleEditorRefreshers) cb();
     markDirty();
-    clearTimeout(_durationAudioTimer);
-    _durationAudioTimer = setTimeout(() => void initAudio(), 300);
+    soundtrack.request();
     refreshTimeline();
     scheduleChapterRefresh();
   },
@@ -2207,8 +2147,7 @@ transcriptView = new TranscriptView({
     clips.splice(index, 1, ...pieces);
     selectedSoundClip = pieces[0];
     markDirty();
-    clearTimeout(_durationAudioTimer);
-    _durationAudioTimer = setTimeout(() => void initAudio(), 300);
+    soundtrack.request();
     // Show the owner's Sound Clips, with the remaining piece highlighted.
     selectInChapter(owner);
     refreshTimeline();
@@ -2281,12 +2220,11 @@ timelineDisplay.onBlockClick = (id) => {
 
 /**
  * A sound clip's numbers changed, from a field or a drag on the timeline.
- * Save, rebuild the audio soon, and bring the fields and the timeline up to date.
+ * Save, update the soundtrack, and bring the fields and the timeline up to date.
  */
 function _onClipValueChanged(): void {
   markDirty();
-  clearTimeout(_durationAudioTimer);
-  _durationAudioTimer = setTimeout(() => void initAudio(), 300);
+  soundtrack.request();
   for (const cb of soundClipSyncCallbacks) cb();
   timelineDisplay.redraw();
 }
@@ -2298,7 +2236,7 @@ const MIN_SOUND_CLIP_MS = 50;
 
 /** How long the file `clip` plays from is, once it has been decoded. */
 function soundFileMs(clip: SoundClip): number | undefined {
-  const buffer = audioBuilder.getDecodedBuffer(clip.source);
+  const buffer = soundtrack.getDecodedBuffer(clip.source);
   return buffer ? buffer.duration * 1000 : undefined;
 }
 
@@ -2400,7 +2338,7 @@ function soundClipBlock(clip: SoundClip, ownerStart: number): TimelineBlock {
     startMs: start,
     durationMs: () => soundClipLengthMs(clip) ?? 0,
     waveform: () => {
-      const buffer = audioBuilder.getDecodedBuffer(clip.source);
+      const buffer = soundtrack.getDecodedBuffer(clip.source);
       return buffer ? { buffer, fromMs: clip.startMsIntoClip ?? 0 } : undefined;
     },
     onDragBody: (newStartMs) => {
@@ -5476,8 +5414,7 @@ function buildSoundClipSection(selectable: Showable): HTMLElement {
   /** The clip list changed shape:  save, rebuild the audio, redraw this section and the timeline. */
   function afterStructureChange(): void {
     markDirty();
-    clearTimeout(_durationAudioTimer);
-    _durationAudioTimer = setTimeout(() => void initAudio(), 300);
+    soundtrack.request();
     updateScheduleEditor(selectable);
     refreshTimeline();
   }
@@ -5824,8 +5761,7 @@ function buildSoundClipSection(selectable: Showable): HTMLElement {
       rehomeSoundClip(clip, self, to);
       selectedSoundClip = clip;
       markDirty();
-      clearTimeout(_durationAudioTimer);
-      _durationAudioTimer = setTimeout(() => void initAudio(), 300);
+      soundtrack.request();
       const chapter = currentRoot();
       if (chapter && startWithin(chapter, to.owner) !== undefined) {
         // Follow the clip to its new owner.
@@ -7530,15 +7466,20 @@ document.addEventListener("keyup", (e) => {
 getById("recordJustSound", HTMLButtonElement).addEventListener(
   "click",
   async () => {
-    const blob = await audioBuilder.toBlob();
-    downloadBlob("sound_file.wav", blob);
+    // The newest soundtrack, with every file in it decoded.
+    const before = infoDiv.innerHTML;
+    infoDiv.innerHTML = "Waiting for the sound…";
+    await soundtrack.ready();
+    infoDiv.innerHTML = before;
+    downloadBlob("sound_file.wav", soundtrack.mix(0, toShow.duration).toBlob());
   },
 );
 
 function reload(): void {
   initChapters();
   updateFromSelect();
-  initAudio();
+  // Reload means everything, including sound files changed on disk.
+  soundtrack.forget();
 }
 
 getById("reloadBtn", HTMLButtonElement).addEventListener("click", reload);

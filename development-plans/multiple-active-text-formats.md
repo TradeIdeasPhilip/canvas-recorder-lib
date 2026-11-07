@@ -17,6 +17,12 @@ The first part of the process only uses that format object.
 Creating the fonts and paths continue to work as they do today.
 But when it comes to stroking the path, we do that once per formatter, and each formatter applies its own formatting.
 
+Notice that the font's boldness is used in two places.
+The first time is used to create the font's path.
+The second time is used to stroke it.
+The first will only come from the main format.
+But each stroke can use whatever line width it choses.
+
 Can a second level formatting object have a name?
 Then a text span could reach in and access just that.
 It might make sense because it could promote reuse.
@@ -28,6 +34,9 @@ Be careful or the case where a lot of formats are all added with the conflicting
 I said exactly two levels because I assumed that would make implementation much easier and I wasn't sure of the value it would offer.
 
 Need to decide!
+
+Maybe we need a simpler object for the children, something without the unused properties like the font size.
+These would not need names.
 
 ## New Properties
 
@@ -60,20 +69,22 @@ That's pretty standard.
 Is z relative to its parent?
 A complete tree makes things very powerful, but there are a lot of things to do to make it work.
 
-## Multiple Path Modifiers
+My plan is that z only applies within a multi text component.
 
-Can / should each one get to pick its own path modifier (e.g. handwriting effect).
+## Multiple Text effects
+
+Can / should each one get to pick its own text effect (e.g. handwriting effect).
 Yes!
 
-The requested path modifier for each format defaults to "".
-The default name for a new path modifier defaults to "".
+The requested text effect for each format defaults to "".
+The default name for a new text effect defaults to "".
 
-If a formatter requests "" and a path modifier exists with the the name "", use it.
-If a formatter requests "" and no such path modifier exists, use the unmodified path.
-That goes with the simplest case where you add exactly zero or one path modifiers to a multi text: All text will use the path modifier if it exists.
+If a formatter requests "" and a text effect exists with the the name "", use it.
+If a formatter requests "" and no such text effect exists, use the unmodified path.
+That goes with the simplest case where you add exactly zero or one text effects to a multi text: All text will use the text effect if it exists.
 And existing components can be read in with "" used for the missing name fields.
-But it's easy enough to add and use more path modifiers.
-Just use values other than "" for the path modifier name!
+But it's easy enough to add and use more text effects.
+Just use values other than "" for the text effect name!
 
 Any duplicate or missing names should generate a mild warning.
 That's the sort of thing that will inevitably come up temporarily when making normal changes.
@@ -89,3 +100,8 @@ This is probably the most popular of my fun git projects!
 This allows the user to create multiple layers, each with a handwriting effect on its own schedule.
 
 It will be a huge milestone when this project can do all of that.
+
+## Related
+
+Notice [paint-layers.md](./from-previous-project/paint-layers.md) which was a previous look at some overlapping issues.
+These two documents should probably be merged.

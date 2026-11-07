@@ -485,7 +485,7 @@ export function buildVideoClipPanel(
       return;
     }
     if (!isRealTime(speed)) {
-      // AudioBuilder can't change the speed of a sound, so anything but 1×
+      // The soundtrack can't change the speed of a sound, so anything but 1×
       // would drift out of sync.
       setStatus(`Audio needs 1× — currently ${Number.isNaN(speed) ? "—" : formatSpeed(speed)}`, "#a06000");
       importBtn.disabled = true;

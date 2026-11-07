@@ -3,9 +3,20 @@
 Let the browser mix the sound clips while it plays them, instead of building one big buffer first.
 Then a small change on the timeline doesn't rebuild the whole soundtrack.
 
-**Status (2026-11-03):** Planning.  No code yet.  **High priority:**  next after the 7-pointed-star setup.
-The review on 2026-11-03 added three things to fix in the same pass.  See [Also in this pass](#also-in-this-pass-2026-11-03).
-The line numbers in "How it works now" are from 2026-10-20 and have drifted; the ones in the new section are current.
+**Status (2026-11-06):** **Steps 2–7 done**, in [dev/soundtrack.ts](../dev/soundtrack.ts).  Step 1 (measuring before) was skipped:  the old code is gone, and every decode now writes its times to the Debug Log.
+Not done:  item 3 of "Also in this pass", reading only the audio of a large video, which is [audio-from-large-videos.md](audio-from-large-videos.md).
+Each file is read once per page load now, so that's only a problem for files too big to read at all.
+
+What's there now:
+
+- `Soundtrack` owns the decoded files (mono, 48 kHz, decoded in parallel, kept for the page's life), the clip list and the nodes.
+- `soundtrack.request()` replaces the six debounces.  It compares the clip list with the last one, so an edit that moves no sound clip does nothing, and one that does replaces only that clip's node, at a moment 30 ms ahead.
+- Failed files are remembered, so a broken URL isn't fetched on every mouse move.  🔓 Allow local files tries them again; Reload and `philDebug.refreshSounds()` forget everything.
+- Record and 🎤 Record Just Sound wait for `soundtrack.ready()`, then mix only the part they save, with `AudioBuilder`, now just the mixer.
+- Tested by [test-project/sound-test.html](../test-project/sound-test.html):  it plays into an `OfflineAudioContext` and compares with the saved mix, sample for sample, including an edit and a speed change mid-play.  Also checked by hand in the real player, headless:  play, 2×, 200 edits while playing, Record Just Sound.
+- Not tried by ear yet.  "How to test" below is still the list for that.
+
+The line numbers in "How it works now" are from 2026-10-20, and describe the code that's gone.
 
 ## Also in this pass (2026-11-03)
 

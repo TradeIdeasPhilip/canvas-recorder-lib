@@ -68,6 +68,7 @@ lib/index.ts          ← what `import … from "canvas-recorder-lib"` gets
 dev/                  ← the player GUI and Visual Editor (the folder name is historical)
 dev/canvas-recorder.ts← the player:  one big module, loaded by canvasRecorder.start()
 dev/player-body.ts    ← the player's HTML, which start() puts in the page
+dev/soundtrack.ts     ← live sound:  one node per sound clip; soundtrack.request() after any edit.  Tested by test-project/sound-test.html
 src/                  ← Showable, components, interpolation, glib…
 src/slide-components/ ← everything the Visual Editor can create; registry.ts lists them
 src/local-files.ts    ← `local:<name>` URLs for files on the user's computer; fetchMedia()

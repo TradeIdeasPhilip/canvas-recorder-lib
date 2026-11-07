@@ -153,3 +153,78 @@ After stage 1 has made a few real voiceovers.
   Echo cancellation would also erase the calibration chirps.
 - **Live mixing.**  [live-sound-mixing.md](live-sound-mixing.md) changes how the player plays sound clips.
   The recorder doesn't need it, but a new take showing up as a clip would be nicer without rebuilding the whole soundtrack.
+
+## Pausing and Fixing
+
+We need a way to pause the audio recording.
+That should be attached to the pause control for the video.
+One button or keyboard shortcut for the user.
+And we record what we need so we can initially attach the sound exactly where it was recorded.
+I hope the audio API has a pause feature we can use, but I'm sure we'll make it work somehow.
+
+Also, if the user seeks we need to keep track of that.
+He might seek forward, so we cut the sound clip into two pieces at that point and put each onto the timeline at the same place.
+He might seek backward, just enough to fix a recent mistake or to where he meant to hit pause.
+
+**This is huge.**
+*In place editing!*
+This is a feature I wish I had in my existing tools.
+This doesn't replace all editing, but it let's me do a lot while I'm thinking about it and looking at it and without breaking my train of thought.
+
+That brings up a related issue.
+For now let's just completely mute the audio while we are recording.
+I don't use a headset, so this is pretty much required for me.
+There is room for more but it might get complicated, like do we play back the recently recorded stuff that is part of the current recording.
+Let's just keep it simple for now.
+
+While we're in forced mute, show the mute check box as disabled.
+Keep the checked or unchecked state for when we stop recording.
+
+Of course I want to see the waveform diagram and (when available) the transcript on the timeline, just like we have it now.
+But I also want to see a waveform for what I'm recording while I'm recording it.
+Especially when I back up, so I know where to back up to.
+A live transcript would be a helpful if available.
+
+### What's the Difference between Pause and Stop?
+
+I've been focused on pause, the ability to quickly and temporarily stop recording with the least fuss possible.
+But at some point we also need a full stop to save the file and next time the user will be asked to create a new audio file.
+
+Presumably the user needs more GUI options.
+I was picturing the "play" check box in both cases, I and just now realized the conflict.
+
+The alternative would be more automation.
+At first I was thinking about pause vs stop, but after rereading this section *I always want the no fuss option*.  
+
+**Epiphany**:  Don't ask for a file name, ask for a directory name and save the handle for later.
+We do that a lot in this program and it works well (including some rare and exceptional cases).
+Copy and existing examples.
+The file name will be auto generated from the video name (like in the properties files and IndexedDB) followed by the date and time in mysql notation.
+So they should be useful and sortable and unique.
+(Is : a bad character for a file name?
+It doesn't have to be exactly mysql format, as long as it's sortable.) 
+
+Explicitly unchecking play will always close the file handle.
+
+Seeking might or might not start a new file.
+That is totally based on what's convenient for the code.
+The user will see multiple audio clips from different files, or ranges of the same audio clip.
+The result will be identical unless the user looks very close.
+Maybe saving and restarting on seek will make it easier to display the waveform of what you just saved, without drawing waveforms for anything in progress.
+
+## Talking After the Video
+
+Mostly I want to play the video while I'm recording my voice and keeping both in sync.
+What happens when the movie ends?
+Do *not* stop the user from recording!
+Let the audio clip continue past the end of the video.
+There's nothing special to do on the GUI.
+Either the user fixes the problem, perhaps by making the movie run longer, or the recorder will clip the extra audio.
+
+I used to have a mode that would keep updating the time after the end of the movie, but freezing at the end time would probably make the most sense.
+
+Disable the repeat option.
+Maybe that works just like mute, temporarily disabled in the GUI, no change to which radio button is selected.
+
+If the user seeks after the video, then we restore our normal video playback.
+The user has no way to seek into the vague region between the end of the video and the end of the audio, only to keep recording continuously or to seek into a valid part of the video.

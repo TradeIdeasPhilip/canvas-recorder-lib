@@ -21,6 +21,7 @@ export default defineConfig({
       input: {
         index: resolve(import.meta.dirname, "index.html"),
         showcase: resolve(import.meta.dirname, "showcase.html"),
+        "sound-test": resolve(import.meta.dirname, "sound-test.html"),
       },
       output: {
         // The Visual Editor writes TypeScript that names each component's class (the "Sync diffs"

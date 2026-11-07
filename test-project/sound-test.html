@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="icon.png" type="image/png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🔊 Soundtrack Test</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+      }
+      .pass {
+        color: green;
+      }
+      .fail {
+        color: red;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🔊 Soundtrack test</h1>
+    <p>
+      Checks the live soundtrack (one node per clip) against the mixer that
+      saved videos use, by playing into an <code>OfflineAudioContext</code>.
+      Silent, and it takes a second or two.
+    </p>
+    <table id="results">
+      <tr>
+        <th>Test</th>
+        <th>Result</th>
+        <th>Details</th>
+      </tr>
+    </table>
+    <script type="module" src="./src/sound-test.ts"></script>
+  </body>
+</html>

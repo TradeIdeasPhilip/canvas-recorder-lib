@@ -38,6 +38,8 @@ export type VisualEditorAPI = {
    * Returns the decoded PCM buffer for a source URL if it has already been
    * fetched and decoded by the audio system, or null if it hasn't yet.
    * Used for drawing in-timeline waveforms without a second fetch.
+   *
+   * Always mono, at 48 kHz:  a file with more channels is averaged down to one.
    */
   getDecodedBuffer?(url: string): AudioBuffer | null;
 };

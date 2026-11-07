@@ -8,6 +8,7 @@ The published copy is at https://tradeideasphilip.github.io/canvas-recorder-lib/
 | Page | What |
 | --- | --- |
 | [showcase.html](showcase.html) | 🖼️ Slides that show what the library can do, one topic per slide.  New library features usually show up here first. |
+| [sound-test.html](sound-test.html) | 🔊 Checks that live playback sounds the same as a saved video, through edits and speed changes.  Silent:  it plays into an `OfflineAudioContext`.  Run it after changing `dev/soundtrack.ts` or `dev/audio-builder.ts`. |
 
 The showcase, the user documentation and the test cases overlap a lot.
 A slide shows off a feature, shows how to use it, and fails to build when a library change breaks it.

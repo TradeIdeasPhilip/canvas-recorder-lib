@@ -1,53 +1,79 @@
 Simple Video Editor
-  const inSeries = new InSeriesComponent({ description: "In Series" });
+→ Rectangle
+  [deleted]
+→ In Series
+→ → Video Clip #1
+→ → → Dest Rect
+TypeScript: {"x":0,"y":0,"width":16,"height":10}
+Current:    {"x":0,"y":0,"width":16,"height":20.512820512820515}
+→ → → URL
+TypeScript: ""
+Current:    "local:Ms Pac-Man Short.mov"
+→ → → Start Ms Into Clip
+TypeScript: 0
+Current:    6365.2
+→ → → End Ms Into Clip
+TypeScript: 1000
+Current:    8337.1
+→ → → Duration
+TypeScript: 10000
+Current:    1971.9000000000005
+→ → → Sound Clips
+TypeScript: []
+Current:    [{"source":"local:Ms Pac-Man Short.mov","startMsIntoScene":0,"startMsIntoClip":6388.720833,"lengthMs":1971.9,"notes":"imported from video"}]
+→ → Video Clip #2
+  [added]
   const videoClip = new VideoClipComponent({ description: "Video Clip" });
   videoClip.destinationRectSchedule.set({"x":0,"y":0,"width":16,"height":20.512820512820515});
   videoClip.urlScalar.value = "local:Ms Pac-Man Short.mov";
-  videoClip.startMsIntoClipScalar.value = 6365.2;
-  videoClip.endMsIntoClipScalar.value = 8337.1;
-  videoClip.setDuration(1971.9000000000005);
-  videoClip.soundClips = [{"source":"local:Ms Pac-Man Short.mov","startMsIntoScene":0,"startMsIntoClip":6388.720833,"lengthMs":1971.9,"notes":"imported from video"}];
-  inSeries.addFixed({ child: videoClip });
+  videoClip.startMsIntoClipScalar.value = 17911.5;
+  videoClip.endMsIntoClipScalar.value = 20927.9;
+  videoClip.setDuration(3016.4);
+  videoClip.soundClips = [{"source":"local:Ms Pac-Man Short.mov","startMsIntoScene":0,"startMsIntoClip":17935.020833,"lengthMs":3485.909432,"notes":"imported from video"}];
+  inSeries.replaceableComponents!.push(videoClip);
+→ → Video Clip #3
+  [added]
   const videoClip2 = new VideoClipComponent({ description: "Video Clip" });
   videoClip2.destinationRectSchedule.set({"x":0,"y":0,"width":16,"height":20.512820512820515});
   videoClip2.urlScalar.value = "local:Ms Pac-Man Short.mov";
-  videoClip2.startMsIntoClipScalar.value = 17911.5;
-  videoClip2.endMsIntoClipScalar.value = 20927.9;
-  videoClip2.setDuration(3016.4);
-  videoClip2.soundClips = [{"source":"local:Ms Pac-Man Short.mov","startMsIntoScene":0,"startMsIntoClip":17935.020833,"lengthMs":3485.909432,"notes":"imported from video"}];
-  inSeries.addFixed({ child: videoClip2 });
+  videoClip2.startMsIntoClipScalar.value = 30970;
+  videoClip2.endMsIntoClipScalar.value = 31356.4;
+  videoClip2.setDuration(386.39999999999964);
+  inSeries.replaceableComponents!.push(videoClip2);
+→ → Video Clip #4
+  [added]
   const videoClip3 = new VideoClipComponent({ description: "Video Clip" });
   videoClip3.destinationRectSchedule.set({"x":0,"y":0,"width":16,"height":20.512820512820515});
   videoClip3.urlScalar.value = "local:Ms Pac-Man Short.mov";
-  videoClip3.startMsIntoClipScalar.value = 30970;
-  videoClip3.endMsIntoClipScalar.value = 31356.4;
-  videoClip3.setDuration(386.39999999999964);
-  inSeries.addFixed({ child: videoClip3 });
+  videoClip3.startMsIntoClipScalar.value = 60586.1;
+  videoClip3.endMsIntoClipScalar.value = 69286;
+  videoClip3.setDuration(8699.9);
+  videoClip3.soundClips = [{"source":"local:Ms Pac-Man Short.mov","startMsIntoScene":115.627763,"startMsIntoClip":60609.620833,"lengthMs":8584.272237,"notes":"imported from video"}];
+  inSeries.replaceableComponents!.push(videoClip3);
+→ → Video Clip #5
+  [added]
   const videoClip4 = new VideoClipComponent({ description: "Video Clip" });
   videoClip4.destinationRectSchedule.set({"x":0,"y":0,"width":16,"height":20.512820512820515});
   videoClip4.urlScalar.value = "local:Ms Pac-Man Short.mov";
-  videoClip4.startMsIntoClipScalar.value = 60586.1;
-  videoClip4.endMsIntoClipScalar.value = 69286;
-  videoClip4.setDuration(8699.9);
-  videoClip4.soundClips = [{"source":"local:Ms Pac-Man Short.mov","startMsIntoScene":115.627763,"startMsIntoClip":60609.620833,"lengthMs":8584.272237,"notes":"imported from video"}];
-  inSeries.addFixed({ child: videoClip4 });
+  videoClip4.startMsIntoClipScalar.value = 73563.6;
+  videoClip4.endMsIntoClipScalar.value = 107783.5;
+  videoClip4.setDuration(34219.9);
+  videoClip4.soundClips = [{"source":"local:Ms Pac-Man Short.mov","startMsIntoScene":72.310788,"startMsIntoClip":70470,"lengthMs":28339.189,"notes":"imported from video"},{"source":"local:Ms Pac-Man Short.mov","startMsIntoScene":30872.154404,"startMsIntoClip":99438.489,"lengthMs":4662.346,"notes":"imported from video"}];
+  inSeries.replaceableComponents!.push(videoClip4);
+→ → Video Clip #6
+  [added]
   const videoClip5 = new VideoClipComponent({ description: "Video Clip" });
   videoClip5.destinationRectSchedule.set({"x":0,"y":0,"width":16,"height":20.512820512820515});
   videoClip5.urlScalar.value = "local:Ms Pac-Man Short.mov";
-  videoClip5.startMsIntoClipScalar.value = 73563.6;
-  videoClip5.endMsIntoClipScalar.value = 107783.5;
-  videoClip5.setDuration(34219.9);
-  videoClip5.soundClips = [{"source":"local:Ms Pac-Man Short.mov","startMsIntoScene":72.310788,"startMsIntoClip":70470,"lengthMs":28339.189,"notes":"imported from video"},{"source":"local:Ms Pac-Man Short.mov","startMsIntoScene":30872.154404,"startMsIntoClip":99438.489,"lengthMs":4662.346,"notes":"imported from video"}];
-  inSeries.addFixed({ child: videoClip5 });
-  const videoClip6 = new VideoClipComponent({ description: "Video Clip" });
-  videoClip6.destinationRectSchedule.set({"x":0,"y":0,"width":16,"height":20.512820512820515});
-  videoClip6.urlScalar.value = "local:Ms Pac-Man Short.mov";
-  videoClip6.startMsIntoClipScalar.value = 163366.3;
-  videoClip6.endMsIntoClipScalar.value = 201463.5;
-  videoClip6.setDuration(38097.2);
-  videoClip6.soundClips = [{"source":"local:Ms Pac-Man Short.mov","startMsIntoScene":1809.522787,"startMsIntoClip":167245,"lengthMs":4605,"notes":"imported from video"},{"source":"local:Ms Pac-Man Short.mov","startMsIntoScene":11649.610788,"startMsIntoClip":171850,"lengthMs":26447.589212,"notes":"imported from video"}];
-  inSeries.addFixed({ child: videoClip6 });
-  this.addFixed({ child: inSeries });
+  videoClip5.startMsIntoClipScalar.value = 163366.3;
+  videoClip5.endMsIntoClipScalar.value = 201463.5;
+  videoClip5.setDuration(38097.2);
+  videoClip5.soundClips = [{"source":"local:Ms Pac-Man Short.mov","startMsIntoScene":1809.522787,"startMsIntoClip":167245,"lengthMs":4605,"notes":"imported from video"},{"source":"local:Ms Pac-Man Short.mov","startMsIntoScene":11649.610788,"startMsIntoClip":171850,"lengthMs":26447.589212,"notes":"imported from video"}];
+  inSeries.replaceableComponents!.push(videoClip5);
+→ Traditional Text
+  [deleted]
+→ Padding #1
+  [added]
   const padding = new PaddingComponent({ description: "Padding" });
   padding.initialTimeScalar.value = 17879.663722601832;
   padding.showAfterScalar.value = "hide";
@@ -59,15 +85,17 @@ Simple Video Editor
   const textFormat = new TextFormatComponent({ description: "Text Format" });
   textFormat.colorSchedule.set("rgb(255, 0, 255)");
   textFormat.sizeSchedule.set(0.6);
-  5OneQuarter.addFixed({ child: textFormat });
+  5OneQuarter.replaceableComponents!.push(textFormat);
   const textSpan = new TextSpanComponent({ description: "Text Span" });
   textSpan.contentSchedule.set("“5” = One Quarter\n");
-  5OneQuarter.addFixed({ child: textSpan });
+  5OneQuarter.replaceableComponents!.push(textSpan);
   const handwritingEffect = new HandwritingEffectComponent({ description: "Handwriting Effect" });
   handwritingEffect.progressSchedule.set([{"time":0,"value":0},{"time":4223,"value":1}]);
-  5OneQuarter.addFixed({ child: handwritingEffect });
-  padding.addFixed({ child: 5OneQuarter });
-  this.addFixed({ child: padding });
+  5OneQuarter.replaceableComponents!.push(handwritingEffect);
+  padding.replaceableComponents!.push(5OneQuarter);
+  simpleVideoEditor.replaceableComponents!.push(padding);
+→ Padding #2
+  [added]
   const padding2 = new PaddingComponent({ description: "Padding" });
   padding2.initialTimeScalar.value = 24522.4962059148;
   padding2.showAfterScalar.value = "hide";
@@ -79,15 +107,17 @@ Simple Video Editor
   const textFormat2 = new TextFormatComponent({ description: "Text Format" });
   textFormat2.colorSchedule.set("rgb(255, 0, 255)");
   textFormat2.sizeSchedule.set(0.6);
-  6OneDollar.addFixed({ child: textFormat2 });
+  6OneDollar.replaceableComponents!.push(textFormat2);
   const 6OneDollar2 = new TextSpanComponent({ description: "“6” = One Dollar" });
   6OneDollar2.contentSchedule.set("“6” = One Dollar");
   6OneDollar2.userEditableDescription = "“6” = One Dollar";
-  6OneDollar.addFixed({ child: 6OneDollar2 });
+  6OneDollar.replaceableComponents!.push(6OneDollar2);
   const handwritingEffect2 = new HandwritingEffectComponent({ description: "Handwriting Effect" });
-  6OneDollar.addFixed({ child: handwritingEffect2 });
-  padding2.addFixed({ child: 6OneDollar });
-  this.addFixed({ child: padding2 });
+  6OneDollar.replaceableComponents!.push(handwritingEffect2);
+  padding2.replaceableComponents!.push(6OneDollar);
+  simpleVideoEditor.replaceableComponents!.push(padding2);
+→ Padding #3
+  [added]
   const padding3 = new PaddingComponent({ description: "Padding" });
   padding3.initialTimeScalar.value = 39730.477698154646;
   padding3.showAfterScalar.value = "hide";
@@ -100,15 +130,17 @@ Simple Video Editor
   const textFormat3 = new TextFormatComponent({ description: "Text Format" });
   textFormat3.colorSchedule.set("rgb(255, 0, 255)");
   textFormat3.sizeSchedule.set(0.6);
-  1OnePlayerStart.addFixed({ child: textFormat3 });
+  1OnePlayerStart.replaceableComponents!.push(textFormat3);
   const 1OnePlayerStart2 = new TextSpanComponent({ description: "“1” = One Player Start" });
   1OnePlayerStart2.contentSchedule.set("“1” = One Player Start");
   1OnePlayerStart2.userEditableDescription = "“1” = One Player Start";
-  1OnePlayerStart.addFixed({ child: 1OnePlayerStart2 });
+  1OnePlayerStart.replaceableComponents!.push(1OnePlayerStart2);
   const handwritingEffect3 = new HandwritingEffectComponent({ description: "Handwriting Effect" });
-  1OnePlayerStart.addFixed({ child: handwritingEffect3 });
-  padding3.addFixed({ child: 1OnePlayerStart });
-  this.addFixed({ child: padding3 });
+  1OnePlayerStart.replaceableComponents!.push(handwritingEffect3);
+  padding3.replaceableComponents!.push(1OnePlayerStart);
+  simpleVideoEditor.replaceableComponents!.push(padding3);
+→ Padding #4
+  [added]
   const padding4 = new PaddingComponent({ description: "Padding" });
   padding4.initialTimeScalar.value = 45097.30098531877;
   padding4.showAfterScalar.value = "hide";
@@ -121,15 +153,17 @@ Simple Video Editor
   const textFormat4 = new TextFormatComponent({ description: "Text Format" });
   textFormat4.colorSchedule.set("rgb(255, 0, 255)");
   textFormat4.sizeSchedule.set(0.6);
-  arrowKeys.addFixed({ child: textFormat4 });
+  arrowKeys.replaceableComponents!.push(textFormat4);
   const textSpan2 = new TextSpanComponent({ description: "Text Span" });
   textSpan2.contentSchedule.set("← ↑ → ↓");
-  arrowKeys.addFixed({ child: textSpan2 });
+  arrowKeys.replaceableComponents!.push(textSpan2);
   const handwritingEffect4 = new HandwritingEffectComponent({ description: "Handwriting Effect" });
   handwritingEffect4.progressSchedule.set([{"time":0,"value":0},{"time":3194.3990146812284,"value":1}]);
-  arrowKeys.addFixed({ child: handwritingEffect4 });
-  padding4.addFixed({ child: arrowKeys });
-  this.addFixed({ child: padding4 });
+  arrowKeys.replaceableComponents!.push(handwritingEffect4);
+  padding4.replaceableComponents!.push(arrowKeys);
+  simpleVideoEditor.replaceableComponents!.push(padding4);
+→ Padding #5
+  [added]
   const padding5 = new PaddingComponent({ description: "Padding" });
   padding5.initialTimeScalar.value = 50442.47292256696;
   padding5.showAfterScalar.value = "hide";
@@ -142,15 +176,17 @@ Simple Video Editor
   const textFormat5 = new TextFormatComponent({ description: "Text Format" });
   textFormat5.colorSchedule.set("rgb(255, 0, 255)");
   textFormat5.sizeSchedule.set(0.6);
-  2TwoPlayerStart.addFixed({ child: textFormat5 });
+  2TwoPlayerStart.replaceableComponents!.push(textFormat5);
   const textSpan3 = new TextSpanComponent({ description: "Text Span" });
   textSpan3.contentSchedule.set("“2” = Two Player Start");
-  2TwoPlayerStart.addFixed({ child: textSpan3 });
+  2TwoPlayerStart.replaceableComponents!.push(textSpan3);
   const handwritingEffect5 = new HandwritingEffectComponent({ description: "Handwriting Effect" });
   handwritingEffect5.progressSchedule.set([{"time":0,"value":0},{"time":3194.3990146812284,"value":1}]);
-  2TwoPlayerStart.addFixed({ child: handwritingEffect5 });
-  padding5.addFixed({ child: 2TwoPlayerStart });
-  this.addFixed({ child: padding5 });
+  2TwoPlayerStart.replaceableComponents!.push(handwritingEffect5);
+  padding5.replaceableComponents!.push(2TwoPlayerStart);
+  simpleVideoEditor.replaceableComponents!.push(padding5);
+→ Padding #6
+  [added]
   const padding6 = new PaddingComponent({ description: "Padding" });
   padding6.initialTimeScalar.value = 66130.00442603003;
   padding6.showAfterScalar.value = "hide";
@@ -163,15 +199,17 @@ Simple Video Editor
   const textFormat6 = new TextFormatComponent({ description: "Text Format" });
   textFormat6.colorSchedule.set("rgb(255, 0, 255)");
   textFormat6.sizeSchedule.set(0.6);
-  playerTwosKeys.addFixed({ child: textFormat6 });
+  playerTwosKeys.replaceableComponents!.push(textFormat6);
   const textSpan4 = new TextSpanComponent({ description: "Text Span" });
   textSpan4.contentSchedule.set("“R”=↑ “D”=← “F”=↓ “G”=→");
-  playerTwosKeys.addFixed({ child: textSpan4 });
+  playerTwosKeys.replaceableComponents!.push(textSpan4);
   const handwritingEffect6 = new HandwritingEffectComponent({ description: "Handwriting Effect" });
   handwritingEffect6.progressSchedule.set([{"time":0,"value":0},{"time":3878.8955739699595,"value":1}]);
-  playerTwosKeys.addFixed({ child: handwritingEffect6 });
-  padding6.addFixed({ child: playerTwosKeys });
-  this.addFixed({ child: padding6 });
+  playerTwosKeys.replaceableComponents!.push(handwritingEffect6);
+  padding6.replaceableComponents!.push(playerTwosKeys);
+  simpleVideoEditor.replaceableComponents!.push(padding6);
+→ Padding #7
+  [added]
   const padding7 = new PaddingComponent({ description: "Padding" });
   padding7.initialTimeScalar.value = 3689.6;
   padding7.showAfterScalar.value = "hide";
@@ -182,12 +220,12 @@ Simple Video Editor
   const textFormat7 = new TextFormatComponent({ description: "Text Format" });
   textFormat7.colorSchedule.set("rgb(255, 0, 255)");
   textFormat7.sizeSchedule.set(0.5);
-  uRL.addFixed({ child: textFormat7 });
+  uRL.replaceableComponents!.push(textFormat7);
   const textSpan5 = new TextSpanComponent({ description: "Text Span" });
   textSpan5.contentSchedule.set("https://archive.org/details/arcade_20pacgal");
-  uRL.addFixed({ child: textSpan5 });
+  uRL.replaceableComponents!.push(textSpan5);
   const handwritingEffect7 = new HandwritingEffectComponent({ description: "Handwriting Effect" });
   handwritingEffect7.progressSchedule.set([{"time":0,"value":0},{"time":1784.9,"value":1}]);
-  uRL.addFixed({ child: handwritingEffect7 });
-  padding7.addFixed({ child: uRL });
-  this.addFixed({ child: padding7 });
+  uRL.replaceableComponents!.push(handwritingEffect7);
+  padding7.replaceableComponents!.push(uRL);
+  simpleVideoEditor.replaceableComponents!.push(padding7);
