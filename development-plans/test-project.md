@@ -108,7 +108,7 @@ That's fine for test pages; just don't make them the first thing a stranger sees
 | `index.html` | Done | The list. |
 | 🖼️ Showcase | Done | canvas-recorder's `showcase.ts`, one slide per file.  See the [README](../test-project/README.md). |
 | 🐢 Slow Fonts | Planned | [slow-fonts.md](slow-fonts.md):  the delay-files service worker, and the slides it was made for.  Maybe as showcase slides, now that there's a place for them. |
-| 🎤 Sound Explorer | Planned | Moved from canvas-recorder, plus a 🎙 voice recorder.  See [voice-recording.md](voice-recording.md). |
+| 🎤 Sound Explorer | Later | Moved from canvas-recorder.  The voice recorder goes in the player first.  See [voice-recording.md](voice-recording.md#later). |
 | 🔍 Font Inspector + Kerning | Idea | See below. |
 
 ### Font Inspector + Kerning
@@ -141,7 +141,7 @@ This folder is the tools project.
 
 | Page | Suggestion |
 | --- | --- |
-| 🎤 `sound-explorer.html` | **Move it here first**, with the voice recorder.  [voice-recording.md](voice-recording.md) has the steps. |
+| 🎤 `sound-explorer.html` | Move it here, after the player's voice recorder.  [voice-recording.md](voice-recording.md#later) has the steps. |
 | 🎬 `media-browser.html` | A "quick strawman" for a CapCut-style media list (350 lines).  Easy to port:  it only imports Mediabunny and `src/slide-components/video-info.ts`, both in the library.  But first check whether the editor's Video Clip panel, now with local files, already does its job.  If it does, leave it in canvas-recorder's history. |
 | 🧪 `random-tests.html` | "Scratch space for trying out browser APIs":  file handles, video, Mediabunny, fonts.  The experiments behind features that now exist.  History, unless one of them is needed again. |
 | 🧐 `test-rig.html` | Opens every video on canvas-recorder's menu and clicks each one's save button.  The videos are separate projects now, with no shared menu.  History. |

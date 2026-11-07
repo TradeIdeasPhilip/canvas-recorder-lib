@@ -208,8 +208,7 @@ export function applyFixedComponents(
     if (childFixedComponents.length && sc.fixedComponents?.length)
       applyFixedComponents(childFixedComponents, sc.fixedComponents);
     if (sc.duration !== undefined) child.setDuration?.(sc.duration);
-    if (sc.soundClips !== undefined)
-      child.soundClips = sc.soundClips.map((c) => ({ ...c }));
+    applySoundClips(child, sc.soundClips);
     if (sc.userEditableDescription !== undefined)
       child.userEditableDescription = sc.userEditableDescription;
   }
@@ -314,9 +313,29 @@ export function applyJsonEntry(
   }
   if (entry.duration !== undefined) selectable.setDuration?.(entry.duration);
   selectable.userEditableDescription = entry.userEditableDescription;
-  if (entry.soundClips !== undefined && selectable.soundClips !== undefined) {
-    selectable.soundClips.length = 0;
-    selectable.soundClips.push(...entry.soundClips.map((c) => ({ ...c })));
+  applySoundClips(selectable, entry.soundClips);
+}
+
+/**
+ * Give `target` the saved sound clips.
+ *
+ * Every Showable can hold sound clips, so a missing list means an empty one.
+ * That's what makes undo remove the first clip added to a component that had
+ * none.  It's safe because every tree is filled in with
+ * {@link fillTreeDefaults} before it's applied.
+ *
+ * An existing list is changed in place, since a program may keep a reference
+ * to it.
+ */
+function applySoundClips(
+  target: Showable,
+  saved: readonly SoundClip[] | undefined,
+): void {
+  const copies = (saved ?? []).map((clip) => ({ ...clip }));
+  if (target.soundClips) {
+    target.soundClips.splice(0, Infinity, ...copies);
+  } else if (copies.length > 0) {
+    target.soundClips = copies;
   }
 }
 
@@ -421,11 +440,9 @@ export function omitComponentDefaults(
     if (child.duration !== undefined && child.duration !== fresh.duration) {
       result.duration = child.duration;
     }
-    if (
-      child.soundClips !== undefined &&
-      !sameJson(child.soundClips, fresh.soundClips)
-    ) {
-      result.soundClips = child.soundClips;
+    // An empty list is the same as none.
+    if (!sameJson(child.soundClips ?? [], fresh.soundClips ?? [])) {
+      result.soundClips = child.soundClips ?? [];
     }
     return result;
   });
@@ -478,11 +495,9 @@ export function omitTreeDefaults(
   if (tree.duration !== undefined && tree.duration !== defaults?.duration) {
     result.duration = tree.duration;
   }
-  if (
-    tree.soundClips !== undefined &&
-    !sameJson(tree.soundClips, defaults?.soundClips)
-  ) {
-    result.soundClips = tree.soundClips;
+  // An empty list is the same as none.
+  if (!sameJson(tree.soundClips ?? [], defaults?.soundClips ?? [])) {
+    result.soundClips = tree.soundClips ?? [];
   }
   if (
     tree.userEditableDescription !== undefined &&

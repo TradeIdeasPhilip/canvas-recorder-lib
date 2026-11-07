@@ -25,8 +25,11 @@ import { fetchMedia } from "../src/local-files.ts";
 import { Showable } from "../src/showable.ts";
 import { AudioBuilder } from "./audio-builder.ts";
 
-/** Every file is decoded at this rate, and the saved video's sound uses it too. */
-const SAMPLE_RATE = 48000;
+/**
+ * Every file is decoded at this rate, and the saved video's sound uses it too.
+ * So do the player's AudioContext and the voice recorder.
+ */
+export const SAMPLE_RATE = 48000;
 
 /**
  * How far ahead a change while playing takes effect, in seconds.
@@ -137,6 +140,20 @@ export class Soundtrack {
     this.#failed.clear();
     this.#knownSources.clear();
     this.request();
+  }
+
+  /**
+   * Use `buffer` as the decoded file for `url`, instead of reading the file.
+   * For a file this page just wrote, like a voice recording, whose samples are
+   * already in memory.  It must be mono, at {@link SAMPLE_RATE}, and exactly as
+   * long as the file.
+   */
+  provide(url: string, buffer: AudioBuffer): void {
+    this.#decoding.set(url, Promise.resolve(buffer));
+    this.#decoded.set(url, buffer);
+    this.#failed.delete(url);
+    this.#options.onDecoded?.();
+    if (this.#anchor) this.#resync();
   }
 
   /** Try the files that couldn't be read again, e.g. after 🔓 Allow local files. */

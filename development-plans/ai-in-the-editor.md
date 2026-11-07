@@ -12,7 +12,7 @@ First they were placed; then Bottom got more animations at the start; next, Top 
 What that needs:
 
 - **A long stream of short requests.**  A big spec can be handed over any way at all.  Many small ones need almost no friction for each one.
-- **Context.**  "That" means the selected component.  "Here" means the playhead.  "Further" means compared with how it looks now.
+- **Context.**  "That" means the selected component.  "Here" means the playhead.  "Further" means compared with how it looks now.  "It" refers to a topic from the previous interaction.
 - **Eyes.**  "Center the small one" needs to know where the drawing actually is, which isn't always a property (a Multi Text's extent, a Fourier's shape).
 - **Changes that land where the user's work is.**  Today, code from Claude has to be folded into GUI work by hand, and GUI work into code through the diff file.
   A change made *in the running editor* is just more user state:  autosaved, in the history, undoable, and in the diff file like any other edit.
@@ -89,6 +89,12 @@ No browser control at all.  Claude edits the files in `properties/`; the page no
 - **Write the context.**  A small file next to the others:  the selected component's path, the chapter, the playhead, maybe the Debug Log's last lines.
   Then "that" and "here" mean something to Claude without asking.
 - **A frame, on request.**  The page could write the current frame as a PNG to `properties/` whenever it pauses, so Claude can look.
+- **The transcripts.**  `properties/<name>-transcript.txt`:  every sound clip in time order, with its words and their times in the video.
+  Rewritten when a transcript finishes or a clip moves, like the other synced files.
+  Then Claude can read a voiceover, find "where I say 'seven'", or line a slide up with a word.
+  Today a transcript stays in IndexedDB, unless 💾 on the clip's card saves it to a file by hand.
+- **One checkbox for all of them** (your idea, 2026-11-07).  Today Sync to file, Sync defaults and Sync diffs each ask for their own file.
+  One "Sync to folder" that asks for `properties/` once, and writes all four files there, would be simpler.
 
 Good for:  the conversation stays in VS Code, everything is a plain file that git can see, and nothing new to install.
 Not as good:  about a second of delay, and Claude edits the omit-defaults JSON by hand, which is less pleasant than calling `c.set(…)`.

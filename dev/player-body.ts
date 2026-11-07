@@ -191,8 +191,16 @@ export const playerBodyHtml = `
                 <option value="2">2×</option>
               </select>
             </label>
+            <button
+              type="button"
+              id="recordModeBtn"
+              title="Show or hide the voice recorder.  It turns the mic on while it's showing."
+            >
+              🎙 Record mode
+            </button>
           </div>
         </fieldset>
+        <div id="voicePanelHolder"></div>
         <div
           style="
             border: 0.3em inset rgb(178, 178, 178);

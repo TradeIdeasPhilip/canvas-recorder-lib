@@ -26,8 +26,9 @@ function displayName(showable: Showable): string {
 
 /**
  * Every Showable under `root` (including `root`) whose `soundClips` is
- * defined, in tree order.  That's what makes a Showable a place a sound can
- * live, even when its list is empty.
+ * defined, in tree order.  Any Showable can hold sounds, but these are the
+ * ones that have a list, usually because they have, or had, a clip.
+ * That keeps the Owner menus short.
  *
  * This is the same walk the audio builder does, so the start times agree with
  * what you hear.  A Showable that appears more than once in the tree is listed

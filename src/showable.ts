@@ -285,6 +285,13 @@ export type Showable = {
     readonly child: Showable;
   }[];
 
+  /**
+   * Sounds that play with this component, timed from its start.
+   *
+   * Every Showable can hold sound clips.  `undefined` just means none yet:
+   * anything that adds a clip creates the list first (`soundClips ??= []`).
+   * Loading a saved state creates it too, and treats a missing list as an empty one.
+   */
   soundClips?: SoundClip[];
 
   /**

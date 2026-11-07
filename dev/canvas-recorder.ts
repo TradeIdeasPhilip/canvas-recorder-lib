@@ -62,7 +62,9 @@ import {
 } from "../src/snapshot.ts";
 import { downloadBlob, philDebug } from "../src/utility.ts";
 import { debugLog, getNewDebugLogEntries } from "../src/debug-log.ts";
-import { Soundtrack } from "./soundtrack.ts";
+import { SAMPLE_RATE, Soundtrack } from "./soundtrack.ts";
+import { openVoicePanel, type VoicePanel } from "./voice/voice-panel.ts";
+import type { RecordedClip, VoiceRecorder } from "./voice/voice-recorder.ts";
 import { openColorPickerDialog } from "./color-picker.ts";
 import { setSwatchColor } from "./color-utils.ts";
 import {
@@ -652,7 +654,8 @@ function loadPlayPositionRange() {
   playPositionRange.valueAsNumber = playPositionSeconds.valueAsNumber * 1000;
 }
 
-const audioContext = new AudioContext();
+// The same rate as the decoded files and the voice recorder, whatever the hardware uses.
+const audioContext = new AudioContext({ sampleRate: SAMPLE_RATE });
 console.log(audioContext);
 const gainNode = audioContext.createGain();
 gainNode.connect(audioContext.destination);
@@ -677,6 +680,19 @@ checkVideosLocalFiles();
 
 /** True between startAudio() and stopAudio(), unless {@link rafFallbackMode}. */
 let audioPlaying = false;
+/**
+ * True from ● Record until the voice recording stops.  The soundtrack is muted,
+ * and the controls that would spoil the recording are disabled.
+ * See {@link startVoiceRecording}.
+ */
+let voiceRecording = false;
+/**
+ * True while ● Record's chirp plays, before the video starts.  Being paused
+ * then doesn't stop the recording.
+ */
+let voiceChirping = false;
+/** The voice recorder's controls, while 🎙 Record mode is showing them. */
+let voicePanel: VoicePanel | undefined;
 /** audioContext.currentTime at the moment startAudio() last anchored the clock. */
 let audioContextStartTime = 0;
 /** Media position (ms) at the moment startAudio() last anchored the clock. */
@@ -757,17 +773,21 @@ function startAudio(fromMs: number): void {
     rate: audioPlaybackRate,
   });
   audioPlaying = true;
+  if (voiceRecording) beginVoiceClip(contextNow, fromMs);
 }
 
 /**
  * Stop the sound and the clock.  Called for every seek too:  the animation loop
  * starts again from the play position on its next frame.
+ *
+ * While recording a voice, this ends the clip, and the next start begins a new one.
  */
 function stopAudio(): void {
   rafFallbackPlaying = false;
   if (audioPlaying) {
     soundtrack.stop();
     audioPlaying = false;
+    if (voiceRecording) endVoiceClip();
   }
 }
 
@@ -793,8 +813,16 @@ function setPlaybackRate(rate: number): void {
   audioPlaybackRate = rate;
 }
 
+const volumeSlider = getById("volumeAudio", HTMLInputElement);
+const speedSelect = getById("speedAudio", HTMLSelectElement);
+
+/** The soundtrack's volume:  the slider, unless it's muted, or a voice is being recorded. */
+function updateGain(): void {
+  gainNode.gain.value =
+    muteCheckbox.checked || voiceRecording ? 0 : volumeSlider.valueAsNumber;
+}
+
 {
-  const volumeSlider = getById("volumeAudio", HTMLInputElement);
   muteCheckbox.addEventListener("input", () => {
     if (!muteCheckbox.checked && rafFallbackMode) {
       // Un-muting is a user gesture — try to exit fallback and resume real audio.
@@ -807,15 +835,11 @@ function setPlaybackRate(rate: number): void {
         startAudio(currentMs);
       }
     }
-    gainNode.gain.value = muteCheckbox.checked ? 0 : volumeSlider.valueAsNumber;
+    updateGain();
   });
-  volumeSlider.addEventListener("input", () => {
-    if (!muteCheckbox.checked) {
-      gainNode.gain.value = volumeSlider.valueAsNumber;
-    }
-  });
-  getById("speedAudio", HTMLSelectElement).addEventListener("change", (e) => {
-    setPlaybackRate(parseFloat((e.target as HTMLSelectElement).value));
+  volumeSlider.addEventListener("input", updateGain);
+  speedSelect.addEventListener("change", () => {
+    setPlaybackRate(parseFloat(speedSelect.value));
   });
 }
 
@@ -837,6 +861,8 @@ const animationLoop = new AnimationLoop((_rAFTimeInMs: number) => {
   if (!playCheckBox.checked) {
     // Paused.
     stopAudio();
+    // Pausing is how a voice recording stops, once the video has started.
+    if (voiceRecording && !voiceChirping) stopVoiceRecording();
     playPositionSeconds.disabled = false;
     showFrame(playPositionSeconds.valueAsNumber * 1000, true);
     return;
@@ -860,7 +886,20 @@ const animationLoop = new AnimationLoop((_rAFTimeInMs: number) => {
 
   const timeInMs = currentAudioTimeMs();
 
+  if (voiceRecording) {
+    voicePanel?.setPastEnd(
+      timeInMs > sectionEndTime ? timeInMs - sectionEndTime : undefined,
+    );
+  }
   if (timeInMs >= sectionEndTime - 0.05) {
+    if (voiceRecording) {
+      // Talking after the end:  freeze on the last frame, and keep recording.
+      // The clock keeps going, so the clip does too.
+      loadPlayPositionSeconds(sectionEndTime);
+      loadPlayPositionRange();
+      showFrame(sectionEndTime, true);
+      return;
+    }
     // Repeating nothing would restart the audio on every frame.
     if (repeatRadioButton.checked && sectionEndTime > sectionStartTime) {
       // Loop: restart from the beginning of the section.
@@ -1042,6 +1081,158 @@ const cancelRecordingButton = getById("cancelRecording", HTMLButtonElement);
  * Some of these display the right data, but you can't change them.
  */
 const liveControls = getById("liveControls", HTMLFieldSetElement);
+
+// MARK: Voice recording
+//
+// 🎙 Record mode shows the voice recorder's panel and turns on the mic.  The
+// panel's ● Record plays a chirp, then starts the video, and records until the
+// video pauses.  Every time the video starts moving, a new clip starts; every
+// time it stops or jumps, the clip ends.  Each clip goes into the Visual
+// Editor's root as a sound clip.  See development-plans/voice-recording.md.
+
+const recordModeButton = getById("recordModeBtn", HTMLButtonElement);
+const voicePanelHolder = getById("voicePanelHolder", HTMLDivElement);
+const recordJustSoundButton = getById("recordJustSound", HTMLButtonElement);
+const sectionEndRadios = document.querySelectorAll<HTMLInputElement>(
+  'input[name="onSectionEnd"]',
+);
+
+/** Where the clip being recorded will go.  For its block on the timeline. */
+let liveVoiceClip: { readonly owner: Showable; readonly startInOwnerMs: number } | undefined;
+
+recordModeButton.addEventListener("click", async () => {
+  if (voicePanel) {
+    await voicePanel.close();
+    return;
+  }
+  recordModeButton.disabled = true;
+  // A panel that couldn't open the mic stays up to say why.  Replace it.
+  voicePanelHolder.replaceChildren();
+  try {
+    voicePanel = await openVoicePanel({
+      parent: voicePanelHolder,
+      context: audioContext,
+      onRecord: startVoiceRecording,
+      onStop: () => {
+        // Same as unchecking Play.
+        playCheckBox.checked = false;
+        stopAudio();
+        stopVoiceRecording();
+      },
+      onClose: () => {
+        stopVoiceRecording();
+        voicePanel = undefined;
+      },
+    });
+    philDebug.voicePanel = voicePanel;
+  } catch (error) {
+    console.error("Record mode", error);
+  } finally {
+    recordModeButton.disabled = false;
+  }
+});
+
+/**
+ * ● Record:  mute the soundtrack, lock the controls that would spoil the
+ * recording, play the chirp, then play the video from where it is.
+ */
+async function startVoiceRecording(
+  recorder: VoiceRecorder,
+  folder: FileSystemDirectoryHandle,
+): Promise<void> {
+  if (suspendLiveAnimationLoop) {
+    throw new Error("Wait until the video has finished saving.");
+  }
+  if (rafFallbackMode) {
+    // ● Record is a click, so the audio clock can run now.  Recording needs it.
+    stopAudio();
+    rafFallbackMode = false;
+    autoplayFallbackMsg.hidden = true;
+  }
+  voiceRecording = true;
+  voiceChirping = true;
+  lockControlsForVoice(true);
+  voicePanel?.setRecording(true);
+  try {
+    // Each file is named after the video, like the properties files.
+    await recorder.start(folder, toShowKey);
+  } catch (error) {
+    stopVoiceRecording();
+    throw error;
+  } finally {
+    voiceChirping = false;
+  }
+  // × during the chirp.
+  if (!voiceRecording) return;
+  // Start the clock again from where the video is, so the first clip starts
+  // with it, whether the video was playing or not.
+  stopAudio();
+  playCheckBox.checked = true;
+}
+
+/** The recording stopped:  by Pause, ■ Stop, or closing the panel.  Safe to call more than once. */
+function stopVoiceRecording(): void {
+  if (!voiceRecording) return;
+  voiceRecording = false;
+  voicePanel?.recorder.stop();
+  liveVoiceClip = undefined;
+  voicePanel?.setRecording(false);
+  lockControlsForVoice(false);
+  refreshTimeline();
+}
+
+/**
+ * While recording, the soundtrack is muted and plays at 1×, and these controls
+ * are disabled.  Each keeps its value, for afterward.
+ */
+function lockControlsForVoice(locked: boolean): void {
+  muteCheckbox.disabled = locked;
+  speedSelect.disabled = locked;
+  for (const radio of sectionEndRadios) radio.disabled = locked;
+  startRecordingButton.disabled = locked;
+  recordJustSoundButton.disabled = locked;
+  updateGain();
+  setPlaybackRate(locked ? 1 : parseFloat(speedSelect.value));
+}
+
+/** The video started moving, while recording:  start a clip. */
+function beginVoiceClip(contextTime: number, fromMs: number): void {
+  const recorder = voicePanel?.recorder;
+  const owner = currentRoot();
+  if (!recorder?.recording || !owner) return;
+  const live = { owner, startInOwnerMs: fromMs - rootStartMs };
+  liveVoiceClip = live;
+  recorder.beginClip(contextTime).then(
+    (recorded) => addVoiceClip(live.owner, live.startInOwnerMs, recorded),
+    (error) => voicePanel?.say(`Couldn't save a recording: ${error}`, true),
+  );
+  refreshTimeline();
+}
+
+/** The video stopped or jumped, while recording:  end the clip. */
+function endVoiceClip(): void {
+  voicePanel?.recorder.endClip(audioContext.currentTime);
+  if (liveVoiceClip) {
+    liveVoiceClip = undefined;
+    refreshTimeline();
+  }
+}
+
+/** A clip's file is finished.  Put it on the timeline. */
+function addVoiceClip(owner: Showable, startInOwnerMs: number, recorded: RecordedClip): void {
+  // The samples are in memory already.  Don't read the file back.
+  soundtrack.provide(recorded.url, recorded.buffer);
+  (owner.soundClips ??= []).push({
+    source: recorded.url,
+    startMsIntoScene: tidyMs(startInOwnerMs),
+    startMsIntoClip: tidyMs(recorded.trimMs),
+    lengthMs: tidyMs(recorded.lengthMs),
+  });
+  markDirty();
+  soundtrack.request();
+  refreshTimeline();
+  if ((selectedSlideChild ?? currentRoot()) === owner) updateScheduleEditor(owner);
+}
 
 /**
  * Someone hit the stop button.
@@ -2494,6 +2685,24 @@ function _buildTimelineBlocks(selectable: Showable): TimelineBlock[] {
     }
   }
 
+  // The voice clip being recorded, growing as you talk.
+  const live = liveVoiceClip;
+  const liveOwnerStart = live && startWithin(selectable, live.owner);
+  if (live && liveOwnerStart !== undefined) {
+    blocks.push({
+      id: live,
+      label: "● Recording",
+      color: "#c62828",
+      lane: "sound",
+      startMs: () => liveOwnerStart + live.startInOwnerMs,
+      durationMs: () => voicePanel?.recorder.liveClip()?.lengthMs ?? 0,
+      waveform: () => {
+        const clip = voicePanel?.recorder.liveClip();
+        return clip && { buffer: clip.buffer, fromMs: clip.trimMs };
+      },
+    });
+  }
+
   return blocks;
 }
 
@@ -3560,6 +3769,18 @@ async function initFromDB(unloadBackup?: string | null): Promise<void> {
     updateComponentEditor(currentSel);
     updateScheduleEditor(currentSel);
   }
+  afterStateApplied();
+}
+
+/**
+ * A saved state was just applied to the tree:  restored at startup, opened,
+ * or picked in the history.  The sound clips in it are new objects, maybe in
+ * new lists, so the timeline's blocks and the soundtrack are out of date.
+ * The editors are rebuilt separately.
+ */
+function afterStateApplied(): void {
+  refreshTimeline();
+  soundtrack.request();
 }
 
 
@@ -3659,6 +3880,10 @@ function currentSaveTarget(): Showable | null {
 }
 
 function saveOnUnload() {
+  // Start closing any voice recording's files.  They may not finish in time.
+  // TODO:  test this, and add the clip being recorded before the save below.
+  // See "Risks" in development-plans/voice-recording.md.
+  voicePanel?.recorder.flush();
 
   // When the history dialog is open the live tree may hold a transient preview from
   // _dialogSelectItem.  Back up the pre-dialog state instead, so a preview is never
@@ -3753,6 +3978,7 @@ function _dialogSelectItem(index: number, target: Showable) {
   activeRootComponentEditor?.resetAll();
   updateComponentEditor(target);
   updateScheduleEditor(target);
+  afterStateApplied();
 
   // The Abandon/Save buttons are no longer used; only Keep is shown.
   historyOkBtn.hidden = false;
@@ -3995,6 +4221,7 @@ async function _applyDialogSelection() {
   activeRootComponentEditor?.resetAll();
   updateComponentEditor(target);
   updateScheduleEditor(target);
+  afterStateApplied();
 }
 
 historyOkBtn.addEventListener("click", () => {
@@ -4023,6 +4250,7 @@ historyCancelBtn.addEventListener("click", () => {
     activeRootComponentEditor?.resetAll();
     updateComponentEditor(target);
     updateScheduleEditor(target);
+    afterStateApplied();
   }
   historyDialog.close();
 });
@@ -5401,15 +5629,19 @@ function updateComponentEditor(selectable: Showable) {
 }
 
 /**
- * The Sound Clips section of the schedule editor, for a component whose
- * `soundClips` is defined.  One card per clip, plus Add and Paste.
+ * The Sound Clips section of the schedule editor.  One card per clip, plus Add and Paste.
+ *
+ * Every component gets one.  A component with no `soundClips` list gets one
+ * when its first clip is added.
  *
  * Each card's Owner menu moves the clip to another component without changing
  * when it plays.  Registers per-field sync callbacks into
  * {@link soundClipSyncCallbacks}, so drags on the timeline show up here.
  */
 function buildSoundClipSection(selectable: Showable): HTMLElement {
-  const clips = selectable.soundClips!;
+  const clips = selectable.soundClips ?? [];
+  /** Call before adding a clip.  Merely selecting a component doesn't give it a list. */
+  const ensureList = () => (selectable.soundClips ??= clips);
 
   /** The clip list changed shape:  save, rebuild the audio, redraw this section and the timeline. */
   function afterStructureChange(): void {
@@ -5419,11 +5651,12 @@ function buildSoundClipSection(selectable: Showable): HTMLElement {
     refreshTimeline();
   }
 
-  /** Every place a sound can live in this video, and when each starts. */
+  /** Every place a sound lives in this video, and when each starts. */
   const owners = soundOwners(toShow);
+  /** Undefined until this component has a list.  Then it has cards, with Owner menus that need it. */
   const self = owners.find(({ owner }) => owner === selectable);
   /** When this component starts, in video time.  0 if it can't be found, which shouldn't happen. */
-  const selfStartMs = self?.startMs ?? 0;
+  const selfStartMs = startWithin(toShow, selectable) ?? 0;
 
   const section = document.createElement("fieldset");
   const legend = document.createElement("legend");
@@ -5443,6 +5676,7 @@ function buildSoundClipSection(selectable: Showable): HTMLElement {
   addBtn.style.marginLeft = "auto";
   addBtn.addEventListener("click", () => {
     const clip: SoundClip = { source: "", startMsIntoScene: playheadInOwner() };
+    ensureList();
     clips.push(clip);
     selectedSoundClip = clip;
     afterStructureChange();
@@ -5466,6 +5700,7 @@ function buildSoundClipSection(selectable: Showable): HTMLElement {
       alert("No sound clips found on the clipboard.  Each one needs at least a source.");
       return;
     }
+    ensureList();
     clips.push(...pasted);
     selectedSoundClip = pasted[0];
     afterStructureChange();
@@ -5884,16 +6119,7 @@ function updateScheduleEditor(selectable: Showable) {
   const multiText =
     selectable instanceof MultiTextComponent ? selectable : null;
 
-  if (
-    !scalars?.length &&
-    !schedules?.length &&
-    !isTraditionalText &&
-    !slideComponent &&
-    selectable.soundClips === undefined
-  ) {
-    scheduleEditorFieldset.hidden = true;
-    return;
-  }
+  // Every component has something to edit:  at least its name and its sound clips.
   scheduleEditorFieldset.hidden = false;
   scheduleEditorFieldset.append(buildNameSection(selectable));
 
@@ -6062,9 +6288,7 @@ function updateScheduleEditor(selectable: Showable) {
     }
     scheduleEditorFieldset.append(section);
   }
-  if (selectable.soundClips !== undefined) {
-    scheduleEditorFieldset.append(buildSoundClipSection(selectable));
-  }
+  scheduleEditorFieldset.append(buildSoundClipSection(selectable));
 }
 
 // MARK: Split
@@ -7650,6 +7874,7 @@ function refreshEditorsAfterLoad(): void {
   activeRootComponentEditor?.resetAll();
   updateComponentEditor(current);
   updateScheduleEditor(current);
+  afterStateApplied();
   // The loaded state may use local files that need 🔓.
   checkVideosLocalFiles();
 }
