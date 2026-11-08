@@ -672,7 +672,9 @@ const soundtrack = new Soundtrack({
   root: () => toShow,
   // Sound clips on the timeline can now show their waveforms, and the ones
   // that play to the end of their file now know how long that is.
-  onDecoded: () => timelineDisplay.redraw(),
+  onDecoded: soundFileLoaded,
+  // Marked ⚠, on the timeline and on its card.  See soundFileProblem().
+  onFailed: soundFileLoaded,
   // The new file may be a local one that needs 🔓.
   onNewSource: () => checkVideosLocalFiles(),
 });
@@ -1312,6 +1314,13 @@ async function startRecording(
       ],
     });
 
+    // The newest soundtrack, with every file in it decoded.  Right after a reload or an
+    // edit, that can take a moment.  (After the file picker, which needs the click.)
+    // Before anything is written:  a sound that can't be read stops the save here.
+    infoDiv.innerHTML = "Waiting for the sound…";
+    await soundtrack.ready();
+    assertSoundFilesLoaded();
+
     const writableStream = await fileHandle.createWritable();
 
     // Set up Mediabunny output (streaming to file)
@@ -1335,10 +1344,6 @@ async function startRecording(
     // The file starts where its first frame starts, so the sound starts there too.
     const audioStartMs = (firstFrame * 1000) / FPS;
 
-    // The newest soundtrack, with every file in it decoded.  Right after a reload or an
-    // edit, that can take a moment.  (After the file picker, which needs the click.)
-    infoDiv.innerHTML = "Waiting for the sound…";
-    await soundtrack.ready();
     const audioBuffer = soundtrack
       .mix(audioStartMs, Math.min(saveEndMs, toShow.duration))
       .getAudioBuffer();
@@ -2325,6 +2330,7 @@ transcriptView = new TranscriptView({
     if (!status) return undefined;
     return status.kind === "ready" ? status.transcript : (statusText(status) ?? "");
   },
+  problem: (clip) => soundFileProblem(clip),
   seek: (rootMs) => timelineDisplay.onSeek?.(rootMs),
   selectClip: (clip) => timelineDisplay.onBlockClick?.(clip),
   selectedClip: () => selectedSoundClip,
@@ -2427,6 +2433,35 @@ function _onClipValueChanged(): void {
 /** Shortest a sound clip can be trimmed to by dragging, in ms. */
 const MIN_SOUND_CLIP_MS = 50;
 
+/** A sound file was decoded, or failed:  update the timeline and the Sound Clips cards. */
+function soundFileLoaded(): void {
+  timelineDisplay.redraw();
+  for (const cb of soundClipSyncCallbacks) cb();
+}
+
+/**
+ * Why `clip`'s file can't be played, or undefined if nothing is wrong, as far as we know yet.
+ * Shown on the timeline, on the clip's card and in the 📖 Text view.  A missing file must not
+ * look like a file full of silence, even when its old transcript still shows.
+ */
+function soundFileProblem(clip: SoundClip): string | undefined {
+  const reason = soundtrack.failure(clip.source);
+  if (reason === undefined) return undefined;
+  return reason instanceof Error ? reason.message : String(reason);
+}
+
+/** Stop a save, if any sound in it can't be read.  Otherwise the saved sound would have holes. */
+function assertSoundFilesLoaded(): void {
+  const failed = soundtrack.failures();
+  if (failed.length === 0) return;
+  const { url, reason } = failed[0]!;
+  const why = (reason instanceof Error ? reason.message : String(reason)).replace(/([^.!?)])$/, "$1.");
+  const which = failed.length === 1 ? "" : `${failed.length} sound files couldn't be read.  The first:  `;
+  throw new Error(
+    `${which}Can't play "${url}":  ${why}  Each clip that uses ${failed.length === 1 ? "it" : "one"} is marked ⚠ on the timeline.`,
+  );
+}
+
 /** How long the file `clip` plays from is, once it has been decoded. */
 function soundFileMs(clip: SoundClip): number | undefined {
   const buffer = soundtrack.getDecodedBuffer(clip.source);
@@ -2511,11 +2546,15 @@ function soundClipBlock(clip: SoundClip, ownerStart: number): TimelineBlock {
   return {
     id: clip,
     get label() {
+      const problem = soundFileProblem(clip);
+      if (problem !== undefined) return `⚠ ${problem}`;
       // Notes if there are any, or else the first few words, so clips can be
       // told apart even zoomed out.
       return clip.notes || clipText(clip, 6) || clip.source || "—";
     },
-    color: "#3aab3a",
+    get color() {
+      return soundFileProblem(clip) === undefined ? "#3aab3a" : "#9a3412";
+    },
     lane: "sound",
     transcript: () => {
       // Asking is what queues the file for transcribing.
@@ -5887,6 +5926,17 @@ function buildSoundClipSection(selectable: Showable): HTMLElement {
     });
     row2.append(srcLabel, sourceInput);
 
+    // Why the file can't be played, if it can't.
+    const problemLine = document.createElement("div");
+    problemLine.style.cssText = "margin-top:0.2em;font-size:0.85em;color:#b00020";
+    const showProblem = () => {
+      const problem = soundFileProblem(clip);
+      problemLine.hidden = problem === undefined;
+      problemLine.textContent = `⚠ ${problem}`;
+    };
+    showProblem();
+    soundClipSyncCallbacks.push(showProblem);
+
     // Row 3: numeric time fields
     const row3 = document.createElement("div");
     row3.style.cssText =
@@ -6020,7 +6070,7 @@ function buildSoundClipSection(selectable: Showable): HTMLElement {
     soundClipSyncCallbacks.push(drawPlaysAt);
     row4.append(ownerLabel, playsAt);
 
-    card.append(row1, row2, row3, row4);
+    card.append(row1, row2, problemLine, row3, row4);
     section.append(card);
     if (clip === selectedSoundClip) {
       requestAnimationFrame(() => card.scrollIntoView({ block: "nearest" }));
@@ -7691,6 +7741,12 @@ getById("recordJustSound", HTMLButtonElement).addEventListener(
     const before = infoDiv.innerHTML;
     infoDiv.innerHTML = "Waiting for the sound…";
     await soundtrack.ready();
+    try {
+      assertSoundFilesLoaded();
+    } catch (error) {
+      infoDiv.innerHTML = `<strong style="color:red">Not saved:</strong> ${escapeHtml(String(error instanceof Error ? error.message : error))}`;
+      return;
+    }
     infoDiv.innerHTML = before;
     downloadBlob("sound_file.wav", soundtrack.mix(0, toShow.duration).toBlob());
   },

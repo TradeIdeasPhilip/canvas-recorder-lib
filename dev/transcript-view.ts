@@ -24,6 +24,8 @@ export type TranscriptViewHooks = {
   transcript(
     source: string,
   ): { readonly words: readonly TranscriptWord[]; readonly madeAt: number } | string | undefined;
+  /** Why this clip's file can't be played, if it can't.  Shown above its words. */
+  problem(clip: SoundClip): string | undefined;
   /** Put the playhead here, in the root's time. */
   seek(rootMs: number): void;
   /** Select this clip, as clicking it on the timeline does. */
@@ -296,6 +298,7 @@ export class TranscriptView {
   #rebuildIfNeeded(): void {
     const clips = this.hooks.clips();
     const transcripts = clips.map(({ clip }) => this.hooks.transcript(clip.source));
+    const problems = clips.map(({ clip }) => this.hooks.problem(clip));
     const key = JSON.stringify([
       this.#showCut.checked,
       clips.map(({ clip, startMs, lengthMs }, i) => {
@@ -307,17 +310,19 @@ export class TranscriptView {
           lengthMs ?? null,
           clip.notes ?? "",
           typeof t === "object" ? t.madeAt : (t ?? null),
+          problems[i] ?? null,
         ];
       }),
     ]);
     if (key === this.#key) return;
     this.#key = key;
-    this.#build(clips, transcripts);
+    this.#build(clips, transcripts, problems);
   }
 
   #build(
     clips: readonly TranscriptViewClip[],
     transcripts: ReturnType<TranscriptViewHooks["transcript"]>[],
+    problems: readonly (string | undefined)[],
   ): void {
     this.#scroll.replaceChildren();
     this.#played = [];
@@ -386,6 +391,14 @@ export class TranscriptView {
       head.addEventListener("click", () => this.hooks.selectClip(target.clip));
       section.append(head);
       this.#clipElements.set(target.clip, section);
+
+      const problem = problems[i];
+      if (problem !== undefined) {
+        const warning = document.createElement("div");
+        warning.className = "tv-problem";
+        warning.textContent = `⚠ ${problem}`;
+        section.append(warning);
+      }
 
       const transcript = transcripts[i];
       if (typeof transcript !== "object") {

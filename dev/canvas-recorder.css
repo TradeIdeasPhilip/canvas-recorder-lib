@@ -208,6 +208,9 @@ body {
   font-style: italic;
   color: #777;
 }
+#transcriptView .tv-problem {
+  color: #b00020;
+}
 #transcriptView .tv-word {
   cursor: pointer;
   border-radius: 2px;

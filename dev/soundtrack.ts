@@ -102,6 +102,8 @@ export type SoundtrackOptions = {
   readonly root: () => Showable;
   /** A file finished decoding:  its waveform and length are known now. */
   readonly onDecoded?: () => void;
+  /** A file couldn't be read or decoded.  See {@link Soundtrack.failure}. */
+  readonly onFailed?: () => void;
   /** A clip names a file that wasn't in the list before. */
   readonly onNewSource?: () => void;
 };
@@ -122,8 +124,8 @@ export class Soundtrack {
   });
   readonly #decoding = new Map<string, Promise<AudioBuffer>>();
   readonly #decoded = new Map<string, AudioBuffer>();
-  /** Files that couldn't be read.  Not tried again until {@link forgetFailures}. */
-  readonly #failed = new Set<string>();
+  /** Files that couldn't be read, and why.  Not tried again until {@link forgetFailures}. */
+  readonly #failed = new Map<string, unknown>();
 
   /**
    * The decoded file, mono, or null if it hasn't been decoded yet (or can't be).
@@ -131,6 +133,23 @@ export class Soundtrack {
    */
   getDecodedBuffer(url: string): AudioBuffer | null {
     return this.#decoded.get(url) ?? null;
+  }
+
+  /** Why the file couldn't be read or decoded, or undefined if it hasn't failed (yet). */
+  failure(url: string): unknown {
+    return this.#failed.get(url);
+  }
+
+  /**
+   * Every file the clips name that couldn't be read or decoded, and why.
+   * Call {@link ready} first, or the files still loading aren't known yet.
+   */
+  failures(): { url: string; reason: unknown }[] {
+    if (this.#requested) this.#update();
+    const urls = new Set(this.#clips.map(({ source }) => source));
+    return [...urls]
+      .filter((url) => this.#failed.has(url))
+      .map((url) => ({ url, reason: this.#failed.get(url) }));
   }
 
   /** Read and decode every file again, e.g. one re-recorded under the same name. */
@@ -158,7 +177,7 @@ export class Soundtrack {
 
   /** Try the files that couldn't be read again, e.g. after 🔓 Allow local files. */
   forgetFailures(): void {
-    for (const url of this.#failed) this.#decoding.delete(url);
+    for (const url of this.#failed.keys()) this.#decoding.delete(url);
     this.#failed.clear();
     this.#loadAgain();
   }
@@ -182,7 +201,10 @@ export class Soundtrack {
           return buffer;
         },
         (reason) => {
-          if (this.#decoding.get(url) === promise) this.#failed.add(url);
+          if (this.#decoding.get(url) === promise) {
+            this.#failed.set(url, reason);
+            this.#options.onFailed?.();
+          }
           debugLog("audio", `Skipped "${url}": ${reason}`);
           throw reason;
         },
@@ -196,6 +218,8 @@ export class Soundtrack {
   async #decode(url: string): Promise<AudioBuffer> {
     const time1 = performance.now();
     const response = await fetchMedia(url);
+    // Or the error page would be decoded, and fail with a message that doesn't say why.
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
     const encoded = await response.arrayBuffer();
     // Before decoding:  decodeAudioData() detaches the buffer, so it reads as 0 bytes after.
     const bytes = encoded.byteLength;
