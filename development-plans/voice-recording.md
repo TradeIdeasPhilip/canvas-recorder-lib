@@ -259,7 +259,10 @@ Steps 1, 2, 3, 5 and 6 are done.  Step 4 needs a real folder, and step 7 is [How
   Vite can reload the page at unexpected times, too.
   **Tried 2026-11-07:**  a reload in the middle of a clip saved the WAV file, but didn't add the clip to the timeline.  Adding it by hand works.
   Good enough for now:  only the clip in progress is at risk, and its sound isn't lost.
-  Later:  add the clip in `saveOnUnload()` before the backup is written (there's a TODO there), and try closing the tab and a Vite reload too.
+  Later:  add the clip in `finishVoiceOnUnload()`, before `saveOnUnload()` writes the backup (there's a TODO there), and try closing the tab and a Vite reload too.
+- **Hidden isn't closing.**  Switching to another desktop, app or tab hides the page.  Until 2026-11-07 that ended the recording, behind the player's back:
+  `saveOnUnload()` also runs on `visibilitychange`, and it finished the files.  Now only `beforeunload` and Vite's reload do.
+  While hidden, the picture stops (no animation frames), but the sound and the clock keep going, so the clip does too.
   (Speculation:  if `close()` can't finish during unload, close the file and start a new one every few seconds instead.)
 - **The `local:` list gets long.**  Every clip is on it.  Harmless, but the list of local files in the Video Clip and Sound Clip panels grows.
   Maybe hide the takes from those lists later.

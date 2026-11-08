@@ -40,8 +40,10 @@ npm install
 npm run dev        # http://localhost:5176/
 ```
 
-After changing the library, run `npm run build` in the root folder again and reload the page.
-Or run `npm run watch` in the root folder instead, and leave it running.
+Leave `npm run watch` running in the root folder, in its own terminal.
+It compiles each change to the library into `dist/`, and Vite reloads the page by itself.
+(Or run `npm run build` there after each change.)
+`watch` copies the CSS only when it starts, so restart it after changing a library `.css` file.
 
 The first `npm install` here may leave out `fsevents` (Vite's file watcher on macOS), although it's in `package-lock.json`.  A second `npm install` adds it.
 

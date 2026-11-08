@@ -42,7 +42,8 @@ There's no page in this repo.  Run a project that uses the library (add it with 
 Every project gets its own fixed port.  README.md's "Ports" table is the master list; add new projects there.
 
 Each links the library with `"canvas-recorder-lib": "file:../canvas-recorder-lib"` and uses its compiled `dist/`.
-So run `npm run build` (or keep `npm run watch` going) here, then reload the page there.
+So run `npm run build` (or keep `npm run watch` going) here, and Vite reloads the page there by itself.
+That works for `test-project/`, `simple-video-editor/` and an `npm link`ed project, whose copy of the library is outside `node_modules`.
 
 ## Releasing a change
 

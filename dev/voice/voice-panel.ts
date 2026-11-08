@@ -462,9 +462,11 @@ export async function openVoicePanel(options: VoicePanelOptions): Promise<VoiceP
     const seconds = Math.floor((performance.now() - started) / 1000);
     time.textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
   };
+  /** What the button says:  ■ Stop.  That's what a click does, even if the two ever disagree. */
+  let showingStop = false;
   record.addEventListener("click", async () => {
     record.blur();
-    if (recorder.recording) {
+    if (showingStop) {
       options.onStop();
       return;
     }
@@ -490,6 +492,7 @@ export async function openVoicePanel(options: VoicePanelOptions): Promise<VoiceP
   const result: VoicePanel = {
     recorder,
     setRecording(on) {
+      showingStop = on;
       panel.classList.toggle("vr-recording", on);
       record.textContent = on ? "■ Stop" : "● Record";
       window.clearInterval(clock);

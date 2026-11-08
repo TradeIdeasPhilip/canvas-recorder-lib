@@ -123,6 +123,17 @@ export function transcriptStatus(url: string): TranscriptStatus | undefined {
   return waiting;
 }
 
+/**
+ * Try the files that couldn't be read again, e.g. after 🔓 Allow local files.
+ * Each one is asked about again as it's drawn.
+ */
+export function forgetTranscriptFailures(): void {
+  for (const [url, status] of statuses) {
+    if (status.kind === "failed") statuses.delete(url);
+  }
+  changed();
+}
+
 /** The finished transcript of `url`, if there is one.  Never starts any work. */
 export function readyTranscript(url: string): Transcript | undefined {
   const status = statuses.get(url);
@@ -186,12 +197,29 @@ async function pump(): Promise<void> {
   }
 }
 
-/** From the cache, or made now and cached. */
+/**
+ * From the cache, or made now and cached.
+ *
+ * If the file can't be read now (no permission yet, or it's gone), the newest transcript
+ * of that URL instead, if there is one.  It isn't checked against the file, even after the
+ * file can be read again, until the page reloads.
+ */
 async function transcriptFor(
   url: string,
   onProgress: (progress: TranscribeProgress) => void,
 ): Promise<Transcript> {
-  const key = await cacheKey(url);
+  let key: string;
+  try {
+    key = await cacheKey(url);
+  } catch (error) {
+    const newest = await newestCached(url);
+    if (!newest) throw error;
+    debugLog(
+      "transcripts",
+      `Using the last transcript of "${url}" without checking the file: ${String(error).replace(/^Error:\s*/, "")}`,
+    );
+    return newest;
+  }
   const cached = await readCache(key);
   if (cached) return cached;
   const transcript = await makeTranscript(url, onProgress);
@@ -304,10 +332,10 @@ type CacheRecord = Transcript & { readonly key: string; readonly url: string };
  * save.  Only a server that sends none of those headers gets its files hashed.
  */
 async function cacheKey(url: string): Promise<string> {
-  const absolute = new URL(url, location.href).href;
-  const prefix = `${PIPELINE_VERSION}|${MODELS.whisper}|${absolute}|`;
+  const prefix = keyPrefix(url);
   // For a local file, fetchMedia() answers with its size and modification time.
   const head = await fetchMedia(url, { method: "HEAD", cache: "no-cache" });
+  if (!head.ok) throw new Error(`${head.status} ${head.statusText}`);
   const etag = head.headers.get("etag");
   const modified = head.headers.get("last-modified");
   const length = head.headers.get("content-length");
@@ -316,6 +344,29 @@ async function cacheKey(url: string): Promise<string> {
   const bytes = await (await fetchMedia(url)).arrayBuffer();
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
   return prefix + Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Every {@link cacheKey} of this URL starts with this:  everything but the file's fingerprint. */
+function keyPrefix(url: string): string {
+  return `${PIPELINE_VERSION}|${MODELS.whisper}|${new URL(url, location.href).href}|`;
+}
+
+/** The newest transcript of this URL, whatever the file's fingerprint was then. */
+async function newestCached(url: string): Promise<Transcript | undefined> {
+  const prefix = keyPrefix(url);
+  const db = await openDb();
+  const records = await new Promise<CacheRecord[]>((resolve, reject) => {
+    const request = db
+      .transaction(STORE)
+      .objectStore(STORE)
+      .getAll(IDBKeyRange.bound(prefix, prefix + "￿"));
+    request.onsuccess = () => resolve(request.result as CacheRecord[]);
+    request.onerror = () => reject(request.error);
+  });
+  return records.reduce<CacheRecord | undefined>(
+    (newest, record) => (newest && newest.madeAt >= record.madeAt ? newest : record),
+    undefined,
+  );
 }
 
 let dbPromise: Promise<IDBDatabase> | undefined;

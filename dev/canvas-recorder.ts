@@ -99,6 +99,7 @@ import {
   type TimelineWord,
 } from "./timeline-display.ts";
 import {
+  forgetTranscriptFailures,
   forgetTranscripts,
   makeTranscript,
   onTranscriptsChange,
@@ -476,6 +477,7 @@ async function allowLocalFiles() {
   await requestLocalFileAccess();
   // The images and video clips try again by themselves.
   soundtrack.forgetFailures();
+  forgetTranscriptFailures();
 }
 localFilesBtn.addEventListener("click", () => void allowLocalFiles());
 
@@ -3880,11 +3882,6 @@ function currentSaveTarget(): Showable | null {
 }
 
 function saveOnUnload() {
-  // Start closing any voice recording's files.  They may not finish in time.
-  // TODO:  test this, and add the clip being recorded before the save below.
-  // See "Risks" in development-plans/voice-recording.md.
-  voicePanel?.recorder.flush();
-
   // When the history dialog is open the live tree may hold a transient preview from
   // _dialogSelectItem.  Back up the pre-dialog state instead, so a preview is never
   // persisted as if the user had accepted it.
@@ -8085,12 +8082,30 @@ if (import.meta.hot) {
   // Changing a typescript file invokes this.
   // Changing a css file would cause vite:beforeUpdate, instead.
   import.meta.hot.on("vite:beforeFullReload", (_data) => {
+    finishVoiceOnUnload();
     saveState();
     saveOnUnload();
   });
 }
 
-window.addEventListener("beforeunload", saveOnUnload);
+/**
+ * Start closing any voice recording's files.  They may not finish in time.
+ *
+ * Only when the page is really going away.  Not on visibilitychange:  a page is hidden by
+ * another tab, another app or another desktop, often to read a script, and the recording
+ * should keep going.
+ *
+ * TODO:  test this, and add the clip being recorded before {@link saveOnUnload}'s backup.
+ * See "Risks" in development-plans/voice-recording.md.
+ */
+function finishVoiceOnUnload() {
+  voicePanel?.recorder.flush();
+}
+
+window.addEventListener("beforeunload", () => {
+  finishVoiceOnUnload();
+  saveOnUnload();
+});
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") saveOnUnload();
 });

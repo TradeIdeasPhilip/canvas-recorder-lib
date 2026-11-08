@@ -139,7 +139,7 @@ export class Soundtrack {
     this.#decoded.clear();
     this.#failed.clear();
     this.#knownSources.clear();
-    this.request();
+    this.#loadAgain();
   }
 
   /**
@@ -160,6 +160,12 @@ export class Soundtrack {
   forgetFailures(): void {
     for (const url of this.#failed) this.#decoding.delete(url);
     this.#failed.clear();
+    this.#loadAgain();
+  }
+
+  /** Load every clip's file that isn't loaded or loading.  {@link request} skips that when no clip moved. */
+  #loadAgain(): void {
+    this.#clipsJson = "";
     this.request();
   }
 
@@ -191,13 +197,15 @@ export class Soundtrack {
     const time1 = performance.now();
     const response = await fetchMedia(url);
     const encoded = await response.arrayBuffer();
+    // Before decoding:  decodeAudioData() detaches the buffer, so it reads as 0 bytes after.
+    const bytes = encoded.byteLength;
     const time2 = performance.now();
     // decodeAudioData() takes about ⅜ - ¾ of a second to decode 4 minutes and 18 seconds of audio.
     const decoded = await this.#decoder.decodeAudioData(encoded);
     const time3 = performance.now();
     debugLog(
       "audio",
-      `Decoded "${url}":  ${(encoded.byteLength / 1024).toFixed(0)} KB, ` +
+      `Decoded "${url}":  ${(bytes / 1024).toFixed(0)} KB, ` +
         `read ${(time2 - time1).toFixed(0)} ms, decode ${(time3 - time2).toFixed(0)} ms`,
     );
     if (decoded.numberOfChannels === 1) return decoded;
