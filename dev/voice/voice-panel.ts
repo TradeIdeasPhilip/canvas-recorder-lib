@@ -287,7 +287,7 @@ export async function openVoicePanel(options: VoicePanelOptions): Promise<VoiceP
   );
   const choicesBox = element("div");
   const micLine = element("div", "vr-small", "Turning on the mic…");
-  const folderName = element("b", "", "not chosen yet");
+  const folderName = element("b", "", "…");
   const changeFolder = element("button", "", "Change…");
   changeFolder.style.padding = "0 6px";
   const folderLine = element("div", "vr-small", "Folder: ", folderName, " ", changeFolder);
@@ -328,6 +328,27 @@ export async function openVoicePanel(options: VoicePanelOptions): Promise<VoiceP
     panel.remove();
     options.onClose?.();
   };
+
+  // The folder.  Independent of the mic, so it shows even if the mic is refused.
+  // Not awaited:  the mic should start while this click still counts as a click.
+  let folder: FileSystemDirectoryHandle | undefined;
+  const showFolder = () => {
+    folderName.textContent = folder ? folder.name || "browser storage" : "not chosen yet";
+  };
+  void rememberedFolder().then((remembered) => {
+    // ??=, in case Change… or setFolder() got here first.
+    folder ??= remembered;
+    showFolder();
+  });
+  changeFolder.addEventListener("click", async () => {
+    changeFolder.blur();
+    try {
+      folder = (await chooseFolder()) ?? folder;
+      showFolder();
+    } catch (error) {
+      say(error instanceof Error ? error.message : String(error), true);
+    }
+  });
 
   let recorder: VoiceRecorder;
   try {
@@ -416,20 +437,6 @@ export async function openVoicePanel(options: VoicePanelOptions): Promise<VoiceP
   }
   showSettings();
 
-  // The folder.
-  let folder = await rememberedFolder();
-  const folderTitle = () => (folder ? folder.name || "browser storage" : "not chosen yet");
-  folderName.textContent = folderTitle();
-  changeFolder.addEventListener("click", async () => {
-    changeFolder.blur();
-    try {
-      folder = (await chooseFolder()) ?? folder;
-      folderName.textContent = folderTitle();
-    } catch (error) {
-      say(error instanceof Error ? error.message : String(error), true);
-    }
-  });
-
   // What we heard of the chirp.
   recorder.onHeard = (result: HeardResult) => {
     if (result.roundTripMs === undefined) {
@@ -465,7 +472,7 @@ export async function openVoicePanel(options: VoicePanelOptions): Promise<VoiceP
     try {
       if (!folder || !(await canWrite(folder, true))) {
         folder = await chooseFolder();
-        folderName.textContent = folderTitle();
+        showFolder();
       }
       if (!folder) {
         say("Choose a folder for the recordings first.", true);
@@ -500,7 +507,7 @@ export async function openVoicePanel(options: VoicePanelOptions): Promise<VoiceP
     say,
     setFolder(newFolder) {
       folder = newFolder;
-      folderName.textContent = folderTitle();
+      showFolder();
     },
     async close() {
       window.clearInterval(clock);
