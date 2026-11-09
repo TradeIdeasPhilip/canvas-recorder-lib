@@ -19,7 +19,12 @@ npm run build   # check the imports, tsc → dist/, plus CSS copied by scripts/c
 npm run watch   # the same, continuously
 npm run clean   # empty dist/.  build and watch never do, so a consumer's running Vite never sees it empty.
 npm run docs    # TypeDoc → docs/ (gitignored).  Config in typedoc.json.
+npm run format  # Prettier, in place
+npm run check   # Prettier, imports and tsc, changing nothing.  Step 1 of a release.
 ```
+
+**Prettier:**  VS Code formats on save (`.vscode/settings.json`), so format code as you write it:  run `npx prettier --write` on each code file you change, before testing.  Never reformat a file the user didn't ask to change.
+Markdown, HTML and the editor's `properties/` files are excluded (`.prettierignore` says why).  Keep the two spaces after a period in markdown.
 
 The API docs publish themselves:  `.github/workflows/docs.yml` runs TypeDoc on every push to master and deploys to https://tradeideasphilip.github.io/canvas-recorder-lib/.
 They come from the JSDoc comments, so a `{@link}` should name something TypeDoc can resolve; `npm run docs` lists the ones it can't.
@@ -49,6 +54,7 @@ That works for `test-project/`, `simple-video-editor/` and an `npm link`ed proje
 
 README.md's "Quick Instructions for Publishing" is the checklist the user follows.  Keep it right, and give the same advice.  In short:
 
+0. `npm run check`.
 1. If BREAKING-CHANGES.md has an "Unreleased" section, replace it with the version and date and commit, then `npm version minor`.  Otherwise `npm version patch`.  Either one commits and tags.  `git push --follow-tags`.
 2. `npm publish`.  `prepublishOnly` empties and rebuilds `dist/` first.  (The user runs this:  it needs their npm login and 2FA.)
 3. In each project that uses the library:  `npm install canvas-recorder-lib@<new version>`, `npx tsc --noEmit`, commit `package.json` and `package-lock.json`, and restart `npm run dev`.

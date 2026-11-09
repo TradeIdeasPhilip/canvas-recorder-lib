@@ -69,8 +69,10 @@ This shows how to attach this library to a project that was not specifically dev
 
 Start with everything committed.
 
-1. **Breaking changes?** If [BREAKING-CHANGES.md](BREAKING-CHANGES.md) has an "Unreleased" section, change that heading to the new version and today's date, and commit.
-2. **Bump the version.** This makes a commit and a tag.
+1. **Check.** `npm run check` looks for Prettier formatting (without changing anything), checks the imports, and type-checks.
+   If Prettier complains: `npm run format`, test again, and commit.
+2. **Breaking changes?** If [BREAKING-CHANGES.md](BREAKING-CHANGES.md) has an "Unreleased" section, change that heading to the new version and today's date, and commit.
+3. **Bump the version.** This makes a commit and a tag.
 
    | Command             | When                                                                  | Example       |
    | ------------------- | --------------------------------------------------------------------- | ------------- |
@@ -78,9 +80,9 @@ Start with everything committed.
    | `npm version minor` | BREAKING-CHANGES.md has an "Unreleased" section                       | 0.7.1 → 0.8.0 |
    | `npm version major` | Going to 1.0 (see [release-1.0.md](development-plans/release-1.0.md)) | 0.7.1 → 1.0.0 |
 
-3. `git push --follow-tags`. Pushing also publishes the API docs and the showcase.
-4. `npm whoami` says whether you're logged in. If not, `npm login`, which opens a browser. Logins time out eventually.
-5. `npm publish`. It opens a browser to confirm, even right after `npm login`.
+4. `git push --follow-tags`. Pushing also publishes the API docs and the showcase.
+5. `npm whoami` says whether you're logged in. If not, `npm login`, which opens a browser. Logins time out eventually.
+6. `npm publish`. It opens a browser to confirm, even right after `npm login`.
    It empties and rebuilds `dist/` first, so restart `npm run dev` in `test-project/` or `simple-video-editor/` if it's running. `npm run watch` can keep running.
 
 The new version can take a few minutes to appear. Check the library's [npm page](https://www.npmjs.com/package/canvas-recorder-lib) before installing it.
@@ -253,7 +255,12 @@ npm install
 npm run build    # or:  npm run watch
 npm run clean    # empty dist/
 npm run docs     # API docs, in docs/
+npm run format   # Prettier
+npm run check    # Prettier, imports and types, without changing anything
 ```
+
+VS Code formats TypeScript, JavaScript, CSS and JSON on save, with the Prettier in `devDependencies` (see `.vscode/settings.json`).
+Markdown and HTML are left alone: `.prettierignore` says why.
 
 Output goes to `dist/`: `.js`, `.d.ts`, source maps, plus the CSS and JSON files the JavaScript imports.
 

@@ -1,0 +1,16 @@
+# Prettier also skips everything in .gitignore (dist/, docs/, node_modules/).
+
+# In markdown and HTML, Prettier treats a run of spaces as one space.  That
+# removes the two spaces after each period in the docs, and has broken HTML
+# that relied on its spaces.
+*.md
+*.html
+
+package-lock.json
+
+# Written by the Visual Editor.  A reformatted synced file looks like an outside
+# edit, and the editor says "⚠ changed on disk".
+properties/
+
+# Claude Code's settings.
+.claude/

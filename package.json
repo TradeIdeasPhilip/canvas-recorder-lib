@@ -28,6 +28,8 @@
     "clean": "rm -rf dist",
     "import": "node scripts/import-from-canvas-recorder.mjs",
     "docs": "typedoc",
+    "format": "prettier --write .",
+    "check": "prettier --check . && node scripts/check-imports.mjs && tsc --noEmit",
     "prepublishOnly": "npm run clean && npm run build"
   },
   "repository": {
@@ -50,6 +52,7 @@
   },
   "devDependencies": {
     "phil-lib": "^1.8.1",
+    "prettier": "3.9.10",
     "typedoc": "^0.28.20",
     "typescript": "^6.0.2",
     "vite": "^8.3.6"

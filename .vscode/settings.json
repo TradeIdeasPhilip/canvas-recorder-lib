@@ -1,4 +1,12 @@
 {
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[markdown]": {
+    "editor.formatOnSave": false
+  },
+  "[html]": {
+    "editor.formatOnSave": false
+  },
   "cSpell.words": [
     "galaga",
     "halvings",
