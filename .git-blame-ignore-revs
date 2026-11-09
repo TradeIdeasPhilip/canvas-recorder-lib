@@ -1,0 +1,5 @@
+# Commits that only reformat.  git blame skips them, and so does GitHub's blame view.
+# Locally, once:  git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# Prettier:  format every file.  No other changes.
+b6f99d9cfd0aa4e7961c0e6ea03a9df669de49c6
