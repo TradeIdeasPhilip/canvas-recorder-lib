@@ -13,7 +13,11 @@ import {
   shrinkToAspect,
   VideoInfo,
 } from "../src/slide-components/video-info.ts";
-import { ALIGN_HORIZONTALLY, ALIGN_VERTICALLY, buildSnapRow } from "./rect-snap.ts";
+import {
+  ALIGN_HORIZONTALLY,
+  ALIGN_VERTICALLY,
+  buildSnapRow,
+} from "./rect-snap.ts";
 import { buildLocalFileRow } from "./local-file-row.ts";
 import {
   LocalFileError,
@@ -86,7 +90,8 @@ function quietError(error: unknown): string {
   if (error instanceof LocalFileError) return error.message;
   const text = String(error);
   if (/404|not found|Failed to fetch/i.test(text)) return "Not found";
-  if (/unsupported|unrecognized|format/i.test(text)) return "Not a video file this can read";
+  if (/unsupported|unrecognized|format/i.test(text))
+    return "Not a video file this can read";
   return text.replace(/^Error:\s*/, "");
 }
 
@@ -245,7 +250,10 @@ export function buildVideoClipPanel(
 
   const statusEl = line(panel, "font-weight:bold;margin-bottom:0.2em");
   const statsEl = line(panel, "font-size:0.9em;line-height:1.4");
-  const derivedEl = line(panel, "font-size:0.9em;line-height:1.4;margin-top:0.3em");
+  const derivedEl = line(
+    panel,
+    "font-size:0.9em;line-height:1.4;margin-top:0.3em",
+  );
 
   const timingRow = line(panel, "margin-top:0.5em");
   const WHOLE_FILE_TITLE =
@@ -266,17 +274,23 @@ export function buildVideoClipPanel(
   const SIZE_VIDEO_TITLE =
     "Make the whole video exactly this clip's size, in pixels, and fill it with this clip, " +
     "one video pixel per output pixel.  The units stay as wide as they are now.";
-  const sizeVideoBtn = button(rectRow, "Make video this size", SIZE_VIDEO_TITLE);
+  const sizeVideoBtn = button(
+    rectRow,
+    "Make video this size",
+    SIZE_VIDEO_TITLE,
+  );
   const rectButtons = [
     {
       text: "Fit canvas",
-      title: "As large as possible while the whole video stays on the canvas.  Centered.",
+      title:
+        "As large as possible while the whole video stays on the canvas.  Centered.",
       make: (info: VideoInfo) =>
         centeredOnCanvas(maxFit(info.video.width, info.video.height)),
     },
     {
       text: "Cover canvas",
-      title: "Just large enough to cover the whole canvas.  Some of the video will be off screen.  Centered.",
+      title:
+        "Just large enough to cover the whole canvas.  Some of the video will be off screen.  Centered.",
       make: (info: VideoInfo) =>
         centeredOnCanvas(minCover(info.video.width, info.video.height)),
     },
@@ -288,11 +302,15 @@ export function buildVideoClipPanel(
     },
     {
       text: "Shrink to video",
-      title: "Shrink the rectangle to the area the video actually covers inside it, so the handles hug the picture.",
+      title:
+        "Shrink the rectangle to the area the video actually covers inside it, so the handles hug the picture.",
       make: (info: VideoInfo, rect: ReadOnlyRect) =>
         shrinkToAspect(rect, info.video.width / info.video.height),
     },
-  ].map(({ text, title, make }) => ({ btn: button(rectRow, text, title), make }));
+  ].map(({ text, title, make }) => ({
+    btn: button(rectRow, text, title),
+    make,
+  }));
 
   /**
    * Snap one edge of the Dest Rect to the canvas, or center it, keeping its
@@ -323,7 +341,11 @@ export function buildVideoClipPanel(
   audioStatusEl.style.marginRight = "0.5em";
   audioRow.append(audioStatusEl);
   const importBtn = button(audioRow, "Import audio", "");
-  const removeAudioBtn = button(audioRow, "Remove", "Remove the audio this panel imported.");
+  const removeAudioBtn = button(
+    audioRow,
+    "Remove",
+    "Remove the audio this panel imported.",
+  );
 
   /** The last answer we got from the file, or why there isn't one. */
   let info: VideoInfo | undefined;
@@ -407,7 +429,10 @@ export function buildVideoClipPanel(
     if (ready) {
       const fileMs = info!.durationMs;
       if (end > fileMs + 0.5) {
-        add(`End is past the end of the file (${Math.round(fileMs)} ms).`, "#a06000");
+        add(
+          `End is past the end of the file (${Math.round(fileMs)} ms).`,
+          "#a06000",
+        );
       } else if (fileMs > 0) {
         const used = (Math.max(0, Math.max(start, end) - start) / fileMs) * 100;
         add(`Using ${used.toFixed(used < 10 ? 1 : 0)}% of the file.`);
@@ -433,7 +458,9 @@ export function buildVideoClipPanel(
 
     const splitProblem = hooks.splitProblem();
     splitBtn.disabled = splitProblem !== undefined;
-    splitBtn.title = splitProblem ? `${SPLIT_TITLE}\n\n${splitProblem}` : SPLIT_TITLE;
+    splitBtn.title = splitProblem
+      ? `${SPLIT_TITLE}\n\n${splitProblem}`
+      : SPLIT_TITLE;
     wholeFileBtn.disabled = !ready;
     realTimeBtn.hidden = Number.isNaN(speed) || isRealTime(speed);
     realTimeBtn.disabled = !(end > start);
@@ -473,13 +500,22 @@ export function buildVideoClipPanel(
     if (state !== "ready" || !info) {
       setStatus(imported.length ? "Audio: imported" : "Audio:");
       importBtn.disabled = true;
-      importBtn.textContent = imported.length ? "Re-import audio" : "Import audio";
+      importBtn.textContent = imported.length
+        ? "Re-import audio"
+        : "Import audio";
       return;
     }
     const audio = info.audio;
-    importBtn.textContent = imported.length ? "Re-import audio" : "Import audio";
+    importBtn.textContent = imported.length
+      ? "Re-import audio"
+      : "Import audio";
     if (!audio) {
-      setStatus(imported.length ? "Audio: imported, but this file has none" : "No audio track", "#888");
+      setStatus(
+        imported.length
+          ? "Audio: imported, but this file has none"
+          : "No audio track",
+        "#888",
+      );
       importBtn.disabled = true;
       importBtn.title = "This file has no audio track.";
       return;
@@ -487,7 +523,10 @@ export function buildVideoClipPanel(
     if (!isRealTime(speed)) {
       // The soundtrack can't change the speed of a sound, so anything but 1×
       // would drift out of sync.
-      setStatus(`Audio needs 1× — currently ${Number.isNaN(speed) ? "—" : formatSpeed(speed)}`, "#a06000");
+      setStatus(
+        `Audio needs 1× — currently ${Number.isNaN(speed) ? "—" : formatSpeed(speed)}`,
+        "#a06000",
+      );
       importBtn.disabled = true;
       importBtn.title = "Click Play at 1× first.";
       return;
@@ -501,7 +540,8 @@ export function buildVideoClipPanel(
       setStatus("");
     } else if (imported.length > 1) {
       setStatus("Audio imported, then cut into pieces");
-      importBtn.title += "\n\nRe-import replaces the pieces with one sound clip, lined up with the picture.";
+      importBtn.title +=
+        "\n\nRe-import replaces the pieces with one sound clip, lined up with the picture.";
     } else if (sameSoundClip(imported[0], expected)) {
       setStatus("Audio imported ✓", "#070");
     } else {
@@ -593,7 +633,12 @@ export function buildVideoClipPanel(
     const unitsPerPixel = width / pixelWidth;
     return {
       size: { pixelWidth, pixelHeight, width, height },
-      rect: { x: 0, y: 0, width: videoWidth * unitsPerPixel, height: videoHeight * unitsPerPixel },
+      rect: {
+        x: 0,
+        y: 0,
+        width: videoWidth * unitsPerPixel,
+        height: videoHeight * unitsPerPixel,
+      },
     };
   }
 
@@ -603,7 +648,8 @@ export function buildVideoClipPanel(
     // Several keyframes and none chosen:  clicking explains that, so keep the button enabled.
     if (typeof target === "string") return false;
     const { size, rect } = clipSize(info);
-    const close = (a: number, b: number) => Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b));
+    const close = (a: number, b: number) =>
+      Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b));
     const current = canvasRecorder.size;
     return (
       current.pixelWidth === size.pixelWidth &&

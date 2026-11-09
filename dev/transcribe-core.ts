@@ -84,8 +84,12 @@ const ALIGNER_OVERLAP_FRAMES = 50;
 const ALIGNER_HOP_SAMPLES = 320;
 
 type Aligner = {
-  readonly processor: Awaited<ReturnType<Transformers["AutoProcessor"]["from_pretrained"]>>;
-  readonly model: Awaited<ReturnType<Transformers["AutoModelForCTC"]["from_pretrained"]>>;
+  readonly processor: Awaited<
+    ReturnType<Transformers["AutoProcessor"]["from_pretrained"]>
+  >;
+  readonly model: Awaited<
+    ReturnType<Transformers["AutoModelForCTC"]["from_pretrained"]>
+  >;
   readonly vocabulary: ReadonlyMap<string, number>;
 };
 
@@ -119,15 +123,22 @@ export class Transcriber {
       sumLoaded += d.loaded;
       sumTotal += d.total;
     }
-    this.#onProgress?.({ stage: "downloading models", fraction: sumLoaded / sumTotal });
+    this.#onProgress?.({
+      stage: "downloading models",
+      fraction: sumLoaded / sumTotal,
+    });
   };
 
   private loadWhisper() {
-    return this.transformers.pipeline("automatic-speech-recognition", MODELS.whisper, {
-      device: this.device,
-      dtype: WHISPER_DTYPE,
-      progress_callback: this.#downloadProgress,
-    });
+    return this.transformers.pipeline(
+      "automatic-speech-recognition",
+      MODELS.whisper,
+      {
+        device: this.device,
+        dtype: WHISPER_DTYPE,
+        progress_callback: this.#downloadProgress,
+      },
+    );
   }
 
   #loadAligner(): Promise<Aligner> {
@@ -143,8 +154,10 @@ export class Transcriber {
       AutoTokenizer.from_pretrained(MODELS.aligner, options),
     ]).then(([processor, model, tokenizer]) => {
       // A Map in Transformers.js 4, a plain object in 3.
-      const raw = tokenizer.get_vocab() as Map<string, number> | Record<string, number>;
-      const vocabulary = raw instanceof Map ? raw : new Map(Object.entries(raw));
+      const raw = tokenizer.get_vocab() as
+        Map<string, number> | Record<string, number>;
+      const vocabulary =
+        raw instanceof Map ? raw : new Map(Object.entries(raw));
       return { processor, model, vocabulary };
     });
   }
@@ -190,20 +203,29 @@ export class Transcriber {
     const boundaries = pieceBoundaries(samples);
     const words: RoughWord[] = [];
     for (let i = 0; i + 1 < boundaries.length; i++) {
-      onProgress?.({ stage: "transcribing", fraction: boundaries[i] / samples.length });
+      onProgress?.({
+        stage: "transcribing",
+        fraction: boundaries[i] / samples.length,
+      });
       const piece = samples.subarray(boundaries[i], boundaries[i + 1]);
       const offsetMs = (boundaries[i] / SAMPLE_RATE) * 1000;
       const pieceMs = (piece.length / SAMPLE_RATE) * 1000;
       const result = (await asr(piece, {
         return_timestamps: "word",
         chunk_length_s: 30,
-      })) as { chunks?: { text: string; timestamp: [number, number | null] }[] };
+      })) as {
+        chunks?: { text: string; timestamp: [number, number | null] }[];
+      };
       for (const { text, timestamp } of result.chunks ?? []) {
         const startMs = timestamp[0] * 1000;
         // Whisper sometimes leaves the last word open-ended.
         const endMs = timestamp[1] === null ? pieceMs : timestamp[1] * 1000;
         if (text.trim() === "") continue;
-        words.push({ text, startMs: offsetMs + startMs, endMs: offsetMs + endMs });
+        words.push({
+          text,
+          startMs: offsetMs + startMs,
+          endMs: offsetMs + endMs,
+        });
       }
     }
     return words;
@@ -219,7 +241,8 @@ export class Transcriber {
     this.#aligner ??= this.#loadAligner();
     const { processor, model, vocabulary } = await this.#aligner;
     const frameCount = Math.floor(samples.length / ALIGNER_HOP_SAMPLES);
-    const step = ALIGNER_WINDOW_SAMPLES - 2 * ALIGNER_OVERLAP_FRAMES * ALIGNER_HOP_SAMPLES;
+    const step =
+      ALIGNER_WINDOW_SAMPLES - 2 * ALIGNER_OVERLAP_FRAMES * ALIGNER_HOP_SAMPLES;
     let vocabularySize = 0;
     let logProbs = new Float32Array(0);
     /** Frames filled in so far, from the start. */
@@ -237,7 +260,10 @@ export class Transcriber {
       const data = logits.data as Float32Array;
       const base = offset / ALIGNER_HOP_SAMPLES;
       // Keep the middle of each window; the edges are only there for context.
-      const from = Math.max(offset === 0 ? 0 : ALIGNER_OVERLAP_FRAMES, written - base);
+      const from = Math.max(
+        offset === 0 ? 0 : ALIGNER_OVERLAP_FRAMES,
+        written - base,
+      );
       const to = isLast ? frames : frames - ALIGNER_OVERLAP_FRAMES;
       for (let k = from; k < to && base + k < frameCount; k++) {
         logSoftmax(data, k * size, size, logProbs, (base + k) * size);
@@ -275,7 +301,8 @@ function logSoftmax(
   let max = -Infinity;
   for (let v = 0; v < size; v++) max = Math.max(max, source[sourceOffset + v]);
   let sum = 0;
-  for (let v = 0; v < size; v++) sum += Math.exp(source[sourceOffset + v] - max);
+  for (let v = 0; v < size; v++)
+    sum += Math.exp(source[sourceOffset + v] - max);
   const logSum = max + Math.log(sum);
   for (let v = 0; v < size; v++) {
     destination[destinationOffset + v] = source[sourceOffset + v] - logSum;
@@ -291,7 +318,11 @@ function logSoftmax(
 export function pieceBoundaries(samples: Float32Array): number[] {
   const totalMs = (samples.length / SAMPLE_RATE) * 1000;
   const boundaries = [0];
-  for (let target = PIECE_MS; target < totalMs - PIECE_MS / 2; target += PIECE_MS) {
+  for (
+    let target = PIECE_MS;
+    target < totalMs - PIECE_MS / 2;
+    target += PIECE_MS
+  ) {
     const cutMs = quietestMoment(
       samples,
       SAMPLE_RATE,

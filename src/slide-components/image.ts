@@ -1,5 +1,8 @@
 import { ReadOnlyRect } from "phil-lib/misc";
-import { StringScheduleInfo, RectangleScheduleInfo } from "../schedule-helper.ts";
+import {
+  StringScheduleInfo,
+  RectangleScheduleInfo,
+} from "../schedule-helper.ts";
 import { Showable, ShowOptions } from "../showable.ts";
 import { SingleImage, SlowImage } from "../slow-image-sources.ts";
 import { Keyframe } from "../interpolate.ts";

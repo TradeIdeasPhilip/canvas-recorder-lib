@@ -122,7 +122,10 @@ export function cutOutOfSoundClip(
     const rest = splitSoundClip(sound, toMs).second;
     pieces.push(
       closeGap
-        ? { ...rest, startMsIntoScene: tidy(rest.startMsIntoScene - (toMs - fromMs)) }
+        ? {
+            ...rest,
+            startMsIntoScene: tidy(rest.startMsIntoScene - (toMs - fromMs)),
+          }
         : rest,
     );
   }

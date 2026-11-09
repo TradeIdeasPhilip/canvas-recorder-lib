@@ -111,7 +111,8 @@ export function askHowToSplit(options: {
     const note = document.createElement("div");
     note.style.cssText = "font-size:0.85em;color:#555;margin-top:0.3em";
     fieldset.append(note);
-    const value = () => (inputs.find((input) => input.checked)?.value ?? initial) as T;
+    const value = () =>
+      (inputs.find((input) => input.checked)?.value ?? initial) as T;
     return { fieldset, inputs, note, value };
   }
 
@@ -127,12 +128,14 @@ export function askHowToSplit(options: {
       {
         value: "first",
         label: "Attach to first",
-        title: "Keep each one whole, on the first piece.  It plays past that piece's end.",
+        title:
+          "Keep each one whole, on the first piece.  It plays past that piece's end.",
       },
       {
         value: "second",
         label: "Attach to second",
-        title: "Keep each one whole, on the second piece.  It starts before that piece does.",
+        title:
+          "Keep each one whole, on the second piece.  It starts before that piece does.",
       },
     ],
     readCrossing(),
@@ -146,12 +149,14 @@ export function askHowToSplit(options: {
       {
         value: "first",
         label: "First ■□",
-        title: "Trim the end of the clip at the split.  The second piece and its sounds are removed.",
+        title:
+          "Trim the end of the clip at the split.  The second piece and its sounds are removed.",
       },
       {
         value: "second",
         label: "Second □■",
-        title: "Trim the start of the clip at the split.  The first piece and its sounds are removed.",
+        title:
+          "Trim the start of the clip at the split.  The first piece and its sounds are removed.",
       },
     ],
     "both",
@@ -192,7 +197,8 @@ export function askHowToSplit(options: {
     whereNote.style.color = valid ? "#555" : "#a06000";
 
     const crossingCount = valid
-      ? clip.soundClips.filter((sound) => crossesSplit(sound, atMs, lengthOf)).length
+      ? clip.soundClips.filter((sound) => crossesSplit(sound, atMs, lengthOf))
+          .length
       : 0;
     for (const input of crossing.inputs) input.disabled = crossingCount === 0;
     crossing.note.textContent =
@@ -210,7 +216,13 @@ export function askHowToSplit(options: {
     const endFile = Math.max(startFile, clip.endMsIntoClipScalar.value);
     const atFile = clip.locationInClip(atMs);
     const kept = keep.value();
-    const line = (name: string, from: number, to: number, length: number, gone: boolean) => {
+    const line = (
+      name: string,
+      from: number,
+      to: number,
+      length: number,
+      gone: boolean,
+    ) => {
       const div = document.createElement("div");
       div.textContent = `${name}:  ${seconds(length)} long, showing ${seconds(from)}–${seconds(to)} of the file${gone ? "  (removed)" : ""}`;
       if (gone) div.style.cssText = "color:#999;text-decoration:line-through";
@@ -390,7 +402,16 @@ export function askHowToSplitSound(options: {
   okBtn.textContent = "Split";
   buttons.append(cancelBtn, okBtn);
 
-  dialog.append(heading, hint, whereRow, snapRow, whereNote, keepFieldset, preview, buttons);
+  dialog.append(
+    heading,
+    hint,
+    whereRow,
+    snapRow,
+    whereNote,
+    keepFieldset,
+    preview,
+    buttons,
+  );
 
   // MARK: Behavior
   const inside = (atMs: number) => atMs > 0 && atMs < lengthMs;
@@ -404,7 +425,9 @@ export function askHowToSplitSound(options: {
   function snapped(atMs: number): number {
     if (!snapInput.checked || !words?.length) return atMs;
     const fileMs = startMsIntoClip + atMs;
-    const inWord = words.some((w) => w.cutBeforeMs < fileMs && fileMs < w.cutAfterMs);
+    const inWord = words.some(
+      (w) => w.cutBeforeMs < fileMs && fileMs < w.cutAfterMs,
+    );
     if (!inWord) return atMs;
     let best = atMs;
     let bestDistance = Infinity;
@@ -437,7 +460,8 @@ export function askHowToSplitSound(options: {
     if (within) return `  ⚠ That's in the middle of ${quoted(within)}.`;
     const before = words.findLast((w) => w.endMs <= fileMs);
     const after = words.find((w) => w.startMs >= fileMs);
-    if (before && after) return `  Between ${quoted(before)} and ${quoted(after)}.`;
+    if (before && after)
+      return `  Between ${quoted(before)} and ${quoted(after)}.`;
     if (after) return `  Before ${quoted(after)}.`;
     if (before) return `  After ${quoted(before)}.`;
     return "";
@@ -461,13 +485,19 @@ export function askHowToSplitSound(options: {
       (moved
         ? `Snapped to ${Math.round(atMs)} ms, ${Math.round(Math.abs(atMs - typed))} ms ${direction}.`
         : "") + aroundWords(atMs);
-    whereNote.style.color = whereNote.textContent.includes("⚠") ? "#a06000" : "#555";
+    whereNote.style.color = whereNote.textContent.includes("⚠")
+      ? "#a06000"
+      : "#555";
 
     const kept = keep();
     const line = (name: string, from: number, to: number, gone: boolean) => {
       const div = document.createElement("div");
-      const length = Number.isFinite(to - from) ? `${seconds(to - from)} long` : "to the end of the file";
-      const fileTo = Number.isFinite(to) ? seconds(startMsIntoClip + to) : "the end";
+      const length = Number.isFinite(to - from)
+        ? `${seconds(to - from)} long`
+        : "to the end of the file";
+      const fileTo = Number.isFinite(to)
+        ? seconds(startMsIntoClip + to)
+        : "the end";
       div.textContent = `${name}:  ${length}, playing ${seconds(startMsIntoClip + from)}–${fileTo} of the file${gone ? "  (removed)" : ""}`;
       if (gone) div.style.cssText = "color:#999;text-decoration:line-through";
       return div;

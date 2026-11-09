@@ -234,7 +234,7 @@ export const componentRegistry = new Map<string, ComponentRegistryEntry>([
       create() {
         return new RectangleComponent();
       },
-      description:"A perfect background, outline, or placeholder.",
+      description: "A perfect background, outline, or placeholder.",
       isGoodForWrapping: false,
       howToGenerate: { type: "class", class: RectangleComponent },
     },

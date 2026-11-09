@@ -12,7 +12,10 @@ const COPY = /\.(css)$/;
 
 let count = 0;
 for (const folder of ["lib", "dev", "src"]) {
-  for (const entry of readdirSync(join(here, folder), { recursive: true, withFileTypes: true })) {
+  for (const entry of readdirSync(join(here, folder), {
+    recursive: true,
+    withFileTypes: true,
+  })) {
     if (entry.isFile() && COPY.test(entry.name)) {
       const from = join(entry.parentPath, entry.name);
       const to = join(here, "dist", relative(here, from));

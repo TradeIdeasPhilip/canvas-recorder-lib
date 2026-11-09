@@ -170,7 +170,11 @@ function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
     const channel = buffer.getChannelData(ch);
     for (let i = 0; i < buffer.length; i++) {
       const sample = Math.max(-1, Math.min(1, channel[i]));
-      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+      view.setInt16(
+        offset,
+        sample < 0 ? sample * 0x8000 : sample * 0x7fff,
+        true,
+      );
       offset += 2;
     }
   }

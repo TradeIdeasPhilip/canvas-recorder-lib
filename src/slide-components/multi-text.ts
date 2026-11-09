@@ -28,7 +28,12 @@ import {
 import { DurationAgnosticComponent } from "./duration-agnostic.ts";
 import { ShowChildInfo } from "./in-parallel.ts";
 import { showError } from "./show-error.ts";
-import { EffectLetter, isTextEffect, TextEffect, TEXT_EFFECT } from "./text-effect.ts";
+import {
+  EffectLetter,
+  isTextEffect,
+  TextEffect,
+  TEXT_EFFECT,
+} from "./text-effect.ts";
 import { Keyframe } from "../interpolate.ts";
 // Type-only: registry.ts imports this module, so a runtime import would be circular.
 import type { ComponentRegistryEntry } from "./registry.ts";
@@ -87,7 +92,10 @@ function setTextFormatList(
 // MARK: Format strings
 
 /** One piece of a format string:  a format's name, and the text after it. */
-export type FormattedSpan = { readonly format: string; readonly content: string };
+export type FormattedSpan = {
+  readonly format: string;
+  readonly content: string;
+};
 
 const FORMAT_STRING_SPLITTER = /^⸨([^⸨⸩]*)⸩([^⸨⸩]*)(.*)$/s;
 
@@ -240,7 +248,10 @@ function turn({ x, y }: Point, quarterTurns: QuarterTurns): Point {
 }
 
 /** The rectangle `rect` covers after turning it about the origin.  Exact, since a quarter turn keeps it axis-aligned. */
-function turnRect(rect: ReadOnlyRect, quarterTurns: QuarterTurns): ReadOnlyRect {
+function turnRect(
+  rect: ReadOnlyRect,
+  quarterTurns: QuarterTurns,
+): ReadOnlyRect {
   const a = turn({ x: rect.x, y: rect.y }, quarterTurns);
   const b = turn(
     { x: rect.x + rect.width, y: rect.y + rect.height },
@@ -468,7 +479,9 @@ export class MultiTextComponent extends DurationAgnosticComponent {
     let node: ShowableParent | undefined = this;
     while (node) {
       if (node instanceof MultiTextComponent) {
-        names.push(...node.#ownFormatters().map((format) => format.nameScalar.value));
+        names.push(
+          ...node.#ownFormatters().map((format) => format.nameScalar.value),
+        );
       }
       node = node.parent;
     }

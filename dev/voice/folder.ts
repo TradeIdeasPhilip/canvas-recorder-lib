@@ -27,7 +27,9 @@ function inStore<T>(
     open.onupgradeneeded = () => open.result.createObjectStore(STORE);
     open.onerror = () => reject(open.error);
     open.onsuccess = () => {
-      const request = run(open.result.transaction(STORE, mode).objectStore(STORE));
+      const request = run(
+        open.result.transaction(STORE, mode).objectStore(STORE),
+      );
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     };
@@ -35,7 +37,9 @@ function inStore<T>(
 }
 
 /** The folder chosen last time, if there is one. */
-export async function rememberedFolder(): Promise<FileSystemDirectoryHandle | undefined> {
+export async function rememberedFolder(): Promise<
+  FileSystemDirectoryHandle | undefined
+> {
   try {
     return await inStore("readonly", (store) => store.get(KEY));
   } catch {
@@ -44,15 +48,21 @@ export async function rememberedFolder(): Promise<FileSystemDirectoryHandle | un
 }
 
 /** Save recordings here from now on. */
-export async function rememberFolder(folder: FileSystemDirectoryHandle): Promise<void> {
+export async function rememberFolder(
+  folder: FileSystemDirectoryHandle,
+): Promise<void> {
   await inStore("readwrite", (store) => store.put(folder, KEY));
 }
 
 /** Ask the user for a folder.  Undefined if they cancel.  Call this from a click. */
-export async function chooseFolder(): Promise<FileSystemDirectoryHandle | undefined> {
+export async function chooseFolder(): Promise<
+  FileSystemDirectoryHandle | undefined
+> {
   const picker = (
     window as unknown as {
-      showDirectoryPicker?: (options: object) => Promise<FileSystemDirectoryHandle>;
+      showDirectoryPicker?: (
+        options: object,
+      ) => Promise<FileSystemDirectoryHandle>;
     }
   ).showDirectoryPicker;
   if (!picker) {
@@ -71,7 +81,10 @@ export async function chooseFolder(): Promise<FileSystemDirectoryHandle | undefi
 }
 
 /** Can we write to this folder?  If ask is true, ask for permission if we need it.  That needs a click. */
-export async function canWrite(folder: FileSystemDirectoryHandle, ask: boolean): Promise<boolean> {
+export async function canWrite(
+  folder: FileSystemDirectoryHandle,
+  ask: boolean,
+): Promise<boolean> {
   const handle = folder as WithPermission;
   // Folders that don't need permission, like the browser's private storage, don't have these.
   if (!handle.queryPermission || !handle.requestPermission) {
@@ -80,5 +93,7 @@ export async function canWrite(folder: FileSystemDirectoryHandle, ask: boolean):
   if ((await handle.queryPermission({ mode: "readwrite" })) == "granted") {
     return true;
   }
-  return ask && (await handle.requestPermission({ mode: "readwrite" })) == "granted";
+  return (
+    ask && (await handle.requestPermission({ mode: "readwrite" })) == "granted"
+  );
 }

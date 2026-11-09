@@ -11,7 +11,10 @@ import {
   SoundClip,
 } from "./showable.ts";
 import { componentRegistry } from "./slide-components/registry.ts";
-import { SerializedChild, buildComponents } from "./slide-components/serialize.ts";
+import {
+  SerializedChild,
+  buildComponents,
+} from "./slide-components/serialize.ts";
 
 /**
  * Serialized state of one {@link Showable.fixedComponents} item.
@@ -430,7 +433,9 @@ export function omitComponentDefaults(
     if (scalars) result.scalars = scalars;
     if (child.components !== undefined) {
       const components = omitComponentDefaults(child.components);
-      if (!sameJson(components, omitComponentDefaults(fresh.components ?? []))) {
+      if (
+        !sameJson(components, omitComponentDefaults(fresh.components ?? []))
+      ) {
         result.components = components;
       }
     }
@@ -476,7 +481,10 @@ export function omitTreeDefaults(
   }
   if (tree.fixedComponents) {
     const children = tree.fixedComponents;
-    const childDefaults = counterparts(children, defaults?.fixedComponents ?? []);
+    const childDefaults = counterparts(
+      children,
+      defaults?.fixedComponents ?? [],
+    );
     const trimmed = children.map((child, index) =>
       omitTreeDefaults(child, childDefaults[index]),
     );
@@ -485,7 +493,8 @@ export function omitTreeDefaults(
     // description, so the nth "note" still lines up with the nth "note".
     const lastChanged = new Map<string, number>();
     for (const [index, child] of trimmed.entries()) {
-      if (Object.keys(child).length > 1) lastChanged.set(child.description, index);
+      if (Object.keys(child).length > 1)
+        lastChanged.set(child.description, index);
     }
     const kept = trimmed.filter(
       (child, index) => index <= (lastChanged.get(child.description) ?? -1),

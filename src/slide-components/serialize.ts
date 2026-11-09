@@ -60,7 +60,10 @@ export function buildComponents(snapshot: SerializedChild[]): Showable[] {
     if (child.schedules?.length && sc.schedules?.length) {
       applySnapshot(child.schedules, sc.schedules);
     }
-    if (child.replaceableComponents !== undefined && sc.components !== undefined) {
+    if (
+      child.replaceableComponents !== undefined &&
+      sc.components !== undefined
+    ) {
       child.replaceableComponents.replace(buildComponents(sc.components));
     }
     return [child];

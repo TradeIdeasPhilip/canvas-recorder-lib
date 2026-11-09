@@ -22,8 +22,12 @@ body {
   height: 100%;
 }
 
-#left-col  { flex: 0 0 50%; }
-#right-col { flex: 1; }
+#left-col {
+  flex: 0 0 50%;
+}
+#right-col {
+  flex: 1;
+}
 
 /* ── Vertical resize handle between left/right columns ──────────────── */
 
@@ -139,7 +143,7 @@ body {
   display: block;
   width: 100%;
   min-height: 28px;
-  max-height: 168px;  /* cap at 6 rows × 28 px */
+  max-height: 168px; /* cap at 6 rows × 28 px */
   cursor: crosshair;
   border-bottom: 1px solid #bbb;
   box-sizing: border-box;
@@ -366,7 +370,6 @@ body {
   outline: 2px solid #4a90d9;
   outline-offset: -2px;
 }
-
 
 /* ── Component picker dialog ─────────────────────────────────────────── */
 

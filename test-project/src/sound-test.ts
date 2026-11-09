@@ -69,14 +69,29 @@ const fileB = makeWav(2.5, [leftB, rightB]);
 function makeVideo() {
   const childClips: SoundClip[] = [
     // B at 1.2 s in the video, from 0.3 s into the file, for 1.5 s.
-    { source: fileB, startMsIntoScene: 200, startMsIntoClip: 300, lengthMs: 1500 },
+    {
+      source: fileB,
+      startMsIntoScene: 200,
+      startMsIntoClip: 300,
+      lengthMs: 1500,
+    },
   ];
-  const child = { description: "child", duration: 4000, show() {}, soundClips: childClips };
+  const child = {
+    description: "child",
+    duration: 4000,
+    show() {},
+    soundClips: childClips,
+  };
   const rootClips: SoundClip[] = [
     // A at 0.5 s, all of it.
     { source: fileA, startMsIntoScene: 500 },
     // A starting 0.4 s before the video does:  the first 0.4 s is never heard.
-    { source: fileA, startMsIntoScene: -400, startMsIntoClip: 100, lengthMs: 1000 },
+    {
+      source: fileA,
+      startMsIntoScene: -400,
+      startMsIntoClip: 100,
+      lengthMs: 1000,
+    },
     // A with 0.25 s of silence first, playing past the end of the video.
     { source: fileA, startMsIntoScene: 4000, startMsIntoClip: -250 },
   ];
@@ -98,7 +113,9 @@ const results: Result[] = [];
 
 function report(name: string, pass: boolean, details: string) {
   results.push({ name, pass, details });
-  const row = (document.getElementById("results") as HTMLTableElement).insertRow();
+  const row = (
+    document.getElementById("results") as HTMLTableElement
+  ).insertRow();
   row.insertCell().textContent = name;
   const cell = row.insertCell();
   cell.textContent = pass ? "pass" : "FAIL";
@@ -160,7 +177,11 @@ async function offlineSoundtrack(root: Showable, seconds: number) {
     made++;
     return original();
   };
-  const soundtrack = new Soundtrack({ context, destination: context.destination, root: () => root });
+  const soundtrack = new Soundtrack({
+    context,
+    destination: context.destination,
+    root: () => root,
+  });
   soundtrack.request();
   await soundtrack.ready();
   return { context, soundtrack, nodesMade: () => made };
@@ -170,8 +191,15 @@ async function offlineSoundtrack(root: Showable, seconds: number) {
  * The mix as the saved video's mixer should make it, worked out separately, one sample at a
  * time, from what each clip means.
  */
-function expectedMix(soundtrack: Soundtrack, root: Showable, fromMs: number, toMs: number) {
-  const out = new Float32Array(Math.ceil(((toMs - fromMs) / 1000) * SAMPLE_RATE));
+function expectedMix(
+  soundtrack: Soundtrack,
+  root: Showable,
+  fromMs: number,
+  toMs: number,
+) {
+  const out = new Float32Array(
+    Math.ceil(((toMs - fromMs) / 1000) * SAMPLE_RATE),
+  );
   function walk(item: Showable, offset: number) {
     for (const clip of item.soundClips ?? []) {
       const file = soundtrack.getDecodedBuffer(clip.source)!.getChannelData(0);
@@ -183,15 +211,21 @@ function expectedMix(soundtrack: Soundtrack, root: Showable, fromMs: number, toM
         length += trim;
         trim = 0;
       }
-      const end = Math.min(start + length, start + (file.length / SAMPLE_RATE) * 1000 - trim, root.duration);
+      const end = Math.min(
+        start + length,
+        start + (file.length / SAMPLE_RATE) * 1000 - trim,
+        root.duration,
+      );
       for (let n = 0; n < out.length; n++) {
         const ms = fromMs + (n / SAMPLE_RATE) * 1000;
         if (ms >= Math.max(start, 0) && ms < end) {
-          out[n] += file[Math.round(((trim + ms - start) / 1000) * SAMPLE_RATE)];
+          out[n] +=
+            file[Math.round(((trim + ms - start) / 1000) * SAMPLE_RATE)];
         }
       }
     }
-    for (const { child, start } of item.children ?? []) walk(child, offset + start);
+    for (const { child, start } of item.children ?? [])
+      walk(child, offset + start);
   }
   walk(root, 0);
   return out;
@@ -204,12 +238,24 @@ async function decodingTest() {
   const { soundtrack } = await offlineSoundtrack(root, 1);
   const a = soundtrack.getDecodedBuffer(fileA);
   const b = soundtrack.getDecodedBuffer(fileB);
-  const mono = !!a && !!b && a.numberOfChannels === 1 && b.numberOfChannels === 1;
-  report("ready() decodes every file", !!a && !!b, a && b ? "both decoded" : "missing a file");
+  const mono =
+    !!a && !!b && a.numberOfChannels === 1 && b.numberOfChannels === 1;
+  report(
+    "ready() decodes every file",
+    !!a && !!b,
+    a && b ? "both decoded" : "missing a file",
+  );
   if (!b) return;
   // Within 16 bits of rounding.
-  const average = maxDiff(b.getChannelData(0), (i) => (leftB(i / SAMPLE_RATE) + rightB(i / SAMPLE_RATE)) / 2);
-  report("Stereo files become mono, by averaging", mono && average.diff < 1e-4, describe(average));
+  const average = maxDiff(
+    b.getChannelData(0),
+    (i) => (leftB(i / SAMPLE_RATE) + rightB(i / SAMPLE_RATE)) / 2,
+  );
+  report(
+    "Stereo files become mono, by averaging",
+    mono && average.diff < 1e-4,
+    describe(average),
+  );
 }
 
 async function mixerTest() {
@@ -222,7 +268,11 @@ async function mixerTest() {
     const mixed = soundtrack.mix(from, to).getAudioBuffer().getChannelData(0);
     const expected = expectedMix(soundtrack, root, from, to);
     const result = maxDiff(mixed, (i) => expected[i]);
-    report(`mix(${from}, ${to}) puts every clip in the right place`, result.diff < 1e-6, describe(result));
+    report(
+      `mix(${from}, ${to}) puts every clip in the right place`,
+      result.diff < 1e-6,
+      describe(result),
+    );
   }
 }
 
@@ -232,7 +282,10 @@ async function playTest(fromMs: number) {
   const { context, soundtrack } = await offlineSoundtrack(root, seconds);
   soundtrack.play({ contextTime: 0, mediaMs: fromMs, rate: 1 });
   const rendered = (await context.startRendering()).getChannelData(0);
-  const mixed = soundtrack.mix(fromMs, VIDEO_MS).getAudioBuffer().getChannelData(0);
+  const mixed = soundtrack
+    .mix(fromMs, VIDEO_MS)
+    .getAudioBuffer()
+    .getChannelData(0);
   const result = maxDiff(rendered, (i) => mixed[i] ?? 0);
   report(
     `Playing from ${fromMs} ms sounds like the saved mix`,
@@ -243,7 +296,10 @@ async function playTest(fromMs: number) {
 
 async function editTest() {
   const { root, childClips } = makeVideo();
-  const { context, soundtrack, nodesMade } = await offlineSoundtrack(root, VIDEO_MS / 1000);
+  const { context, soundtrack, nodesMade } = await offlineSoundtrack(
+    root,
+    VIDEO_MS / 1000,
+  );
   const before = soundtrack.mix(0, VIDEO_MS).getAudioBuffer().getChannelData(0);
   soundtrack.play({ contextTime: 0, mediaMs: 0, rate: 1 });
   let nodesForEdit = 0;
@@ -267,7 +323,11 @@ async function editTest() {
   const swap = Math.round(2.03 * SAMPLE_RATE);
   const early = maxDiff(rendered, (i) => before[i], 0, swap - 1);
   const late = maxDiff(rendered, (i) => after[i], swap + 1);
-  report("An edit while playing:  the old mix until the swap", early.diff < 0.01, describe(early));
+  report(
+    "An edit while playing:  the old mix until the swap",
+    early.diff < 0.01,
+    describe(early),
+  );
   // And the edit really changed what's heard.
   const changed = maxDiff(before, (i) => after[i], swap);
   report(
@@ -300,7 +360,11 @@ async function nothingChangedTest() {
   );
 }
 
-async function speedTest(name: string, startRate: number, change?: { atS: number; rate: number }) {
+async function speedTest(
+  name: string,
+  startRate: number,
+  change?: { atS: number; rate: number },
+) {
   const { root } = makeVideo();
   const seconds = 4;
   const { context, soundtrack } = await offlineSoundtrack(root, seconds);
@@ -323,7 +387,9 @@ async function speedTest(name: string, startRate: number, change?: { atS: number
     const s = i / SAMPLE_RATE;
     const ms =
       change && s > change.atS
-        ? startMs + change.atS * 1000 * startRate + (s - change.atS) * 1000 * change.rate
+        ? startMs +
+          change.atS * 1000 * startRate +
+          (s - change.atS) * 1000 * change.rate
         : startMs + s * 1000 * startRate;
     return (ms / 1000) * SAMPLE_RATE;
   };
@@ -345,7 +411,10 @@ async function main() {
     await nothingChangedTest();
     await speedTest("Playing at ½× stays in time", 0.5);
     await speedTest("Playing at 2× stays in time", 2);
-    await speedTest("Changing from 1× to 2× while playing stays in time", 1, { atS: 1, rate: 2 });
+    await speedTest("Changing from 1× to 2× while playing stays in time", 1, {
+      atS: 1,
+      rate: 2,
+    });
   } catch (error) {
     report("The test itself", false, String(error));
     console.error(error);

@@ -36,7 +36,8 @@ function sweepSamples({ from, to, seconds }: Sweep, sampleRate: number) {
   const k = Math.log(to / from);
   for (let i = 0; i < count; i++) {
     const t = i / sampleRate;
-    const phase = (2 * Math.PI * from * seconds * (Math.exp((t * k) / seconds) - 1)) / k;
+    const phase =
+      (2 * Math.PI * from * seconds * (Math.exp((t * k) / seconds) - 1)) / k;
     samples[i] = AMPLITUDE * Math.sin(phase);
   }
   const fade = Math.min(count / 2, Math.round(FADE_SECONDS * sampleRate));
@@ -78,7 +79,9 @@ export function findSound(
     for (let i = 0; i < sound.length; i += step) {
       sum += sound[i] * recording[lag + i];
     }
-    const norm = Math.sqrt(energy(recording, lag, sound.length, step) * (soundEnergy / step));
+    const norm = Math.sqrt(
+      energy(recording, lag, sound.length, step) * (soundEnergy / step),
+    );
     return norm > 0 ? sum / norm : 0;
   };
   // Coarse:  every 4th lag, every 4th sample.
@@ -93,7 +96,11 @@ export function findSound(
   }
   // Exact:  every lag near the best one, every sample.
   const exact = new Map<number, number>();
-  for (let lag = Math.max(first, best - 6); lag <= Math.min(last, best + 6); lag++) {
+  for (
+    let lag = Math.max(first, best - 6);
+    lag <= Math.min(last, best + 6);
+    lag++
+  ) {
     exact.set(lag, score(lag, 1));
   }
   for (const [lag, s] of exact) {
@@ -116,10 +123,19 @@ export function findSound(
   for (let i = best; i < best + sound.length; i++) {
     peak = Math.max(peak, Math.abs(recording[i]));
   }
-  return { position, match: Math.max(0, here), peakDb: 20 * Math.log10(peak || 1e-12) };
+  return {
+    position,
+    match: Math.max(0, here),
+    peakDb: 20 * Math.log10(peak || 1e-12),
+  };
 }
 
-function energy(samples: Float32Array, start: number, length: number, step: number) {
+function energy(
+  samples: Float32Array,
+  start: number,
+  length: number,
+  step: number,
+) {
   let sum = 0;
   for (let i = 0; i < length; i += step) {
     const v = samples[start + i];

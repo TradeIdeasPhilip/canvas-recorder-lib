@@ -158,9 +158,10 @@ export function rounded(
  */
 export function halfwayByFourier(share = 0.5): MiddleShape {
   return (before, after) => {
-    const difference = before.map(
-      ([x, y], i): Complex => [after[i][0] - x, after[i][1] - y],
-    );
+    const difference = before.map(([x, y], i): Complex => [
+      after[i][0] - x,
+      after[i][1] - y,
+    ]);
     const terms = largestTerms(samplesToFourier(difference), share);
     return addTerms(terms, before.length, before);
   };
@@ -168,9 +169,10 @@ export function halfwayByFourier(share = 0.5): MiddleShape {
 
 /** The average of before and after, point by point. */
 export const meanShape: MiddleShape = (before, after) =>
-  before.map(
-    ([x, y], i): Complex => [(x + after[i][0]) / 2, (y + after[i][1]) / 2],
-  );
+  before.map(([x, y], i): Complex => [
+    (x + after[i][0]) / 2,
+    (y + after[i][1]) / 2,
+  ]);
 
 /**
  * A circle, starting at the top and going clockwise, like the square and the pentagram.
@@ -396,9 +398,10 @@ function sweepAt(step: Step, progress: number): (t: number) => number {
 
 function createLeg(from: Samples, to: Samples, termGroups: TermGrouper): Leg {
   const sampleCount = from.length;
-  const difference = from.map(
-    ([x, y], i): Complex => [to[i][0] - x, to[i][1] - y],
-  );
+  const difference = from.map(([x, y], i): Complex => [
+    to[i][0] - x,
+    to[i][1] - y,
+  ]);
   const terms = samplesToFourier(difference);
   const groups = termGroups(terms);
   const ordered = orderTerms(terms, groups);

@@ -122,7 +122,8 @@ async function readRecord(name: string): Promise<HandleRecord | undefined> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const request = db.transaction(STORE).objectStore(STORE).get(name);
-    request.onsuccess = () => resolve(request.result as HandleRecord | undefined);
+    request.onsuccess = () =>
+      resolve(request.result as HandleRecord | undefined);
     request.onerror = () => reject(request.error);
   });
 }
@@ -149,7 +150,9 @@ async function writeRecord(record: HandleRecord): Promise<void> {
 /** Handles already read from IndexedDB.  The list is short, so this never needs trimming. */
 const handles = new Map<string, FileSystemFileHandle>();
 
-async function findHandle(name: string): Promise<FileSystemFileHandle | undefined> {
+async function findHandle(
+  name: string,
+): Promise<FileSystemFileHandle | undefined> {
   let handle = handles.get(name);
   if (!handle) {
     handle = (await readRecord(name))?.handle;
@@ -166,7 +169,9 @@ async function findHandle(name: string): Promise<FileSystemFileHandle | undefine
  * A file with the same name replaces the old one.  That's how a moved file gets fixed:
  * pick it again from its new place.
  */
-export async function addLocalFile(handle: FileSystemFileHandle): Promise<string> {
+export async function addLocalFile(
+  handle: FileSystemFileHandle,
+): Promise<string> {
   await writeRecord({ name: handle.name, handle, addedAt: Date.now() });
   handles.set(handle.name, handle);
   needingPermission.delete(handle.name);
@@ -186,7 +191,9 @@ export const VIDEO_FILE_TYPES: FilePickerAcceptType[] = [
 export const IMAGE_FILE_TYPES: FilePickerAcceptType[] = [
   {
     description: "Image",
-    accept: { "image/*": [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".avif"] },
+    accept: {
+      "image/*": [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".avif"],
+    },
   },
 ];
 
@@ -357,7 +364,10 @@ export function localFileUrlsIn(showable: Showable): Set<string> {
     }
     for (const schedule of current.schedules ?? []) {
       for (const keyframe of schedule.schedule) {
-        if (typeof keyframe.value === "string" && isLocalFileUrl(keyframe.value)) {
+        if (
+          typeof keyframe.value === "string" &&
+          isLocalFileUrl(keyframe.value)
+        ) {
           found.add(keyframe.value);
         }
       }
@@ -375,7 +385,10 @@ export function localFileUrlsIn(showable: Showable): Set<string> {
  * Like `fetch()`, but it also understands local file URLs.
  * Use this anywhere media is read by URL, so local files work there too.
  */
-export async function fetchMedia(url: string, init?: RequestInit): Promise<Response> {
+export async function fetchMedia(
+  url: string,
+  init?: RequestInit,
+): Promise<Response> {
   if (isLocalFileUrl(url)) {
     const file = await getLocalFile(url);
     return new Response(init?.method === "HEAD" ? null : file, {

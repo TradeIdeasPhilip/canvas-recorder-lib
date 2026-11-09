@@ -19,14 +19,18 @@ const here = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const problems = [];
 for (const folder of ["lib", "dev", "src"]) {
-  for (const entry of readdirSync(join(here, folder), { recursive: true, withFileTypes: true })) {
+  for (const entry of readdirSync(join(here, folder), {
+    recursive: true,
+    withFileTypes: true,
+  })) {
     if (!entry.isFile() || !entry.name.endsWith(".ts")) continue;
     const path = join(entry.parentPath, entry.name);
     const text = readFileSync(path, "utf8");
     // TypeScript's own scanner, so an example in a comment doesn't count.
     const { importedFiles } = ts.preProcessFile(text, true, true);
     for (const { fileName, pos } of importedFiles) {
-      const relativeImport = fileName.startsWith("./") || fileName.startsWith("../");
+      const relativeImport =
+        fileName.startsWith("./") || fileName.startsWith("../");
       const hasExtension = /\.[a-z]+$/i.test(fileName.split("/").pop());
       if (relativeImport && !hasExtension) {
         const line = text.slice(0, pos).split("\n").length;

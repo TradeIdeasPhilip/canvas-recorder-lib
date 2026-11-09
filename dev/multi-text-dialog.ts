@@ -124,7 +124,8 @@ export async function openMultiTextDialog(
   const revertBtn = document.createElement("button");
   revertBtn.type = "button";
   revertBtn.textContent = "Revert";
-  revertBtn.title = "Put the text and the formats back the way they were when this opened.";
+  revertBtn.title =
+    "Put the text and the formats back the way they were when this opened.";
   revertBtn.disabled = true;
   const doneBtn = document.createElement("button");
   doneBtn.type = "button";
@@ -150,10 +151,13 @@ export async function openMultiTextDialog(
   }
   if (
     text.children.some(
-      ({ replaceable, child }) => !replaceable && child instanceof TextSpanComponent,
+      ({ replaceable, child }) =>
+        !replaceable && child instanceof TextSpanComponent,
     )
   ) {
-    note("This Multi Text also has Text Spans built in TypeScript.  They can't be edited here.");
+    note(
+      "This Multi Text also has Text Spans built in TypeScript.  They can't be edited here.",
+    );
   }
   for (const { span } of originalSpans) {
     if (isAnimated(span)) {
@@ -227,7 +231,9 @@ export async function openMultiTextDialog(
   }
 
   // Keep the focus, and so the cursor, in the editor.
-  insertFormatBtn.addEventListener("mousedown", (event) => event.preventDefault());
+  insertFormatBtn.addEventListener("mousedown", (event) =>
+    event.preventDefault(),
+  );
   insertFormatBtn.addEventListener("click", () => editor.insertFormat());
 
   revertBtn.addEventListener("click", () => {
@@ -286,7 +292,9 @@ export async function openMultiTextDialog(
  * @param existing The names already in use.  Picking one of these is allowed:  it uses that format.
  * @returns The name, or undefined if the user cancelled.
  */
-function askFormatName(existing: readonly string[]): Promise<string | undefined> {
+function askFormatName(
+  existing: readonly string[],
+): Promise<string | undefined> {
   const dialog = document.createElement("dialog");
   dialog.style.cssText = "min-width:26em;max-width:36em;padding:1em";
 
@@ -307,7 +315,8 @@ function askFormatName(existing: readonly string[]): Promise<string | undefined>
   label.append(input);
 
   const message = document.createElement("div");
-  message.style.cssText = "font-size:0.85em;min-height:1.3em;margin:0.3em 0 0.8em 0";
+  message.style.cssText =
+    "font-size:0.85em;min-height:1.3em;margin:0.3em 0 0.8em 0";
 
   const buttons = document.createElement("div");
   buttons.style.cssText = "display:flex;gap:0.5em;justify-content:flex-end";

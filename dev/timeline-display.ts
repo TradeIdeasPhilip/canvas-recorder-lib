@@ -98,10 +98,10 @@ const SOUND_ROW_H_CSS = 58;
 const WORD_STRIP_CSS = 16;
 /** How close, in CSS px, a dragged edge must come to a snap point to land on it. */
 const SNAP_PX = 8;
-const BLOCK_PAD_CSS = 3;   // gap above/below block within its row
-const HANDLE_PX = 8;       // pixel zone at block edges that triggers a drag cursor
-const MIN_WINDOW_MS = 50;  // smallest zoom window allowed
-const BOTTOM_PAD_CSS = Math.round(ROW_H_CSS / 3);  // always-blank seek strip at the bottom
+const BLOCK_PAD_CSS = 3; // gap above/below block within its row
+const HANDLE_PX = 8; // pixel zone at block edges that triggers a drag cursor
+const MIN_WINDOW_MS = 50; // smallest zoom window allowed
+const BOTTOM_PAD_CSS = Math.round(ROW_H_CSS / 3); // always-blank seek strip at the bottom
 
 // ── TimelineDisplay ───────────────────────────────────────────────────────────
 
@@ -306,7 +306,10 @@ export class TimelineDisplay {
     const rows: number[] = new Array(n).fill(0);
     const all = Array.from({ length: n }, (_, i) => i);
     const isSound = (i: number) => this._blocks[i]!.lane === "sound";
-    const componentRows = this._assignLane(all.filter((i) => !isSound(i)), rows);
+    const componentRows = this._assignLane(
+      all.filter((i) => !isSound(i)),
+      rows,
+    );
     const soundIndices = all.filter(isSound);
     const soundRows = this._assignLane(soundIndices, rows);
     for (const i of soundIndices) rows[i]! += componentRows;
@@ -361,7 +364,12 @@ export class TimelineDisplay {
     );
     if (firstSoundRow !== Infinity) {
       ctx.fillStyle = "#e3eee3";
-      ctx.fillRect(0, tops[firstSoundRow]! * dpr, pxW, (rowsHeight - tops[firstSoundRow]!) * dpr);
+      ctx.fillRect(
+        0,
+        tops[firstSoundRow]! * dpr,
+        pxW,
+        (rowsHeight - tops[firstSoundRow]!) * dpr,
+      );
     }
 
     for (let i = 0; i < this._blocks.length; i++) {
@@ -398,7 +406,18 @@ export class TimelineDisplay {
         this._drawWaveform(ctx, wave, durMs, x0, bw, y0, bh - stripH, pxW);
       }
       if (transcript !== undefined && bw > 2 * dpr) {
-        this._drawWords(ctx, b, transcript, x0, x0 + bw, y1 - stripH, stripH, msToX, pxW, dpr);
+        this._drawWords(
+          ctx,
+          b,
+          transcript,
+          x0,
+          x0 + bw,
+          y1 - stripH,
+          stripH,
+          msToX,
+          pxW,
+          dpr,
+        );
       }
       if (isSound && selected) {
         ctx.strokeStyle = "#fff";
@@ -532,7 +551,12 @@ export class TimelineDisplay {
       if (msToX(word.endMs) < left) continue;
       if (x - lastTickX >= 3 * dpr) {
         ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
-        ctx.fillRect(Math.round(x), top, Math.max(1, Math.round(dpr / 2)), height);
+        ctx.fillRect(
+          Math.round(x),
+          top,
+          Math.max(1, Math.round(dpr / 2)),
+          height,
+        );
         lastTickX = x;
       }
       const textX = Math.max(x, left) + 2 * dpr;
@@ -648,10 +672,23 @@ export class TimelineDisplay {
 
     type DragState =
       | { kind: "idle" }
-      | { kind: "potential"; x0: number; y0: number; msAtDown: number; bodyBlock?: { block: TimelineBlock; startMsAtDown: number }; leftBlock?: TimelineBlock; rightBlock?: TimelineBlock }
+      | {
+          kind: "potential";
+          x0: number;
+          y0: number;
+          msAtDown: number;
+          bodyBlock?: { block: TimelineBlock; startMsAtDown: number };
+          leftBlock?: TimelineBlock;
+          rightBlock?: TimelineBlock;
+        }
       | { kind: "pan"; x0: number; viewStart0: number; viewEnd0: number }
       | { kind: "drag-left"; block: TimelineBlock }
-      | { kind: "drag-body"; block: TimelineBlock; startMsAtDown: number; msAtDown: number }
+      | {
+          kind: "drag-body";
+          block: TimelineBlock;
+          startMsAtDown: number;
+          msAtDown: number;
+        }
       | { kind: "drag-right"; block: TimelineBlock }
       | { kind: "seek" };
 
@@ -664,8 +701,16 @@ export class TimelineDisplay {
 
     const clampMs = (ms: number) => Math.max(0, Math.min(this._durationMs, ms));
 
-    type HitInput = { clientX: number; clientY: number; shiftKey?: boolean; altKey?: boolean };
-    const hitTest = (e: HitInput): { block: TimelineBlock; zone: "left" | "right" | "body" } | undefined => {
+    type HitInput = {
+      clientX: number;
+      clientY: number;
+      shiftKey?: boolean;
+      altKey?: boolean;
+    };
+    const hitTest = (
+      e: HitInput,
+    ):
+      { block: TimelineBlock; zone: "left" | "right" | "body" } | undefined => {
       const rect = canvas.getBoundingClientRect();
       const cx = e.clientX - rect.left;
       const cy = e.clientY - rect.top;
@@ -687,13 +732,16 @@ export class TimelineDisplay {
         const markerMs = b.handleEndMs?.() ?? endMs;
 
         const inLeftZone = !!b.onDragLeft && Math.abs(ms - startMs) <= handleMs;
-        const inRightZone = !!(b.onDragRight || b.onCommitRight) && Math.abs(ms - markerMs) <= handleMs;
+        const inRightZone =
+          !!(b.onDragRight || b.onCommitRight) &&
+          Math.abs(ms - markerMs) <= handleMs;
         const inBody = ms >= startMs && ms <= endMs;
         if (!inLeftZone && !inRightZone && !inBody) continue;
 
         // Modifier overrides — resolve ambiguity on small/zero-duration blocks:
         // Shift → force right-edge (change duration / minDuration)
-        if (e.shiftKey && (b.onDragRight || b.onCommitRight)) return { block: b, zone: "right" };
+        if (e.shiftKey && (b.onDragRight || b.onCommitRight))
+          return { block: b, zone: "right" };
         // Ctrl → force body (select without dragging)
         if (e.altKey) return { block: b, zone: "body" };
 
@@ -709,21 +757,34 @@ export class TimelineDisplay {
 
     const updateHoverCursor = (e: HitInput) => {
       const hit = hitTest(e);
-      const isDurationZone = hit?.zone === "right" && !!(hit.block.onDragRight || hit.block.onCommitRight);
+      const isDurationZone =
+        hit?.zone === "right" &&
+        !!(hit.block.onDragRight || hit.block.onCommitRight);
       const isStartTimeZone = hit?.zone === "left" && !!hit.block.onDragLeft;
       const isBodyDraggable = hit?.zone === "body" && !!hit.block.onDragBody;
       const isCtrlSelect = !!e.altKey && !!hit;
-      canvas.style.cursor = isDurationZone ? "ew-resize"
-        // A sound clip's left edge trims; anything else's moves the start.
-        : isStartTimeZone ? (hit.block.lane === "sound" ? "ew-resize" : "grab")
-        : isCtrlSelect ? "pointer"
-        : isBodyDraggable ? "grab"
-        : "crosshair";
+      canvas.style.cursor = isDurationZone
+        ? "ew-resize"
+        : // A sound clip's left edge trims; anything else's moves the start.
+          isStartTimeZone
+          ? hit.block.lane === "sound"
+            ? "ew-resize"
+            : "grab"
+          : isCtrlSelect
+            ? "pointer"
+            : isBodyDraggable
+              ? "grab"
+              : "crosshair";
     };
 
     const onKey = (e: KeyboardEvent) => {
       if (drag.kind === "idle" || drag.kind === "potential") {
-        updateHoverCursor({ clientX: lastClientX, clientY: lastClientY, shiftKey: e.shiftKey, altKey: e.altKey });
+        updateHoverCursor({
+          clientX: lastClientX,
+          clientY: lastClientY,
+          shiftKey: e.shiftKey,
+          altKey: e.altKey,
+        });
       }
     };
     window.addEventListener("keydown", onKey);
@@ -744,16 +805,35 @@ export class TimelineDisplay {
       }
       // Ctrl on any block → potential so the mouseup triggers selection, not a drag
       if (e.altKey && hit) {
-        drag = { kind: "potential", x0: e.clientX, y0: e.clientY, msAtDown: toLocalMs(e) };
+        drag = {
+          kind: "potential",
+          x0: e.clientX,
+          y0: e.clientY,
+          msAtDown: toLocalMs(e),
+        };
         return;
       }
       const msAtDown = toLocalMs(e);
-      const leftBlock = hit?.zone === "left" && hit.block.onDragLeft ? hit.block : undefined;
-      const rightBlock = hit?.zone === "right" && (hit.block.onDragRight || hit.block.onCommitRight) ? hit.block : undefined;
-      const bodyBlock = hit?.zone === "body" && hit.block.onDragBody
-        ? { block: hit.block, startMsAtDown: hit.block.startMs() }
-        : undefined;
-      drag = { kind: "potential", x0: e.clientX, y0: e.clientY, msAtDown, leftBlock, rightBlock, bodyBlock };
+      const leftBlock =
+        hit?.zone === "left" && hit.block.onDragLeft ? hit.block : undefined;
+      const rightBlock =
+        hit?.zone === "right" &&
+        (hit.block.onDragRight || hit.block.onCommitRight)
+          ? hit.block
+          : undefined;
+      const bodyBlock =
+        hit?.zone === "body" && hit.block.onDragBody
+          ? { block: hit.block, startMsAtDown: hit.block.startMs() }
+          : undefined;
+      drag = {
+        kind: "potential",
+        x0: e.clientX,
+        y0: e.clientY,
+        msAtDown,
+        leftBlock,
+        rightBlock,
+        bodyBlock,
+      };
     });
 
     canvas.addEventListener("pointermove", (e) => {
@@ -778,7 +858,9 @@ export class TimelineDisplay {
           break;
         case "drag-left": {
           const width = canvas.getBoundingClientRect().width;
-          const ms = e.altKey ? toLocalMs(e) : this._snap(drag.block, toLocalMs(e), width);
+          const ms = e.altKey
+            ? toLocalMs(e)
+            : this._snap(drag.block, toLocalMs(e), width);
           if (e.altKey) this._snapMs = undefined;
           drag.block.onDragLeft!(ms);
           this._draw();
@@ -792,7 +874,9 @@ export class TimelineDisplay {
         }
         case "drag-right": {
           const width = canvas.getBoundingClientRect().width;
-          const ms = e.altKey ? toLocalMs(e) : this._snap(drag.block, toLocalMs(e), width);
+          const ms = e.altKey
+            ? toLocalMs(e)
+            : this._snap(drag.block, toLocalMs(e), width);
           if (e.altKey) this._snapMs = undefined;
           drag.block.onDragRight?.(ms);
           this._draw();
@@ -805,9 +889,19 @@ export class TimelineDisplay {
             } else if (drag.rightBlock) {
               drag = { kind: "drag-right", block: drag.rightBlock };
             } else if (drag.bodyBlock) {
-              drag = { kind: "drag-body", block: drag.bodyBlock.block, startMsAtDown: drag.bodyBlock.startMsAtDown, msAtDown: drag.msAtDown };
+              drag = {
+                kind: "drag-body",
+                block: drag.bodyBlock.block,
+                startMsAtDown: drag.bodyBlock.startMsAtDown,
+                msAtDown: drag.msAtDown,
+              };
             } else {
-              drag = { kind: "pan", x0: drag.x0, viewStart0: this._viewStartMs, viewEnd0: this._viewEndMs };
+              drag = {
+                kind: "pan",
+                x0: drag.x0,
+                viewStart0: this._viewStartMs,
+                viewEnd0: this._viewEndMs,
+              };
             }
           }
           break;
@@ -838,7 +932,11 @@ export class TimelineDisplay {
       const saved = drag;
       drag = { kind: "idle" };
 
-      if (saved.kind === "drag-left" || saved.kind === "drag-right" || saved.kind === "drag-body") {
+      if (
+        saved.kind === "drag-left" ||
+        saved.kind === "drag-right" ||
+        saved.kind === "drag-body"
+      ) {
         if (saved.kind === "drag-right") saved.block.onCommitRight?.();
         this._snapMs = undefined;
         this._draw();
@@ -861,21 +959,25 @@ export class TimelineDisplay {
       }
     });
 
-    canvas.addEventListener("wheel", (e) => {
-      e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      const cursorMs = this._xToMs(e.clientX - rect.left, rect.width);
-      const factor = e.deltaY > 0 ? 1.5 ** (1 / 7) : 1.5 ** (-1 / 7);
-      let s = cursorMs + (this._viewStartMs - cursorMs) * factor;
-      let end = cursorMs + (this._viewEndMs - cursorMs) * factor;
-      s = Math.max(0, s);
-      end = Math.min(this._durationMs, end);
-      if (end - s >= MIN_WINDOW_MS) {
-        this._viewStartMs = s;
-        this._viewEndMs = end;
-        this._userMovedView();
-        this._draw();
-      }
-    }, { passive: false });
+    canvas.addEventListener(
+      "wheel",
+      (e) => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const cursorMs = this._xToMs(e.clientX - rect.left, rect.width);
+        const factor = e.deltaY > 0 ? 1.5 ** (1 / 7) : 1.5 ** (-1 / 7);
+        let s = cursorMs + (this._viewStartMs - cursorMs) * factor;
+        let end = cursorMs + (this._viewEndMs - cursorMs) * factor;
+        s = Math.max(0, s);
+        end = Math.min(this._durationMs, end);
+        if (end - s >= MIN_WINDOW_MS) {
+          this._viewStartMs = s;
+          this._viewEndMs = end;
+          this._userMovedView();
+          this._draw();
+        }
+      },
+      { passive: false },
+    );
   }
 }

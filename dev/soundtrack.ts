@@ -219,7 +219,8 @@ export class Soundtrack {
     const time1 = performance.now();
     const response = await fetchMedia(url);
     // Or the error page would be decoded, and fail with a message that doesn't say why.
-    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    if (!response.ok)
+      throw new Error(`${response.status} ${response.statusText}`);
     const encoded = await response.arrayBuffer();
     // Before decoding:  decodeAudioData() detaches the buffer, so it reads as 0 bytes after.
     const bytes = encoded.byteLength;
@@ -302,7 +303,9 @@ export class Soundtrack {
     for (;;) {
       if (this.#requested) this.#update();
       const json = this.#clipsJson;
-      await Promise.allSettled(this.#clips.map(({ source }) => this.#load(source)));
+      await Promise.allSettled(
+        this.#clips.map(({ source }) => this.#load(source)),
+      );
       if (!this.#requested && json === this.#clipsJson) return;
     }
   }
@@ -313,10 +316,7 @@ export class Soundtrack {
    */
   mix(fromMs: number, toMs: number): AudioBuilder {
     if (this.#requested) this.#update();
-    const builder = new AudioBuilder(
-      Math.max(0, toMs - fromMs),
-      SAMPLE_RATE,
-    );
+    const builder = new AudioBuilder(Math.max(0, toMs - fromMs), SAMPLE_RATE);
     for (const clip of this.#clips) {
       const buffer = this.#decoded.get(clip.source);
       if (buffer) {
@@ -378,7 +378,9 @@ export class Soundtrack {
   /** The video's time at `contextTime`, by the current anchor. */
   #mediaMsAt(contextTime: number): number {
     const anchor = this.#anchor!;
-    return anchor.mediaMs + (contextTime - anchor.contextTime) * anchor.rate * 1000;
+    return (
+      anchor.mediaMs + (contextTime - anchor.contextTime) * anchor.rate * 1000
+    );
   }
 
   /**
@@ -386,7 +388,12 @@ export class Soundtrack {
    * same time, so a node can be kept.
    */
   #keyOf(clip: PlacedSoundClip): string {
-    return JSON.stringify([clip.source, clip.startMs, clip.trimMs, clip.lengthMs]);
+    return JSON.stringify([
+      clip.source,
+      clip.startMs,
+      clip.trimMs,
+      clip.lengthMs,
+    ]);
   }
 
   /**

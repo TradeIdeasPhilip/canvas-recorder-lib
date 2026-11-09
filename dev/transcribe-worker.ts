@@ -2,11 +2,7 @@
 // the models run.  Started by transcripts.ts; it does nothing on its own.
 
 import * as transformers from "@huggingface/transformers";
-import {
-  Device,
-  Transcriber,
-  TranscribeProgress,
-} from "./transcribe-core.ts";
+import { Device, Transcriber, TranscribeProgress } from "./transcribe-core.ts";
 import type { TranscriptWord } from "./transcript-align.ts";
 
 export type TranscribeRequest = {
@@ -41,7 +37,9 @@ const transcribers = new Map<Device, Transcriber>();
 let webGpuFailed = false;
 
 function post(reply: TranscribeReply): void {
-  (globalThis as unknown as { postMessage(message: unknown): void }).postMessage(reply);
+  (
+    globalThis as unknown as { postMessage(message: unknown): void }
+  ).postMessage(reply);
 }
 
 function devicesToTry(forced?: Device): Device[] {
@@ -57,7 +55,11 @@ globalThis.addEventListener("message", (event) => {
   queue = queue.then(() => handle(request));
 });
 
-async function handle({ id, samples, device: forced }: TranscribeRequest): Promise<void> {
+async function handle({
+  id,
+  samples,
+  device: forced,
+}: TranscribeRequest): Promise<void> {
   let lastError: unknown;
   for (const device of devicesToTry(forced)) {
     try {
@@ -70,13 +72,22 @@ async function handle({ id, samples, device: forced }: TranscribeRequest): Promi
       const words = await transcriber.transcribe(samples, (progress) =>
         post({ id, kind: "progress", progress, device }),
       );
-      post({ id, kind: "done", words, device, elapsedMs: performance.now() - start });
+      post({
+        id,
+        kind: "done",
+        words,
+        device,
+        elapsedMs: performance.now() - start,
+      });
       return;
     } catch (error) {
       lastError = error;
       transcribers.delete(device);
       if (device === "webgpu") webGpuFailed = true;
-      console.warn(`Transcription on ${device} failed; trying the next device.`, error);
+      console.warn(
+        `Transcription on ${device} failed; trying the next device.`,
+        error,
+      );
     }
   }
   post({ id, kind: "error", message: String(lastError) });

@@ -23,7 +23,9 @@ export type StartOptions = {
  * Everything the player needs, captured by {@link CanvasRecorder.start}.
  * @internal The player reads this when it starts.  Nothing else should need it.
  */
-export type StartRequest = { readonly showable: Showable } & Readonly<StartOptions>;
+export type StartRequest = {
+  readonly showable: Showable;
+} & Readonly<StartOptions>;
 
 /**
  * The four numbers that set the size of the video.  See {@link CanvasRecorder.size}.

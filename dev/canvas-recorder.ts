@@ -365,7 +365,8 @@ function readSavedVideoSize(): VideoSize | undefined {
       height: record.height,
     };
     const valid = Object.values(size).every(
-      (value) => typeof value === "number" && Number.isFinite(value) && value > 0,
+      (value) =>
+        typeof value === "number" && Number.isFinite(value) && value > 0,
     );
     return valid ? (size as VideoSize) : undefined;
   } catch {
@@ -401,9 +402,10 @@ function showVideoSize(size: VideoSize) {
   videoSizeWarning.title = stretched
     ? `The pixels are ${pixelAspect.toFixed(3)} : 1 and the units are ${unitAspect.toFixed(3)} : 1, so the picture is stretched to fit.`
     : "";
-  getById("videoSizeControls", HTMLSpanElement).title = canvasRecorder.sizeLocked
-    ? "The size of the video.  This program sets it, so it can't be changed here."
-    : "The size of the video.  Pixels:  the saved file.  Units:  the coordinates everything is drawn in.  Remembered for this video.";
+  getById("videoSizeControls", HTMLSpanElement).title =
+    canvasRecorder.sizeLocked
+      ? "The size of the video.  This program sets it, so it can't be changed here."
+      : "The size of the video.  Pixels:  the saved file.  Units:  the coordinates everything is drawn in.  Remembered for this video.";
 }
 showVideoSize(canvasRecorder.size);
 
@@ -421,7 +423,10 @@ function setVideoSizeFromGui(size: VideoSize): boolean {
     return false;
   }
   try {
-    localStorage.setItem(videoSizeStorageKey, JSON.stringify(canvasRecorder.size));
+    localStorage.setItem(
+      videoSizeStorageKey,
+      JSON.stringify(canvasRecorder.size),
+    );
   } catch {
     // Private browsing, or storage is full.  The size still works until the page reloads.
   }
@@ -466,9 +471,12 @@ function updateLocalFilesButton() {
   const names = localFilesNeedingPermission();
   localFilesBtn.hidden = names.length === 0;
   localFilesBtn.textContent =
-    names.length === 1 ? "🔓 Allow local file" : `🔓 Allow ${names.length} local files`;
+    names.length === 1
+      ? "🔓 Allow local file"
+      : `🔓 Allow ${names.length} local files`;
   localFilesBtn.title =
-    "The browser needs your OK before it reads these files again:\n" + names.join("\n");
+    "The browser needs your OK before it reads these files again:\n" +
+    names.join("\n");
 }
 onLocalFilesChange(updateLocalFilesButton);
 
@@ -518,7 +526,8 @@ function showFrame(timeInMs: number, live: boolean) {
     timeInMs - rootStartMs,
     live && playCheckBox.checked,
   );
-  if (live) transcriptView?.update(timeInMs - rootStartMs, playCheckBox.checked);
+  if (live)
+    transcriptView?.update(timeInMs - rootStartMs, playCheckBox.checked);
   for (const update of goToButtonUpdaters) update();
   context.reset();
   context.setTransform(mainTransform());
@@ -679,7 +688,9 @@ function setRootStartMs(ms: number): void {
 playPositionLocal.addEventListener("input", () => {
   // The same time, shown the other way.  The number still means what the checkbox used to say.
   const shownMs = playPositionSeconds.valueAsNumber * 1000;
-  loadPlayPositionSeconds(playPositionLocal.checked ? shownMs : shownMs + rootStartMs);
+  loadPlayPositionSeconds(
+    playPositionLocal.checked ? shownMs : shownMs + rootStartMs,
+  );
 });
 
 /**
@@ -1018,10 +1029,7 @@ addEventListener("keypress", (event) => {
 });
 
 getById("back5s", HTMLButtonElement).addEventListener("click", () => {
-  const backMs = Math.max(
-    sectionStartTime,
-    playheadInVideoMs() - 5000,
-  );
+  const backMs = Math.max(sectionStartTime, playheadInVideoMs() - 5000);
   loadPlayPositionSeconds(backMs);
   loadPlayPositionRange();
   stopAudio();
@@ -1140,7 +1148,8 @@ const sectionEndRadios = document.querySelectorAll<HTMLInputElement>(
 );
 
 /** Where the clip being recorded will go.  For its block on the timeline. */
-let liveVoiceClip: { readonly owner: Showable; readonly startInOwnerMs: number } | undefined;
+let liveVoiceClip:
+  { readonly owner: Showable; readonly startInOwnerMs: number } | undefined;
 
 recordModeButton.addEventListener("click", async () => {
   if (voicePanel) {
@@ -1261,7 +1270,11 @@ function endVoiceClip(): void {
 }
 
 /** A clip's file is finished.  Put it on the timeline. */
-function addVoiceClip(owner: Showable, startInOwnerMs: number, recorded: RecordedClip): void {
+function addVoiceClip(
+  owner: Showable,
+  startInOwnerMs: number,
+  recorded: RecordedClip,
+): void {
   // The samples are in memory already.  Don't read the file back.
   soundtrack.provide(recorded.url, recorded.buffer);
   (owner.soundClips ??= []).push({
@@ -1273,7 +1286,8 @@ function addVoiceClip(owner: Showable, startInOwnerMs: number, recorded: Recorde
   markDirty();
   soundtrack.request();
   refreshTimeline();
-  if ((selectedSlideChild ?? currentRoot()) === owner) updateScheduleEditor(owner);
+  if ((selectedSlideChild ?? currentRoot()) === owner)
+    updateScheduleEditor(owner);
 }
 
 /**
@@ -1552,7 +1566,12 @@ const saveOkBtn = getById("saveOkBtn", HTMLButtonElement);
  * HEVC stores color at half resolution (4:2:0), so both numbers must be even.
  */
 function saveSizeProblem(width: number, height: number): string | undefined {
-  if (!(Number.isInteger(width) && width > 0 && Number.isInteger(height) && height > 0)) {
+  if (!(
+    Number.isInteger(width) &&
+    width > 0 &&
+    Number.isInteger(height) &&
+    height > 0
+  )) {
     return "The size must be two whole numbers of pixels.";
   }
   if (width % 2 || height % 2) {
@@ -1575,7 +1594,7 @@ function updateSaveSizeNote(): void {
     saveSizeNote.style.color = "#555";
   } else {
     const stretched =
-      Math.abs((width / height) / (pixelWidth / pixelHeight) - 1) > 0.001;
+      Math.abs(width / height / (pixelWidth / pixelHeight) - 1) > 0.001;
     saveSizeNote.textContent = stretched
       ? `Stretched:  the video is ${pixelWidth} × ${pixelHeight}.`
       : `${Math.round((width / pixelWidth) * 100)}% of the video's ${pixelWidth} × ${pixelHeight}.`;
@@ -1615,8 +1634,13 @@ function matchSaveAspect(changed: "width" | "height"): void {
 
 saveWidthInput.addEventListener("input", () => matchSaveAspect("width"));
 saveHeightInput.addEventListener("input", () => matchSaveAspect("height"));
-saveKeepAspectCheckbox.addEventListener("input", () => matchSaveAspect("width"));
-getById("saveVideoSizeBtn", HTMLButtonElement).addEventListener("click", resetSaveSize);
+saveKeepAspectCheckbox.addEventListener("input", () =>
+  matchSaveAspect("width"),
+);
+getById("saveVideoSizeBtn", HTMLButtonElement).addEventListener(
+  "click",
+  resetSaveSize,
+);
 
 function formatTimecode(ms: number): string {
   const totalFrames = Math.round((ms * FPS) / 1000);
@@ -1718,9 +1742,13 @@ const saveLocalFilesBtn = getById("saveLocalFilesBtn", HTMLButtonElement);
 async function saveDialogLocalFilesReady(): Promise<boolean> {
   const problems = await checkLocalFiles(localFileUrlsIn(toShow));
   saveLocalFilesRow.hidden = problems.length === 0;
-  const needPermission = problems.some((problem) => problem.reason === "permission");
+  const needPermission = problems.some(
+    (problem) => problem.reason === "permission",
+  );
   saveLocalFilesBtn.hidden = !needPermission;
-  saveLocalFilesNote.textContent = problems.map((problem) => problem.message).join("  ");
+  saveLocalFilesNote.textContent = problems
+    .map((problem) => problem.message)
+    .join("  ");
   return problems.length === 0;
 }
 
@@ -2366,7 +2394,9 @@ transcriptView = new TranscriptView({
   transcript(source) {
     const status = transcriptStatus(source);
     if (!status) return undefined;
-    return status.kind === "ready" ? status.transcript : (statusText(status) ?? "");
+    return status.kind === "ready"
+      ? status.transcript
+      : (statusText(status) ?? "");
   },
   problem: (clip) => soundFileProblem(clip),
   seek: (rootMs) => timelineDisplay.onSeek?.(rootMs),
@@ -2493,8 +2523,13 @@ function assertSoundFilesLoaded(): void {
   const failed = soundtrack.failures();
   if (failed.length === 0) return;
   const { url, reason } = failed[0]!;
-  const why = (reason instanceof Error ? reason.message : String(reason)).replace(/([^.!?)])$/, "$1.");
-  const which = failed.length === 1 ? "" : `${failed.length} sound files couldn't be read.  The first:  `;
+  const why = (
+    reason instanceof Error ? reason.message : String(reason)
+  ).replace(/([^.!?)])$/, "$1.");
+  const which =
+    failed.length === 1
+      ? ""
+      : `${failed.length} sound files couldn't be read.  The first:  `;
   throw new Error(
     `${which}Can't play "${url}":  ${why}  Each clip that uses ${failed.length === 1 ? "it" : "one"} is marked ⚠ on the timeline.`,
   );
@@ -2820,7 +2855,10 @@ function saveState() {
     "timeInSeconds",
     isFinite(playheadMs) ? (playheadMs / 1000).toString() : "",
   );
-  sessionStorage.setItem("playPositionLocal", playPositionLocal.checked ? "1" : "0");
+  sessionStorage.setItem(
+    "playPositionLocal",
+    playPositionLocal.checked ? "1" : "0",
+  );
   sessionStorage.setItem(
     "state",
     querySelector('input[name="onSectionEnd"]:checked', HTMLInputElement).value,
@@ -2922,7 +2960,8 @@ function openScheduleDB(): Promise<IDBDatabase> {
       // Versions 1–3 had a per-chapter "history" store.  "videos" replaced it in v3, and v4
       // removes it.  Also drop the directory handle left behind by the temporary
       // "Save All 3" button.  See development-plans/single-tree-per-video.md.
-      if (db.objectStoreNames.contains("history")) db.deleteObjectStore("history");
+      if (db.objectStoreNames.contains("history"))
+        db.deleteObjectStore("history");
       if (oldVersion < 4)
         req.transaction!.objectStore("files").delete("__properties-dir__");
     };
@@ -3122,7 +3161,11 @@ const jsonSync = new SyncedFile({
         if (enabled) {
           // Only one file per video is synced (and so "active") at a time.
           for (const r of getAllReq.result as FileRecord[]) {
-            if (r.videoKey === toShowKey && r.filename !== filename && r.isActive)
+            if (
+              r.videoKey === toShowKey &&
+              r.filename !== filename &&
+              r.isActive
+            )
               store.put({ ...r, isActive: false, syncEnabled: false });
           }
         }
@@ -3229,7 +3272,10 @@ function classDefaults(cls: new () => Showable): ClassDefaults {
       schedules: serializeSchedules(instance.schedules ?? []),
       scalars: serializeScalars(instance.scalars ?? []),
       duration: instance.duration,
-      schedulePropertyNames: propertyNamesOf(instance, instance.schedules ?? []),
+      schedulePropertyNames: propertyNamesOf(
+        instance,
+        instance.schedules ?? [],
+      ),
       scalarPropertyNames: propertyNamesOf(instance, instance.scalars ?? []),
       soundClips: instance.soundClips,
     };
@@ -3356,7 +3402,8 @@ function buildDiffText(): string {
     } else {
       // The live object's class, so the properties below type-check.
       const className = comp.constructor.name;
-      const cast = className && className !== "Object" ? ` as ${className}` : "";
+      const cast =
+        className && className !== "Object" ? ` as ${className}` : "";
       out.push(
         `${indent}// No howToGenerate for "${rk}", so this makes one the way the Visual Editor does.`,
         `${indent}const ${varName} = componentRegistry.get(${JSON.stringify(rk)})!.create()${cast};`,
@@ -3404,16 +3451,15 @@ function buildDiffText(): string {
 
     if (
       (comp.soundClips?.length || def.soundClips?.length) &&
-      JSON.stringify(comp.soundClips ?? []) !== JSON.stringify(def.soundClips ?? [])
+      JSON.stringify(comp.soundClips ?? []) !==
+        JSON.stringify(def.soundClips ?? [])
     ) {
       out.push(
         `${indent}${varName}.soundClips = ${JSON.stringify(comp.soundClips ?? [])};`,
       );
     }
 
-    out.push(
-      `${indent}${parentExpr}.replaceableComponents!.push(${varName});`,
-    );
+    out.push(`${indent}${parentExpr}.replaceableComponents!.push(${varName});`);
 
     return out;
   }
@@ -3587,7 +3633,10 @@ function buildDiffText(): string {
         diffProperties(d, comp, childPath);
         diffReplaceable(d.components ?? [], comp, childPath);
       } else {
-        printPathIfNeeded([...path, d.userEditableDescription ?? d.registryKey]);
+        printPathIfNeeded([
+          ...path,
+          d.userEditableDescription ?? d.registryKey,
+        ]);
         lines.push(`  [deleted]`);
       }
     }
@@ -3629,7 +3678,6 @@ function buildDiffText(): string {
       }
     }
   }
-
 
   // One tree, so one walk: diffNode() recurses through fixedComponents on its own.
   if (tsDefaultsTree) {
@@ -3868,7 +3916,6 @@ function afterStateApplied(): void {
   soundtrack.request();
 }
 
-
 /** Saves current schedule state to IndexedDB as a full data entry.
  *  Pass force=true (💾 Save button) to bypass the ts-defaults-no-auto-save guard. */
 /**
@@ -3903,8 +3950,7 @@ async function saveVideoStateToDb(force: boolean): Promise<void> {
 
   // Nothing changed since the last data entry -- don't add a duplicate.
   const last = entries.findLast((e) => !isMarker(e)) as
-    | VideoDataEntry
-    | undefined;
+    VideoDataEntry | undefined;
   if (last && JSON.stringify(last.tree) === newJson) return;
 
   const entry: VideoDataEntry = { timestamp: Date.now(), tree };
@@ -4807,8 +4853,10 @@ function buildScheduleSection(
       } else {
         const none = document.createElement("span");
         none.textContent = "—";
-        none.title = "The last keyframe has no duration:  nothing comes after it.";
-        none.style.cssText = "display:inline-block;width:6em;text-align:center;color:#888";
+        none.title =
+          "The last keyframe has no duration:  nothing comes after it.";
+        none.style.cssText =
+          "display:inline-block;width:6em;text-align:center;color:#888";
         cell.append(none);
       }
       const atLabel = document.createElement("span");
@@ -5059,8 +5107,9 @@ function buildScheduleSection(
         "cellWidth",
         "cellHeight",
       ] as const;
-      const fieldInputs: Partial<Record<(typeof fields)[number], HTMLInputElement>> =
-        {};
+      const fieldInputs: Partial<
+        Record<(typeof fields)[number], HTMLInputElement>
+      > = {};
       for (const field of fields) {
         const input = buildNumericInput(latKf.value[field], (n) => {
           latKf.value = { ...latKf.value, [field]: n };
@@ -5493,7 +5542,11 @@ function updateComponentEditor(selectable: Showable) {
           if (i !== -1) arr.splice(i, 1);
           replaceables.replace(arr);
           if (childStart !== undefined) {
-            playheadAfterRemoving(childStart, childStart + childDuration, chainEndMs);
+            playheadAfterRemoving(
+              childStart,
+              childStart + childDuration,
+              chainEndMs,
+            );
           }
           if (selectedSlideChild === child) {
             selectedSlideChild = null;
@@ -5601,7 +5654,8 @@ function updateComponentEditor(selectable: Showable) {
       : selectedSlideChild.replaceableComponents !== undefined
         ? selectedSlideChild
         : null;
-  const displayName = (s: Showable) => s.userEditableDescription ?? s.description;
+  const displayName = (s: Showable) =>
+    s.userEditableDescription ?? s.description;
 
   const toolbar = document.createElement("div");
   toolbar.className = "components-toolbar";
@@ -5746,13 +5800,14 @@ function buildSoundClipSection(selectable: Showable): HTMLElement {
   const header = document.createElement("div");
   header.style.cssText =
     "display:flex;align-items:center;gap:0.4em;margin-bottom:0.3em;font-size:0.85em;color:#555";
-  header.textContent = "Times are in ms, measured from the start of this component.";
-  const playheadInOwner = () =>
-    tidyMs(playheadInVideoMs() - selfStartMs);
+  header.textContent =
+    "Times are in ms, measured from the start of this component.";
+  const playheadInOwner = () => tidyMs(playheadInVideoMs() - selfStartMs);
   const addBtn = document.createElement("button");
   addBtn.type = "button";
   addBtn.textContent = "+ Add";
-  addBtn.title = "Add an empty sound clip at the playhead.  Then fill in its source.";
+  addBtn.title =
+    "Add an empty sound clip at the playhead.  Then fill in its source.";
   addBtn.style.marginLeft = "auto";
   addBtn.addEventListener("click", () => {
     const clip: SoundClip = { source: "", startMsIntoScene: playheadInOwner() };
@@ -5777,7 +5832,9 @@ function buildSoundClipSection(selectable: Showable): HTMLElement {
     }
     const pasted = parseSoundClips(text);
     if (pasted.length === 0) {
-      alert("No sound clips found on the clipboard.  Each one needs at least a source.");
+      alert(
+        "No sound clips found on the clipboard.  Each one needs at least a source.",
+      );
       return;
     }
     ensureList();
@@ -5972,7 +6029,8 @@ function buildSoundClipSection(selectable: Showable): HTMLElement {
 
     // Why the file can't be played, if it can't.
     const problemLine = document.createElement("div");
-    problemLine.style.cssText = "margin-top:0.2em;font-size:0.85em;color:#b00020";
+    problemLine.style.cssText =
+      "margin-top:0.2em;font-size:0.85em;color:#b00020";
     const showProblem = () => {
       const problem = soundFileProblem(clip);
       problemLine.hidden = problem === undefined;
@@ -6063,7 +6121,8 @@ function buildSoundClipSection(selectable: Showable): HTMLElement {
     row4.style.cssText =
       "display:flex;gap:0.4em;align-items:center;margin-top:0.2em;flex-wrap:wrap;font-size:0.85em";
     const ownerLabel = document.createElement("label");
-    ownerLabel.style.cssText = "display:flex;align-items:center;gap:0.2em;min-width:0;flex:1";
+    ownerLabel.style.cssText =
+      "display:flex;align-items:center;gap:0.2em;min-width:0;flex:1";
     ownerLabel.textContent = "owner:";
     ownerLabel.title =
       "Which component this sound belongs to.  It moves when its owner moves.  " +
@@ -6192,7 +6251,10 @@ function updateScheduleEditor(selectable: Showable) {
   soundClipSyncCallbacks.length = 0;
   rectAspectLock = null;
   // A highlighted sound clip stays highlighted only while its owner is selected.
-  if (selectedSoundClip && !selectable.soundClips?.includes(selectedSoundClip)) {
+  if (
+    selectedSoundClip &&
+    !selectable.soundClips?.includes(selectedSoundClip)
+  ) {
     selectedSoundClip = undefined;
   }
   timelineDisplay.setSelectedSoundId(selectedSoundClip);
@@ -6318,7 +6380,10 @@ function updateScheduleEditor(selectable: Showable) {
         return playheadInRootMs() - ownerStart;
       },
       progressChanged() {
-        activeRootComponentEditor?.update(selectable, selectable.progressSchedule);
+        activeRootComponentEditor?.update(
+          selectable,
+          selectable.progressSchedule,
+        );
         markDirty();
         // Rebuild so the Progress table shows the new keyframes.
         updateScheduleEditor(selectable);
@@ -6666,9 +6731,7 @@ function rectHandlePositions(
  * level, so local == logical and no conversion is needed).
  */
 function getMarkerRelTf(): DOMMatrix | null {
-  const component =
-    selectedSlideChild ??
-    currentRoot();
+  const component = selectedSlideChild ?? currentRoot();
   if (!component) return null;
   const compTf = componentTransforms.get(component);
   if (!compTf) return null;
@@ -6809,7 +6872,10 @@ function drawLatticeOutline(
 }
 
 /** Where the lattice's cell-size control point sits: bottom-right of the top-left cell. */
-function latticeCellHandlePosition(value: LatticeValue): { x: number; y: number } {
+function latticeCellHandlePosition(value: LatticeValue): {
+  x: number;
+  y: number;
+} {
   const lattice = new Lattice(value);
   const cell = lattice.cellRect(0, 0);
   return { x: cell.x + cell.width, y: cell.y + cell.height };
@@ -7539,7 +7605,9 @@ function applyMarkerDrag(localX: number, localY: number, shiftKey = false) {
       updateFromSelect();
       if (sessionStorage.getItem("keepLimits") === "1") {
         keepLimitsCheckbox.checked = true;
-        const limitsIndex = parseIntX(sessionStorage.getItem("limitsIndex") ?? "");
+        const limitsIndex = parseIntX(
+          sessionStorage.getItem("limitsIndex") ?? "",
+        );
         const saved =
           limitsIndex === undefined ? undefined : chapterList[limitsIndex];
         if (saved) {
@@ -7826,7 +7894,8 @@ function renderNewDebugLogEntries(): void {
     debugLogPre.scrollTop + debugLogPre.clientHeight >=
     debugLogPre.scrollHeight - 4;
   const newLines = newEntries.map(
-    (entry) => `${(entry.time / 1000).toFixed(3)}  [${entry.tag}]  ${entry.message}`,
+    (entry) =>
+      `${(entry.time / 1000).toFixed(3)}  [${entry.tag}]  ${entry.message}`,
   );
   const allLines = debugLogPre.textContent
     ? debugLogPre.textContent.split("\n").concat(newLines)
@@ -7837,19 +7906,18 @@ function renderNewDebugLogEntries(): void {
   }
 }
 setInterval(renderNewDebugLogEntries, 250);
-getById("debugLogClearBtn", HTMLButtonElement).addEventListener(
-  "click",
-  () => {
-    debugLogPre.textContent = "";
-  },
-);
+getById("debugLogClearBtn", HTMLButtonElement).addEventListener("click", () => {
+  debugLogPre.textContent = "";
+});
 
 getById("dumpDbBtn", HTMLButtonElement).addEventListener("click", async () => {
   const videoRecord = await readVideoHistory();
   const pre = getById("dbDump", HTMLPreElement);
   const lines: string[] = [];
 
-  lines.push(`=== videos["${toShowKey}"] — ${videoRecord?.entries.length ?? 0} entr(ies) ===`);
+  lines.push(
+    `=== videos["${toShowKey}"] — ${videoRecord?.entries.length ?? 0} entr(ies) ===`,
+  );
   const latest = videoRecord?.entries.at(-1);
   lines.push(latest ? JSON.stringify(latest, null, 2) : "(none)");
   pre.textContent = lines.join("\n");

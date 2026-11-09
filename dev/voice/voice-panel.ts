@@ -27,7 +27,10 @@ export type VoicePanelOptions = {
   /** The player's AudioContext, so the mic and the video share one clock. */
   readonly context: AudioContext;
   /** ● Record, with a folder we can write to.  Start recording, and the video. */
-  readonly onRecord: (recorder: VoiceRecorder, folder: FileSystemDirectoryHandle) => Promise<void>;
+  readonly onRecord: (
+    recorder: VoiceRecorder,
+    folder: FileSystemDirectoryHandle,
+  ) => Promise<void>;
   /** ■ Stop. */
   readonly onStop: () => void;
   /** Called after the panel closes, by × or by {@link VoicePanel.close}. */
@@ -263,7 +266,9 @@ function loadChoices(): ProcessingChoices {
  * Open the panel and turn on the mic.  Call this from a click, so the browser lets audio start.
  * The browser asks for permission to use the mic the first time.
  */
-export async function openVoicePanel(options: VoicePanelOptions): Promise<VoicePanel> {
+export async function openVoicePanel(
+  options: VoicePanelOptions,
+): Promise<VoicePanel> {
   addStyles();
   const panel = element("div", "vr-panel");
   const close = element("button", "vr-close", "×");
@@ -290,7 +295,14 @@ export async function openVoicePanel(options: VoicePanelOptions): Promise<VoiceP
   const folderName = element("b", "", "…");
   const changeFolder = element("button", "", "Change…");
   changeFolder.style.padding = "0 6px";
-  const folderLine = element("div", "vr-small", "Folder: ", folderName, " ", changeFolder);
+  const folderLine = element(
+    "div",
+    "vr-small",
+    "Folder: ",
+    folderName,
+    " ",
+    changeFolder,
+  );
   const record = element("button", "vr-record", "● Record");
   record.title =
     "Play the chirp, then record your voice while the video plays.  Pause the video to stop.  " +
@@ -322,7 +334,9 @@ export async function openVoicePanel(options: VoicePanelOptions): Promise<VoiceP
   const savedChirpLevel = Number(localStorage.getItem(STORAGE.chirpLevel));
   placeMark(
     soundMark,
-    Number.isFinite(savedChirpLevel) && savedChirpLevel < 0 ? savedChirpLevel : undefined,
+    Number.isFinite(savedChirpLevel) && savedChirpLevel < 0
+      ? savedChirpLevel
+      : undefined,
   );
   const closed = () => {
     panel.remove();
@@ -333,7 +347,9 @@ export async function openVoicePanel(options: VoicePanelOptions): Promise<VoiceP
   // Not awaited:  the mic should start while this click still counts as a click.
   let folder: FileSystemDirectoryHandle | undefined;
   const showFolder = () => {
-    folderName.textContent = folder ? folder.name || "browser storage" : "not chosen yet";
+    folderName.textContent = folder
+      ? folder.name || "browser storage"
+      : "not chosen yet";
   };
   void rememberedFolder().then((remembered) => {
     // ??=, in case Change… or setFolder() got here first.
@@ -355,7 +371,10 @@ export async function openVoicePanel(options: VoicePanelOptions): Promise<VoiceP
     recorder = await VoiceRecorder.open(options.context, loadChoices());
   } catch (error) {
     micLine.textContent = "No mic.";
-    say(`Couldn't turn on the mic: ${error instanceof Error ? error.message : error}`, true);
+    say(
+      `Couldn't turn on the mic: ${error instanceof Error ? error.message : error}`,
+      true,
+    );
     // Leave the panel up, so you can read why.
     close.addEventListener("click", closed);
     throw error;
@@ -371,7 +390,8 @@ export async function openVoicePanel(options: VoicePanelOptions): Promise<VoiceP
     const now = performance.now();
     const seconds = (now - lastLevel) / 1000;
     lastLevel = now;
-    meanSquare += (rms * rms - meanSquare) * (1 - Math.exp(-seconds / METER_SECONDS));
+    meanSquare +=
+      (rms * rms - meanSquare) * (1 - Math.exp(-seconds / METER_SECONDS));
     const peakDb = toDb(peakLevel);
     if (peakDb >= held) {
       held = peakDb;
@@ -396,13 +416,16 @@ export async function openVoicePanel(options: VoicePanelOptions): Promise<VoiceP
     const requested = loadChoices();
     for (const [name, got] of gotLabels) {
       const value = actual[name];
-      got.textContent = value === undefined ? "got: ?" : `got: ${value ? "on" : "off"}`;
+      got.textContent =
+        value === undefined ? "got: ?" : `got: ${value ? "on" : "off"}`;
       got.classList.toggle(
         "vr-mismatch",
         value !== undefined && value !== (requested[name] ?? false),
       );
     }
-    const rate = actual.sampleRate ? ` · ${Number(actual.sampleRate) / 1000} kHz` : "";
+    const rate = actual.sampleRate
+      ? ` · ${Number(actual.sampleRate) / 1000} kHz`
+      : "";
     micLine.textContent = `Mic: ${recorder.micName || "unknown"}${rate}`;
   };
   for (const { name, label, help } of supportedProcessing()) {
@@ -505,7 +528,8 @@ export async function openVoicePanel(options: VoicePanelOptions): Promise<VoiceP
       }
     },
     setPastEnd(ms) {
-      pastEnd.textContent = ms === undefined ? "" : `+${(ms / 1000).toFixed(1)} s past the end`;
+      pastEnd.textContent =
+        ms === undefined ? "" : `+${(ms / 1000).toFixed(1)} s past the end`;
     },
     say,
     setFolder(newFolder) {

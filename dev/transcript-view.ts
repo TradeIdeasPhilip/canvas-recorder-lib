@@ -23,7 +23,10 @@ export type TranscriptViewHooks = {
    */
   transcript(
     source: string,
-  ): { readonly words: readonly TranscriptWord[]; readonly madeAt: number } | string | undefined;
+  ):
+    | { readonly words: readonly TranscriptWord[]; readonly madeAt: number }
+    | string
+    | undefined;
   /** Why this clip's file can't be played, if it can't.  Shown above its words. */
   problem(clip: SoundClip): string | undefined;
   /** Put the playhead here, in the root's time. */
@@ -36,7 +39,12 @@ export type TranscriptViewHooks = {
    * Cut `fromMs`–`toMs` (the owner's time) out of `clip`.  See
    * `cutOutOfSoundClip()`.
    */
-  cutOut(target: TranscriptViewClip, fromMs: number, toMs: number, closeGap: boolean): void;
+  cutOut(
+    target: TranscriptViewClip,
+    fromMs: number,
+    toMs: number,
+    closeGap: boolean,
+  ): void;
 };
 
 /** One word on screen. */
@@ -94,7 +102,8 @@ function describe(view: Omit<ViewWord, "element">): string {
       : word.timing === "whisper"
         ? "Whisper's word and Whisper's rough times"
         : "Whisper's word, timed by the letter model";
-  const owner = target.owner.userEditableDescription ?? target.owner.description;
+  const owner =
+    target.owner.userEditableDescription ?? target.owner.description;
   const flag = wordFlag(word);
   return [
     `“${word.text}”  ${played ? "" : "(not played:  trimmed or cut out)"}`.trim(),
@@ -269,10 +278,14 @@ export class TranscriptView {
     this.#drawSelectedClip();
     const { anchor, side } = this.#wordAt(playMs);
     const className = side && PLAYHEAD_CLASSES[side];
-    if (anchor !== this.#marked?.view || className !== this.#marked?.className) {
+    if (
+      anchor !== this.#marked?.view ||
+      className !== this.#marked?.className
+    ) {
       this.#marked?.view.element.classList.remove(this.#marked.className);
       if (anchor && className) anchor.element.classList.add(className);
-      this.#marked = anchor && className ? { view: anchor, className } : undefined;
+      this.#marked =
+        anchor && className ? { view: anchor, className } : undefined;
     }
     this.#current = anchor;
     if (!anchor) {
@@ -297,7 +310,9 @@ export class TranscriptView {
 
   #rebuildIfNeeded(): void {
     const clips = this.hooks.clips();
-    const transcripts = clips.map(({ clip }) => this.hooks.transcript(clip.source));
+    const transcripts = clips.map(({ clip }) =>
+      this.hooks.transcript(clip.source),
+    );
     const problems = clips.map(({ clip }) => this.hooks.problem(clip));
     const key = JSON.stringify([
       this.#showCut.checked,
@@ -345,7 +360,10 @@ export class TranscriptView {
     /** The file range each clip plays. */
     const range = (target: TranscriptViewClip) => {
       const from = target.clip.startMsIntoClip ?? 0;
-      return { from, to: target.lengthMs === undefined ? Infinity : from + target.lengthMs };
+      return {
+        from,
+        to: target.lengthMs === undefined ? Infinity : from + target.lengthMs,
+      };
     };
     const plays = (target: TranscriptViewClip, word: TranscriptWord) => {
       const { from, to } = range(target);
@@ -356,7 +374,10 @@ export class TranscriptView {
     // words of its file that no clip plays.  Each of those is shown once:
     // just before the first clip (in the file) that starts after it, or else
     // after the clip that ends last before it.
-    const wordsFor = new Map<TranscriptViewClip, { word: TranscriptWord; played: boolean }[]>();
+    const wordsFor = new Map<
+      TranscriptViewClip,
+      { word: TranscriptWord; played: boolean }[]
+    >();
     for (const target of clips) wordsFor.set(target, []);
     const sources = new Set(clips.map(({ clip }) => clip.source));
     for (const source of sources) {
@@ -366,7 +387,8 @@ export class TranscriptView {
       const ofFile = clips.filter(({ clip }) => clip.source === source);
       for (const word of transcript.words) {
         const playing = ofFile.filter((target) => plays(target, word));
-        for (const target of playing) wordsFor.get(target)!.push({ word, played: true });
+        for (const target of playing)
+          wordsFor.get(target)!.push({ word, played: true });
         if (playing.length > 0 || !this.#showCut.checked) continue;
         const after = ofFile
           .filter((target) => range(target).from >= word.endMs)
@@ -384,8 +406,11 @@ export class TranscriptView {
       section.className = "tv-clip";
       const head = document.createElement("div");
       head.className = "tv-clip-head";
-      const owner = target.owner.userEditableDescription ?? target.owner.description;
-      const name = target.clip.notes || decodeURIComponent(target.clip.source.split("/").pop() ?? "");
+      const owner =
+        target.owner.userEditableDescription ?? target.owner.description;
+      const name =
+        target.clip.notes ||
+        decodeURIComponent(target.clip.source.split("/").pop() ?? "");
       head.textContent = `${seconds(target.startMs)} s · ${owner} · ${name}`;
       head.title = "Click to select this clip.";
       head.addEventListener("click", () => this.hooks.selectClip(target.clip));
@@ -409,7 +434,9 @@ export class TranscriptView {
         this.#scroll.append(section);
         return;
       }
-      const words = wordsFor.get(target)!.sort((a, b) => a.word.startMs - b.word.startMs);
+      const words = wordsFor
+        .get(target)!
+        .sort((a, b) => a.word.startMs - b.word.startMs);
       if (words.length === 0) {
         const note = document.createElement("div");
         note.className = "tv-note";
@@ -434,7 +461,8 @@ export class TranscriptView {
         if (flag === "left out") element.classList.add("recovered");
         if (flag === "doubtful") element.classList.add("doubtful");
         if (!played) element.classList.add("cut");
-        element.textContent = word.timing === "letters" ? `[${word.text}]` : word.text;
+        element.textContent =
+          word.timing === "letters" ? `[${word.text}]` : word.text;
         const view = {
           word,
           target,
@@ -474,7 +502,10 @@ export class TranscriptView {
    * * `side`:  whether `ms` is inside the anchor, in the pause after it, or
    *   before it (only before the very first word).
    */
-  #wordAt(ms: number): { anchor?: ViewWord; side?: keyof typeof PLAYHEAD_CLASSES } {
+  #wordAt(ms: number): {
+    anchor?: ViewWord;
+    side?: keyof typeof PLAYHEAD_CLASSES;
+  } {
     const words = this.#played;
     let low = 0;
     let high = words.length - 1;
@@ -499,7 +530,10 @@ export class TranscriptView {
   }
 
   #isAbove(view: ViewWord): boolean {
-    return view.element.getBoundingClientRect().top < this.#scroll.getBoundingClientRect().top;
+    return (
+      view.element.getBoundingClientRect().top <
+      this.#scroll.getBoundingClientRect().top
+    );
   }
 
   /** Bring a word into sight, a third of the way down, so there's room to read ahead. */
@@ -526,10 +560,13 @@ export class TranscriptView {
   /** The played words the selection touches. */
   #selectedWords(): ViewWord[] {
     const selection = document.getSelection();
-    if (!selection || selection.isCollapsed || selection.rangeCount === 0) return [];
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0)
+      return [];
     const range = selection.getRangeAt(0);
     if (!this.#scroll.contains(range.commonAncestorContainer)) return [];
-    return this.#all.filter((view) => view.played && range.intersectsNode(view.element));
+    return this.#all.filter(
+      (view) => view.played && range.intersectsNode(view.element),
+    );
   }
 
   #drawCutButton(): void {
@@ -538,10 +575,12 @@ export class TranscriptView {
     const button = this.#cutButton;
     if (words.length === 0) {
       button.disabled = true;
-      button.title = "Select some words, then click here to cut them out of their clip.";
+      button.title =
+        "Select some words, then click here to cut them out of their clip.";
     } else if (clips.size > 1) {
       button.disabled = true;
-      button.title = "The selection covers more than one clip.  Cut one clip at a time.";
+      button.title =
+        "The selection covers more than one clip.  Cut one clip at a time.";
     } else {
       button.disabled = false;
       button.title = `Cut ${words.length} word${words.length === 1 ? "" : "s"} out of this clip, quiet moment to quiet moment.`;
@@ -557,7 +596,8 @@ export class TranscriptView {
     const last = words[words.length - 1];
     const { clip } = target;
     // Owner time:  where the clip starts in its owner, plus how far into the clip.
-    const toOwner = (fileMs: number) => clip.startMsIntoScene + (fileMs - (clip.startMsIntoClip ?? 0));
+    const toOwner = (fileMs: number) =>
+      clip.startMsIntoScene + (fileMs - (clip.startMsIntoClip ?? 0));
     const fromMs = toOwner(first.word.cutBeforeMs);
     const toMs = toOwner(last.word.cutAfterMs);
     const closeGap = await askHowToCut(
@@ -576,7 +616,10 @@ export class TranscriptView {
  * Confirm a cut, and ask whether to close the gap.
  * @returns true to close the gap, false to leave it, undefined to cancel.
  */
-function askHowToCut(text: string, lengthMs: number): Promise<boolean | undefined> {
+function askHowToCut(
+  text: string,
+  lengthMs: number,
+): Promise<boolean | undefined> {
   const dialog = document.createElement("dialog");
   dialog.style.cssText = "min-width:26em;max-width:40em;padding:1em";
   const heading = document.createElement("h3");

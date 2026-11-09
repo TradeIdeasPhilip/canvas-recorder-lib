@@ -28,21 +28,29 @@ const ms = (n: number) => Math.round(n * 10) / 10;
 
 /** Whisper's words as they are; speech it left out in [brackets]. */
 function asText(words: readonly TranscriptWord[]): string {
-  return words.map((w) => (w.timing === "letters" ? `[${w.text}]` : w.text)).join(" ");
+  return words
+    .map((w) => (w.timing === "letters" ? `[${w.text}]` : w.text))
+    .join(" ");
 }
 
 /**
  * The JSON text to save.  Each word is on its own line, so the file reads
  * well and diffs and greps by word.
  */
-export function transcriptJson(transcript: Transcript, context: ClipContext): string {
+export function transcriptJson(
+  transcript: Transcript,
+  context: ClipContext,
+): string {
   const { clip } = context;
   const fromMs = clip.startMsIntoClip ?? 0;
-  const toMs = context.lengthMs === undefined ? undefined : fromMs + context.lengthMs;
+  const toMs =
+    context.lengthMs === undefined ? undefined : fromMs + context.lengthMs;
   const inClip = (w: TranscriptWord) =>
     w.endMs > fromMs && (toMs === undefined || w.startMs < toMs);
   const clipWords = transcript.words.filter(inClip);
-  const first = clipWords.length ? transcript.words.indexOf(clipWords[0]) : undefined;
+  const first = clipWords.length
+    ? transcript.words.indexOf(clipWords[0])
+    : undefined;
   const last = clipWords.length
     ? transcript.words.indexOf(clipWords[clipWords.length - 1])
     : undefined;
@@ -79,8 +87,10 @@ export function transcriptJson(transcript: Transcript, context: ClipContext): st
       pipelineVersion: PIPELINE_VERSION,
       models: MODELS,
       wordCount: transcript.words.length,
-      recoveredCount: transcript.words.filter((w) => w.timing === "letters").length,
-      doubtfulCount: transcript.words.filter((w) => wordFlag(w) === "doubtful").length,
+      recoveredCount: transcript.words.filter((w) => w.timing === "letters")
+        .length,
+      doubtfulCount: transcript.words.filter((w) => wordFlag(w) === "doubtful")
+        .length,
       text: asText(transcript.words),
     },
     words: "@@WORDS@@",
@@ -109,6 +119,7 @@ export function transcriptJson(transcript: Transcript, context: ClipContext): st
 
 /** A file name for the saved transcript:  the sound file's name, with `.transcript.json`. */
 export function transcriptFileName(source: string): string {
-  const name = decodeURIComponent(source.split("/").pop() ?? "sound") || "sound";
+  const name =
+    decodeURIComponent(source.split("/").pop() ?? "sound") || "sound";
   return name.replace(/\.[^.]*$/, "") + ".transcript.json";
 }

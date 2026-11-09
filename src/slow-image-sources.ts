@@ -1,6 +1,10 @@
 import { assertFinite } from "phil-lib/misc";
 import { ShowOptions } from "./showable.ts";
-import { getLocalFile, isLocalFileUrl, localFilesGeneration } from "./local-files.ts";
+import {
+  getLocalFile,
+  isLocalFileUrl,
+  localFilesGeneration,
+} from "./local-files.ts";
 
 // MARK: Base Class
 

@@ -139,7 +139,12 @@ registerProcessor("voice-recorder", VoiceRecorderProcessor);
 /** addModule() for each context only once:  registering the processor twice is an error. */
 const workletLoaded = new WeakMap<BaseAudioContext, Promise<void>>();
 
-type Chunk = { first: number; samples: Float32Array; peak: number; rms: number };
+type Chunk = {
+  first: number;
+  samples: Float32Array;
+  peak: number;
+  rms: number;
+};
 
 export type HeardResult = {
   /** Undefined if the chirp wasn't found:  speakers off, or headphones. */
@@ -241,16 +246,22 @@ export class VoiceRecorder {
     this.#choices = choices;
     const saved = Number(localStorage.getItem(DELAY_KEY));
     this.micDelayMs = saved > 0 ? saved : DEFAULT_DELAY_MS;
-    node.port.onmessage = (event: MessageEvent<Chunk>) => this.#receive(event.data);
+    node.port.onmessage = (event: MessageEvent<Chunk>) =>
+      this.#receive(event.data);
   }
 
   /**
    * Turn on the mic.  Call this from a click, so the browser lets the audio start.
    * The browser asks for permission to use the mic the first time.
    */
-  static async open(context: AudioContext, choices: ProcessingChoices): Promise<VoiceRecorder> {
+  static async open(
+    context: AudioContext,
+    choices: ProcessingChoices,
+  ): Promise<VoiceRecorder> {
     await workletLoaded.getOrInsertComputed(context, async () => {
-      const url = URL.createObjectURL(new Blob([WORKLET], { type: "text/javascript" }));
+      const url = URL.createObjectURL(
+        new Blob([WORKLET], { type: "text/javascript" }),
+      );
       try {
         await context.audioWorklet.addModule(url);
       } finally {
@@ -281,8 +292,12 @@ export class VoiceRecorder {
   }
 
   async #connectMic() {
-    this.#stream = await navigator.mediaDevices.getUserMedia({ audio: this.#constraints() });
-    this.#source = new MediaStreamAudioSourceNode(this.context, { mediaStream: this.#stream });
+    this.#stream = await navigator.mediaDevices.getUserMedia({
+      audio: this.#constraints(),
+    });
+    this.#source = new MediaStreamAudioSourceNode(this.context, {
+      mediaStream: this.#stream,
+    });
     this.#source.connect(this.#node);
   }
 
@@ -333,7 +348,10 @@ export class VoiceRecorder {
    *
    * @param prefix The start of each file's name, usually the video's name.
    */
-  async start(folder: FileSystemDirectoryHandle, prefix: string): Promise<void> {
+  async start(
+    folder: FileSystemDirectoryHandle,
+    prefix: string,
+  ): Promise<void> {
     if (this.#session) return;
     await this.context.resume();
     const chirp = chirpSamples(SAMPLE_RATE);
@@ -346,7 +364,11 @@ export class VoiceRecorder {
     session.current = file;
     this.#listening = { file, samples: chirp };
     // Straight to the speakers, so the player's mute doesn't silence it.
-    const buffer = new AudioBuffer({ numberOfChannels: 1, length: chirp.length, sampleRate: SAMPLE_RATE });
+    const buffer = new AudioBuffer({
+      numberOfChannels: 1,
+      length: chirp.length,
+      sampleRate: SAMPLE_RATE,
+    });
     buffer.copyToChannel(chirp, 0);
     const node = new AudioBufferSourceNode(this.context, { buffer });
     node.connect(this.context.destination);
@@ -354,7 +376,10 @@ export class VoiceRecorder {
     node.start(when);
     const videoStarts = when + buffer.duration + AFTER_CHIRP_S;
     await new Promise((resolve) =>
-      setTimeout(resolve, Math.max(0, videoStarts - this.context.currentTime) * 1000),
+      setTimeout(
+        resolve,
+        Math.max(0, videoStarts - this.context.currentTime) * 1000,
+      ),
     );
   }
 
@@ -448,7 +473,11 @@ export class VoiceRecorder {
       folder: session.folder,
       name,
       startFrame,
-      buffer: new AudioBuffer({ numberOfChannels: 1, length: 10 * SAMPLE_RATE, sampleRate: SAMPLE_RATE }),
+      buffer: new AudioBuffer({
+        numberOfChannels: 1,
+        length: 10 * SAMPLE_RATE,
+        sampleRate: SAMPLE_RATE,
+      }),
       frames: 0,
       handle,
       writing: handle
@@ -484,7 +513,10 @@ export class VoiceRecorder {
         (file.endFrame ?? Infinity) - chunk.first,
       );
       if (to > from) this.#append(file, chunk.samples.subarray(from, to));
-      if (file.endFrame !== undefined && chunk.first + chunk.samples.length >= file.endFrame) {
+      if (
+        file.endFrame !== undefined &&
+        chunk.first + chunk.samples.length >= file.endFrame
+      ) {
         void this.#finish(file);
       }
     }
@@ -499,7 +531,9 @@ export class VoiceRecorder {
         length: Math.max(needed, file.buffer.length * 2),
         sampleRate: SAMPLE_RATE,
       });
-      bigger.getChannelData(0).set(file.buffer.getChannelData(0).subarray(0, file.frames));
+      bigger
+        .getChannelData(0)
+        .set(file.buffer.getChannelData(0).subarray(0, file.frames));
       file.buffer = bigger;
     }
     file.buffer.getChannelData(0).set(samples, file.frames);
@@ -518,10 +552,19 @@ export class VoiceRecorder {
     if (!listening) return;
     const { file, samples } = listening;
     // The file starts when the chirp was played, so a sound that took no time at all would be at 0.
-    if (!file.done && file.frames < samples.length + SEARCH_AFTER_S * SAMPLE_RATE) return;
+    if (
+      !file.done &&
+      file.frames < samples.length + SEARCH_AFTER_S * SAMPLE_RATE
+    )
+      return;
     this.#listening = undefined;
     const recording = file.buffer.getChannelData(0).subarray(0, file.frames);
-    const found = findSound(recording, samples, 0, SEARCH_AFTER_S * SAMPLE_RATE);
+    const found = findSound(
+      recording,
+      samples,
+      0,
+      SEARCH_AFTER_S * SAMPLE_RATE,
+    );
     const heard = found.match > HEARD;
     const result: HeardResult = {
       roundTripMs: heard ? (found.position / SAMPLE_RATE) * 1000 : undefined,
@@ -548,7 +591,11 @@ export class VoiceRecorder {
     const frames = file.frames;
     try {
       const stream = await file.writing;
-      await stream.write({ type: "write", position: 0, data: wavHeader(frames) });
+      await stream.write({
+        type: "write",
+        position: 0,
+        data: wavHeader(frames),
+      });
       await stream.close();
       const handle = await file.handle;
       if (file.clipStart === undefined) {
@@ -562,10 +609,19 @@ export class VoiceRecorder {
         length: Math.max(1, frames),
         sampleRate: SAMPLE_RATE,
       });
-      buffer.copyToChannel(file.buffer.getChannelData(0).subarray(0, frames), 0);
+      buffer.copyToChannel(
+        file.buffer.getChannelData(0).subarray(0, frames),
+        0,
+      );
       const trimMs = this.#trimMs(file);
-      const lengthMs = ((file.clipEnd ?? file.clipStart) - file.clipStart) * 1000;
-      file.resolve({ url: await addLocalFile(handle), buffer, trimMs, lengthMs });
+      const lengthMs =
+        ((file.clipEnd ?? file.clipStart) - file.clipStart) * 1000;
+      file.resolve({
+        url: await addLocalFile(handle),
+        buffer,
+        trimMs,
+        lengthMs,
+      });
     } catch (error) {
       file.reject(error);
     }

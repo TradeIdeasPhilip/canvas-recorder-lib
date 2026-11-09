@@ -119,7 +119,9 @@ class AsyncFrameSource {
   }
 
   #contains(frame: WrappedCanvas, seconds: number): boolean {
-    return seconds >= frame.timestamp && seconds < frame.timestamp + frame.duration;
+    return (
+      seconds >= frame.timestamp && seconds < frame.timestamp + frame.duration
+    );
   }
 
   async #restart(seconds: number): Promise<void> {
@@ -231,9 +233,11 @@ class RafFrameSource {
     // own as soon as that first frame lands.
     const newest = this.#localCache.at(-1)?.timestamp;
     const tooFarAhead =
-      newest !== undefined && seconds - newest > RafFrameSource.MAX_SKIP_SECONDS;
+      newest !== undefined &&
+      seconds - newest > RafFrameSource.MAX_SKIP_SECONDS;
     const tooFarBehind =
-      this.#localCache[0] !== undefined && seconds < this.#localCache[0].timestamp;
+      this.#localCache[0] !== undefined &&
+      seconds < this.#localCache[0].timestamp;
     if (tooFarAhead || tooFarBehind) {
       this.#reseek(seconds, tooFarAhead ? "too far ahead" : "too far behind");
     }
@@ -338,7 +342,10 @@ class RafFrameSource {
         if (this.#canceled) return;
         if (result.done) {
           this.#atEnd = true;
-          debugLog("RafFrameSource", `${this.label}: stream #${generation} ended`);
+          debugLog(
+            "RafFrameSource",
+            `${this.label}: stream #${generation} ended`,
+          );
           return;
         }
         this.#localCache.push(result.value);
@@ -364,7 +371,10 @@ class RafFrameSource {
         // A failed decode just means we stay at whatever we already have;
         // the next get() will try again.
         this.#fetchInProgress = false;
-        debugLog("RafFrameSource", `${this.label}: decode failed (stream #${generation}): ${error}`);
+        debugLog(
+          "RafFrameSource",
+          `${this.label}: decode failed (stream #${generation}): ${error}`,
+        );
       },
     );
   }
@@ -668,7 +678,8 @@ export class VideoClipComponent extends ComponentWithLiveDuration {
           destination.height,
         );
       } else {
-        const sourceAspect = this.#video.naturalWidth / this.#video.naturalHeight;
+        const sourceAspect =
+          this.#video.naturalWidth / this.#video.naturalHeight;
         const destAspect = destination.width / destination.height;
         let drawW: number, drawH: number;
         if (sourceAspect > destAspect) {
@@ -684,7 +695,8 @@ export class VideoClipComponent extends ComponentWithLiveDuration {
 
         if (
           frameError !== undefined &&
-          Math.abs(frameError) > VideoClipComponent.CLOSE_ENOUGH_MARK_THRESHOLD_MS
+          Math.abs(frameError) >
+            VideoClipComponent.CLOSE_ENOUGH_MARK_THRESHOLD_MS
         ) {
           debugLog(
             "VideoClip",
@@ -695,7 +707,8 @@ export class VideoClipComponent extends ComponentWithLiveDuration {
           // direction: the returned frame is ahead of (cyan) or behind
           // (orange) where we actually asked to be.
           context.fillStyle = frameError > 0 ? "cyan" : "orange";
-          const markRadius = Math.min(destination.width, destination.height) * 0.03;
+          const markRadius =
+            Math.min(destination.width, destination.height) * 0.03;
           context.beginPath();
           context.arc(
             destination.x + destination.width - markRadius * 2,

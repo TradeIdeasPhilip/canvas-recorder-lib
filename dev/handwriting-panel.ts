@@ -30,7 +30,7 @@ const HELP =
   "in between, the pen moves through the next unit at a steady speed.  " +
   "Letters are visible characters only:  spaces take no time.  " +
   "Words are split as the layout splits them, and each Text Span starts a new word.  " +
-  "Lines end at a \"\\n\", not at word wrap.  Total:  1 is the whole text.";
+  'Lines end at a "\\n", not at word wrap.  Total:  1 is the whole text.';
 
 /** Singular, for "line 3"; plural, for "4 lines". */
 const UNIT_NAMES: Record<HandwritingDivision, [string, string]> = {
@@ -146,9 +146,7 @@ export function buildHandwritingPanel(
     );
     if (peak < count) {
       const goal =
-        division === "Total"
-          ? "1"
-          : `${count}, the number of ${plural}`;
+        division === "Total" ? "1" : `${count}, the number of ${plural}`;
       line(
         `⚠ Progress never reaches ${goal}, so the text is never finished.  ` +
           `It peaks at ${formatNumber(peak)}, ${whereThePenIs(units, peak, division, words)}.`,
@@ -168,7 +166,10 @@ export function buildHandwritingPanel(
       });
       status.append(fillBtn);
     } else {
-      line(`Progress reaches ${formatNumber(count)}, the end of the text  ✓`, "#070");
+      line(
+        `Progress reaches ${formatNumber(count)}, the end of the text  ✓`,
+        "#070",
+      );
       if (peak > count) {
         line(
           `It goes up to ${formatNumber(peak)}.  Anything from ${count} up shows the finished text.`,
@@ -257,7 +258,9 @@ export function fillInKeyframes(
     value: number,
     startsTransition: boolean,
   ): Keyframe<number> =>
-    startsTransition && ease ? { time, value, easeAfter: ease } : { time, value };
+    startsTransition && ease
+      ? { time, value, easeAfter: ease }
+      : { time, value };
   const added: Keyframe<number>[] = [];
   let time = last.time;
   let lastEase = ease;
@@ -295,8 +298,9 @@ function askToFillIn(
 ): Promise<boolean> {
   const schedule = component.progressSchedule.schedule;
   const [singular] = UNIT_NAMES[division];
-  const startValue = [...schedule].sort((a, b) => a.time - b.time).at(-1)!
-    .value;
+  const startValue = [...schedule]
+    .sort((a, b) => a.time - b.time)
+    .at(-1)!.value;
 
   const dialog = document.createElement("dialog");
   dialog.style.cssText = "min-width:26em;max-width:36em;padding:1em";
@@ -304,7 +308,8 @@ function askToFillIn(
   heading.style.margin = "0 0 0.4em 0";
   heading.textContent = "Fill in the rest";
   const hint = document.createElement("div");
-  hint.style.cssText = "margin-bottom:0.8em;font-size:0.85em;color:#555;font-style:italic";
+  hint.style.cssText =
+    "margin-bottom:0.8em;font-size:0.85em;color:#555;font-style:italic";
   hint.textContent =
     `Progress ends at ${formatNumber(startValue)}.  ` +
     (division === "Total"

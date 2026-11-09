@@ -6,12 +6,7 @@
  * @module
  */
 import { Bezier } from "bezier-js";
-import {
-  Command,
-  fromBezier,
-  PathShape,
-  QCommand,
-} from "./glib/path-shape.ts";
+import { Command, fromBezier, PathShape, QCommand } from "./glib/path-shape.ts";
 import { makePathShapeInterpolator } from "./interpolate.ts";
 
 /**
@@ -83,12 +78,10 @@ export function makeCornerRounder(
      * To match the line segment immediately after the corner.
      */
     const secondRoundCommand = fromBezier(halves.right);
-    if (
-      !(
-        firstRoundCommand instanceof QCommand &&
-        secondRoundCommand instanceof QCommand
-      )
-    ) {
+    if (!(
+      firstRoundCommand instanceof QCommand &&
+      secondRoundCommand instanceof QCommand
+    )) {
       throw new Error("wtf");
     }
     const firstMiteredCommand = QCommand.controlPoints(

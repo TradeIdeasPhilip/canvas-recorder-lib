@@ -55,7 +55,10 @@ export function soundOwners(root: Showable): SoundOwner[] {
  * When `target` starts, relative to `root`.  `undefined` if it isn't in the tree.
  * Uses the same walk as {@link soundOwners}.
  */
-export function startWithin(root: Showable, target: Showable): number | undefined {
+export function startWithin(
+  root: Showable,
+  target: Showable,
+): number | undefined {
   function walk(item: Showable, startMs: number): number | undefined {
     if (item === target) return startMs;
     for (const { child, start } of item.children ?? []) {

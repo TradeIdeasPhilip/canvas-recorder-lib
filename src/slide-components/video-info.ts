@@ -178,7 +178,10 @@ export function sameCenter(size: Size, around: ReadOnlyRect): ReadOnlyRect {
  * draws into, because it letterboxes the video inside whatever rectangle it
  * is given.
  */
-export function shrinkToAspect(rect: ReadOnlyRect, aspect: number): ReadOnlyRect {
+export function shrinkToAspect(
+  rect: ReadOnlyRect,
+  aspect: number,
+): ReadOnlyRect {
   const rectAspect = rect.width / rect.height;
   const size =
     rectAspect > aspect

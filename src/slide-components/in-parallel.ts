@@ -191,8 +191,7 @@ export class InParallelComponent implements Showable, ShowableParent {
   ): void {}
   readonly #replaceableChildren = new Array<Showable>();
   #cached:
-    | { duration: number; children: readonly ParallelChildInfo[] }
-    | undefined;
+    { duration: number; children: readonly ParallelChildInfo[] } | undefined;
   #fromCache() {
     if (!this.#cached) {
       const children = new Array<Mutable<ParallelChildInfo>>();

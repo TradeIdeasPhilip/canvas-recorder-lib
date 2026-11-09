@@ -28,7 +28,8 @@ export type LocalFileRowOptions = {
  */
 export function buildLocalFileRow(options: LocalFileRowOptions): HTMLElement {
   const row = document.createElement("div");
-  row.style.cssText = "margin-bottom:0.3em;display:flex;gap:0.3em;align-items:center;flex-wrap:wrap";
+  row.style.cssText =
+    "margin-bottom:0.3em;display:flex;gap:0.3em;align-items:center;flex-wrap:wrap";
 
   const pickButton = document.createElement("button");
   pickButton.type = "button";
@@ -51,7 +52,11 @@ export function buildLocalFileRow(options: LocalFileRowOptions): HTMLElement {
   async function redraw() {
     const myGeneration = ++generation;
     const url = options.currentUrl();
-    where.textContent = isLocalFileUrl(url) ? "On this computer" : url ? "On the web server" : "";
+    where.textContent = isLocalFileUrl(url)
+      ? "On this computer"
+      : url
+        ? "On the web server"
+        : "";
     let files: Awaited<ReturnType<typeof listLocalFiles>>;
     try {
       files = await listLocalFiles();
@@ -60,7 +65,9 @@ export function buildLocalFileRow(options: LocalFileRowOptions): HTMLElement {
     }
     if (myGeneration !== generation) return;
     const placeholder = document.createElement("option");
-    placeholder.textContent = files.length ? "Recent files…" : "No recent files";
+    placeholder.textContent = files.length
+      ? "Recent files…"
+      : "No recent files";
     placeholder.value = "";
     placeholder.disabled = true;
     const choices = files.map((file) => {
@@ -70,7 +77,8 @@ export function buildLocalFileRow(options: LocalFileRowOptions): HTMLElement {
       return option;
     });
     recentSelect.replaceChildren(placeholder, ...choices);
-    recentSelect.value = isLocalFileUrl(url) && files.some((f) => f.url === url) ? url : "";
+    recentSelect.value =
+      isLocalFileUrl(url) && files.some((f) => f.url === url) ? url : "";
     recentSelect.disabled = files.length === 0;
   }
 
@@ -104,4 +112,3 @@ export function buildLocalFileRow(options: LocalFileRowOptions): HTMLElement {
   void redraw();
   return row;
 }
-

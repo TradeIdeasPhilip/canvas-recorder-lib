@@ -116,8 +116,13 @@ export function buildFourierPanel(component: FourierComponent): FourierPanel {
       const prefix = keyframes.length > 1 ? `At ${keyframe.time} ms:  ` : "";
       const parsed = parseTermGroups(keyframe.value);
       groupCounts.add(parsed.groups.length);
-      const source = component.termsFor(component.sourceSchedule.at(keyframe.time));
-      const termCount = parsed.groups.reduce((sum, group) => sum + group.length, 0);
+      const source = component.termsFor(
+        component.sourceSchedule.at(keyframe.time),
+      );
+      const termCount = parsed.groups.reduce(
+        (sum, group) => sum + group.length,
+        0,
+      );
       const problems = [...parsed.warnings];
       let summary = `${parsed.groups.length} group${parsed.groups.length === 1 ? "" : "s"}, ${termCount} term${termCount === 1 ? "" : "s"}`;
       if (typeof source === "string") {
@@ -133,7 +138,10 @@ export function buildFourierPanel(component: FourierComponent): FourierPanel {
     }
     if (groupCounts.size === 1) {
       const [groupCount] = groupCounts;
-      const stepProblems = checkStepRange(component.stepSchedule.schedule, groupCount);
+      const stepProblems = checkStepRange(
+        component.stepSchedule.schedule,
+        groupCount,
+      );
       if (stepProblems.length === 0) {
         line(`Step runs from 0 to ${groupCount}  ✓`, "#070");
       }

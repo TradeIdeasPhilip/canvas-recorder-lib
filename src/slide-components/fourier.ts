@@ -111,7 +111,9 @@ export function parseTermGroups(text: string): TermGroups {
     };
     const tokens = piece.trim().split(/\s+/).filter(Boolean);
     if (tokens.length === 0) {
-      warnings.push(`Group ${groupNumber} is empty, so that step adds nothing.`);
+      warnings.push(
+        `Group ${groupNumber} is empty, so that step adds nothing.`,
+      );
     }
     for (const token of tokens) {
       const single = /^\d+$/.exec(token);
@@ -154,7 +156,8 @@ export function checkTermGroups(
   }
   if (missing.size) {
     const list = [...missing].sort((a, b) => a - b);
-    const shown = list.length > 6 ? `${list.slice(0, 6).join(", ")}, …` : list.join(", ");
+    const shown =
+      list.length > 6 ? `${list.slice(0, 6).join(", ")}, …` : list.join(", ");
     warnings.push(
       `This source has ${terms.length} terms, numbered 0 to ${terms.length - 1}.  ` +
         `Left out:  ${shown}.`,
@@ -166,7 +169,10 @@ export function checkTermGroups(
   groups.forEach((group, index) => {
     if (index === 0) return;
     const valid = group.filter((term) => term < terms.length);
-    if (valid.length > 0 && valid.every((term) => terms[term].frequency === 0)) {
+    if (
+      valid.length > 0 &&
+      valid.every((term) => terms[term].frequency === 0)
+    ) {
       warnings.push(
         `Group ${index + 1} is only the center (frequency 0), which can't animate on its own.  ` +
           `Put it in the first group, or with other terms.`,
@@ -221,7 +227,9 @@ export function checkStepRange(
 ): string[] {
   const shown = step.map(({ value }) => value).filter((value) => value >= 0);
   if (shown.length === 0) {
-    return ["Step is never 0 or more, so nothing is ever drawn.  Negative means hidden."];
+    return [
+      "Step is never 0 or more, so nothing is ever drawn.  Negative means hidden.",
+    ];
   }
   const warnings: string[] = [];
   const low = Math.min(...shown);
@@ -317,7 +325,10 @@ export class FourierComponent extends DurationAgnosticComponent {
     height: 7,
   });
   /** Drawn first, under the stroke.  "transparent" skips filling. */
-  readonly fillColorSchedule = new ColorScheduleInfo("Fill Color", "transparent");
+  readonly fillColorSchedule = new ColorScheduleInfo(
+    "Fill Color",
+    "transparent",
+  );
   readonly strokeColorSchedule = new ColorScheduleInfo(
     "Stroke Color",
     myRainbow.myBlue,
@@ -347,7 +358,8 @@ export class FourierComponent extends DurationAgnosticComponent {
     );
     if (initialValues.termGroups !== undefined)
       this.termGroupsSchedule.set(initialValues.termGroups);
-    if (initialValues.step !== undefined) this.stepSchedule.set(initialValues.step);
+    if (initialValues.step !== undefined)
+      this.stepSchedule.set(initialValues.step);
     if (initialValues.destRect !== undefined)
       this.destRectSchedule.set(initialValues.destRect);
     if (initialValues.fillColor !== undefined)
@@ -386,7 +398,9 @@ export class FourierComponent extends DurationAgnosticComponent {
    */
   termsFor(
     name: string,
-  ): { readonly terms: readonly FourierTerm[]; readonly bounds: ReadOnlyRect } | string {
+  ):
+    | { readonly terms: readonly FourierTerm[]; readonly bounds: ReadOnlyRect }
+    | string {
     if (this.#termsCache?.name === name) return this.#termsCache;
     const source = FourierComponent.sources.get(name);
     if (!source) return `Unknown Fourier source:\n"${name}"`;
@@ -424,13 +438,16 @@ export class FourierComponent extends DurationAgnosticComponent {
 
   #animationFor(name: string, termGroups: string) {
     const cached = this.#animationCache;
-    if (cached?.name === name && cached.termGroups === termGroups) return cached;
+    if (cached?.name === name && cached.termGroups === termGroups)
+      return cached;
     const source = this.termsFor(name);
     if (typeof source === "string") return source;
     const { groups } = parseTermGroups(termGroups);
     const ordered = orderTerms(source.terms, groups);
     const rules =
-      ordered.keyframes.length < 2 ? [] : getAnimationRules(ordered.terms, ordered.keyframes);
+      ordered.keyframes.length < 2
+        ? []
+        : getAnimationRules(ordered.terms, ordered.keyframes);
     this.#animationCache = { name, termGroups, rules, bounds: source.bounds };
     return this.#animationCache;
   }
@@ -508,7 +525,12 @@ FourierComponent.sources.set("Heart", {
     const θ = 2 * Math.PI * t;
     return {
       x: 16 * Math.sin(θ) ** 3,
-      y: -(13 * Math.cos(θ) - 5 * Math.cos(2 * θ) - 2 * Math.cos(3 * θ) - Math.cos(4 * θ)),
+      y: -(
+        13 * Math.cos(θ) -
+        5 * Math.cos(2 * θ) -
+        2 * Math.cos(3 * θ) -
+        Math.cos(4 * θ)
+      ),
     };
   },
 });

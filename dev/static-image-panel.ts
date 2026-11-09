@@ -11,7 +11,11 @@ import {
   shrinkToAspect,
 } from "../src/slide-components/video-info.ts";
 import { SingleImage } from "../src/slow-image-sources.ts";
-import { ALIGN_HORIZONTALLY, ALIGN_VERTICALLY, buildSnapRow } from "./rect-snap.ts";
+import {
+  ALIGN_HORIZONTALLY,
+  ALIGN_VERTICALLY,
+  buildSnapRow,
+} from "./rect-snap.ts";
 import { buildLocalFileRow } from "./local-file-row.ts";
 import { IMAGE_FILE_TYPES, onLocalFilesChange } from "../src/local-files.ts";
 
@@ -63,7 +67,10 @@ export function buildStaticImagePanel(
       currentUrl: () => component.urlSchedule.at(0),
       choose(url) {
         if (component.urlSchedule.schedule.length > 1) {
-          alert("URL has several keyframes.  Type the file's URL into the one you want.\n\n" + url);
+          alert(
+            "URL has several keyframes.  Type the file's URL into the one you want.\n\n" +
+              url,
+          );
           return;
         }
         component.urlSchedule.set(url);
@@ -96,12 +103,14 @@ export function buildStaticImagePanel(
   const rectButtons = [
     {
       text: "Fit canvas",
-      title: "As large as possible while the whole image stays on the canvas.  Centered.",
+      title:
+        "As large as possible while the whole image stays on the canvas.  Centered.",
       make: (size: Size) => centeredOnCanvas(maxFit(size.width, size.height)),
     },
     {
       text: "Cover canvas",
-      title: "Just large enough to cover the whole canvas.  Some of the image will be off screen.  Centered.",
+      title:
+        "Just large enough to cover the whole canvas.  Some of the image will be off screen.  Centered.",
       make: (size: Size) => centeredOnCanvas(minCover(size.width, size.height)),
     },
     {
@@ -110,7 +119,10 @@ export function buildStaticImagePanel(
       make: (size: Size, rect: ReadOnlyRect) =>
         sameCenter(preservePixels(size.width, size.height), rect),
     },
-  ].map(({ text, title, make }) => ({ btn: button(rectRow, text, title), make }));
+  ].map(({ text, title, make }) => ({
+    btn: button(rectRow, text, title),
+    make,
+  }));
 
   /**
    * Snap one edge of the Dest Rect to the canvas, or center it, keeping its

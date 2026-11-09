@@ -169,7 +169,7 @@ export class Font {
   }
   /**
    * Create an oblique font from a normal font.
-   * 
+   *
    * Oblique is similar to italic.
    * Italics are hand drawn.
    * Oblique is when the computer just slants everything.

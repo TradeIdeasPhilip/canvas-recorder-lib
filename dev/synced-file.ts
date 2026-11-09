@@ -207,7 +207,8 @@ export class SyncedFile {
       } catch (error) {
         // Starting next to a file that has since been deleted can make the
         // picker itself fail.  Starting anywhere is better than not at all.
-        if (error instanceof DOMException && error.name === "AbortError") throw error;
+        if (error instanceof DOMException && error.name === "AbortError")
+          throw error;
         handle = await ask();
       }
     } catch (error) {
@@ -316,10 +317,8 @@ export class SyncedFile {
         status.style.color = "darkorange";
         status.title =
           "Something else changed this file since it was last synced, so it hasn't been overwritten.";
-        button(
-          "Overwrite",
-          `Replace ${name} with the current state`,
-          () => this.request(true),
+        button("Overwrite", `Replace ${name} with the current state`, () =>
+          this.request(true),
         );
         if (this.#options.open) {
           button(

@@ -97,7 +97,12 @@ export function scheduleToTypeScript(
         `cellWidth: ${v.cellWidth}, cellHeight: ${v.cellHeight} }`
       );
     } else {
-      const v = value as { x: number; y: number; width: number; height: number };
+      const v = value as {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      };
       return `{ x: ${v.x}, y: ${v.y}, width: ${v.width}, height: ${v.height} }`;
     }
   }
@@ -165,7 +170,10 @@ export function validateKfValue(
       if (typeof value !== "object" || value === null) return false;
       const v = value as Record<string, unknown>;
       const isPoint = (p: unknown): boolean =>
-        typeof p === "object" && p !== null && typeof (p as Record<string, unknown>).x === "number" && typeof (p as Record<string, unknown>).y === "number";
+        typeof p === "object" &&
+        p !== null &&
+        typeof (p as Record<string, unknown>).x === "number" &&
+        typeof (p as Record<string, unknown>).y === "number";
       return isPoint(v.flat) && isPoint(v.pointy);
     }
   }
@@ -176,8 +184,7 @@ export function parseScheduleFromClipboard(
   text: string,
   type: ScheduleInfo["type"],
 ):
-  | { time: number; value: unknown; easeAfter?: (t: number) => number }[]
-  | null {
+  { time: number; value: unknown; easeAfter?: (t: number) => number }[] | null {
   try {
     let cleaned = text
       .split("\n")

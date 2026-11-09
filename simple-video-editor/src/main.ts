@@ -21,7 +21,12 @@ import {
 
 // Matches an M1 MacBook Air's screen recordings.  YouTube resizes and pillarboxes it.
 // These are only the defaults:  the user can change all four, and the player remembers their choice.
-canvasRecorder.size = { pixelWidth: 2880, pixelHeight: 1800, width: 16, height: 10 };
+canvasRecorder.size = {
+  pixelWidth: 2880,
+  pixelHeight: 1800,
+  width: 16,
+  height: 10,
+};
 
 // MARK: The starting project
 

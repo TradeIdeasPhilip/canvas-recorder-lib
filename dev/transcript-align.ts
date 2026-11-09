@@ -78,11 +78,39 @@ export type RoughWord = {
 // MARK: Words to letters
 
 const ONES = [
-  "ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE",
-  "TEN", "ELEVEN", "TWELVE", "THIRTEEN", "FOURTEEN", "FIFTEEN", "SIXTEEN",
-  "SEVENTEEN", "EIGHTEEN", "NINETEEN",
+  "ZERO",
+  "ONE",
+  "TWO",
+  "THREE",
+  "FOUR",
+  "FIVE",
+  "SIX",
+  "SEVEN",
+  "EIGHT",
+  "NINE",
+  "TEN",
+  "ELEVEN",
+  "TWELVE",
+  "THIRTEEN",
+  "FOURTEEN",
+  "FIFTEEN",
+  "SIXTEEN",
+  "SEVENTEEN",
+  "EIGHTEEN",
+  "NINETEEN",
 ];
-const TENS = ["", "", "TWENTY", "THIRTY", "FORTY", "FIFTY", "SIXTY", "SEVENTY", "EIGHTY", "NINETY"];
+const TENS = [
+  "",
+  "",
+  "TWENTY",
+  "THIRTY",
+  "FORTY",
+  "FIFTY",
+  "SIXTY",
+  "SEVENTY",
+  "EIGHTY",
+  "NINETY",
+];
 
 /**
  * A whole number as English words, the way it's usually said:  1981 is
@@ -92,7 +120,8 @@ const TENS = ["", "", "TWENTY", "THIRTY", "FORTY", "FIFTY", "SIXTY", "SEVENTY", 
 export function spellNumber(n: number): string {
   if (!Number.isInteger(n) || n < 0) return "";
   if (n < 20) return ONES[n];
-  if (n < 100) return TENS[Math.floor(n / 10)] + (n % 10 ? " " + ONES[n % 10] : "");
+  if (n < 100)
+    return TENS[Math.floor(n / 10)] + (n % 10 ? " " + ONES[n % 10] : "");
   if (n < 1000) {
     return `${ONES[Math.floor(n / 100)]} HUNDRED${n % 100 ? " " + spellNumber(n % 100) : ""}`;
   }
@@ -206,7 +235,12 @@ export function forcedAlign(
         move = 1;
       }
       // Skip a blank, unless that would merge two identical letters.
-      if (s >= 2 && s % 2 === 1 && stateToken(s) !== stateToken(s - 2) && previous[s - 2] > best) {
+      if (
+        s >= 2 &&
+        s % 2 === 1 &&
+        stateToken(s) !== stateToken(s - 2) &&
+        previous[s - 2] > best
+      ) {
         best = previous[s - 2];
         move = 2;
       }
@@ -218,9 +252,14 @@ export function forcedAlign(
   }
 
   // End on the last token or the blank after it.
-  let s = previous[states - 1] >= previous[states - 2] ? states - 1 : states - 2;
+  let s =
+    previous[states - 1] >= previous[states - 2] ? states - 1 : states - 2;
   if (previous[s] === NEG) return undefined;
-  const result = tokens.map(() => ({ first: Infinity, last: -Infinity, logProb: 0 }));
+  const result = tokens.map(() => ({
+    first: Infinity,
+    last: -Infinity,
+    logProb: 0,
+  }));
   const counts = new Array<number>(tokens.length).fill(0);
   for (let t = frames - 1; t >= 0; t--) {
     if (s % 2 === 1) {
@@ -272,7 +311,8 @@ export function alignWords(
   let groupStart = 0;
   for (let i = 1; i <= words.length; i++) {
     const tooLong =
-      i < words.length && words[i].endMs - words[groupStart].startMs > MAX_WINDOW_MS;
+      i < words.length &&
+      words[i].endMs - words[groupStart].startMs > MAX_WINDOW_MS;
     if (i === words.length || tooLong) {
       if (tooLong) {
         // Split at the biggest gap in this group, so no word is cut in two.
@@ -395,7 +435,11 @@ export function lettersHeard(
     frames = 0;
   };
   let previous = blank;
-  for (let t = Math.max(0, firstFrame); t < Math.min(endFrame, emissions.frameCount); t++) {
+  for (
+    let t = Math.max(0, firstFrame);
+    t < Math.min(endFrame, emissions.frameCount);
+    t++
+  ) {
     let best = 0;
     let bestLogProb = -Infinity;
     for (let token = 0; token < vocabularySize; token++) {
@@ -430,7 +474,11 @@ export function lettersHeard(
  * What the letter model heard from `fromMs` to `toMs`, as one string:  the
  * words separated by spaces, or "" for nothing.
  */
-export function heardBetween(emissions: CtcEmissions, fromMs: number, toMs: number): string {
+export function heardBetween(
+  emissions: CtcEmissions,
+  fromMs: number,
+  toMs: number,
+): string {
   return lettersHeard(
     emissions,
     Math.floor(fromMs / emissions.frameMs),
@@ -477,8 +525,14 @@ export function recoverSkippedSpeech(
   const { frameMs, frameCount } = emissions;
   const covered = new Uint8Array(frameCount);
   for (const { startMs, endMs } of times) {
-    const from = Math.max(0, Math.floor(startMs / frameMs) - RECOVER_CLEARANCE_FRAMES);
-    const to = Math.min(frameCount, Math.ceil(endMs / frameMs) + RECOVER_CLEARANCE_FRAMES);
+    const from = Math.max(
+      0,
+      Math.floor(startMs / frameMs) - RECOVER_CLEARANCE_FRAMES,
+    );
+    const to = Math.min(
+      frameCount,
+      Math.ceil(endMs / frameMs) + RECOVER_CLEARANCE_FRAMES,
+    );
     covered.fill(1, from, to);
   }
   const result: { word: RoughWord; times: AlignedTimes }[] = [];
@@ -492,13 +546,20 @@ export function recoverSkippedSpeech(
     while (t < frameCount && !covered[t]) t++;
     for (const heard of lettersHeard(emissions, gapStart, t)) {
       const needed =
-        heard.text.length === 1 ? RECOVER_MIN_PROBABILITY_ONE_LETTER : RECOVER_MIN_PROBABILITY;
+        heard.text.length === 1
+          ? RECOVER_MIN_PROBABILITY_ONE_LETTER
+          : RECOVER_MIN_PROBABILITY;
       if (heard.probability < needed) continue;
       const startMs = heard.firstFrame * frameMs;
       const endMs = (heard.lastFrame + 1) * frameMs;
       result.push({
         word: { text: heard.text, startMs, endMs },
-        times: { startMs, endMs, timing: "letters", confidence: heard.probability },
+        times: {
+          startMs,
+          endMs,
+          timing: "letters",
+          confidence: heard.probability,
+        },
       });
     }
   }
@@ -521,7 +582,9 @@ const squash = (s: string) => s.toLowerCase().replace(/[^a-z']/g, "");
  *   or something that doesn't even start the same way.  Rough, but in testing
  *   it found real misreadings ("and pairs" for "in pairs").
  */
-export function wordFlag(word: TranscriptWord): "left out" | "doubtful" | undefined {
+export function wordFlag(
+  word: TranscriptWord,
+): "left out" | "doubtful" | undefined {
   if (word.timing === "letters") return "left out";
   const text = squash(word.text);
   // `heard` is missing from transcripts made before it existed.
@@ -565,13 +628,17 @@ export function quietestMoment(
   const windowLength = Math.max(1, Math.round(CUT_WINDOW_MS * perMs));
   const step = Math.max(1, Math.round(windowLength / 2));
   const first = Math.max(0, Math.floor(fromMs * perMs));
-  const last = Math.min(samples.length - windowLength, Math.ceil(toMs * perMs) - windowLength);
+  const last = Math.min(
+    samples.length - windowLength,
+    Math.ceil(toMs * perMs) - windowLength,
+  );
   if (last < first) return (fromMs + toMs) / 2;
   let bestStart = first;
   let bestEnergy = Infinity;
   for (let start = first; start <= last; start += step) {
     let energy = 0;
-    for (let i = start; i < start + windowLength; i++) energy += samples[i] * samples[i];
+    for (let i = start; i < start + windowLength; i++)
+      energy += samples[i] * samples[i];
     if (energy < bestEnergy) {
       bestEnergy = energy;
       bestStart = start;
@@ -601,7 +668,12 @@ export function withCutPoints(
 ): TranscriptWord[] {
   const fileMs = (samples.length / sampleRate) * 1000;
   const quietest = (from: number, to: number) =>
-    quietestMoment(samples, sampleRate, Math.max(0, from), Math.min(fileMs, to));
+    quietestMoment(
+      samples,
+      sampleRate,
+      Math.max(0, from),
+      Math.min(fileMs, to),
+    );
   const cutBefore: number[] = [];
   const cutAfter: number[] = [];
   for (let i = 0; i <= times.length; i++) {
@@ -623,7 +695,10 @@ export function withCutPoints(
       } else if (gap <= 2 * CUT_REACH_MS) {
         cutAfter[i - 1] = cutBefore[i] = quietest(previous.endMs, next.startMs);
       } else {
-        cutAfter[i - 1] = quietest(previous.endMs, previous.endMs + CUT_REACH_MS);
+        cutAfter[i - 1] = quietest(
+          previous.endMs,
+          previous.endMs + CUT_REACH_MS,
+        );
         cutBefore[i] = quietest(next.startMs - CUT_REACH_MS, next.startMs);
       }
     }

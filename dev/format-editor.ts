@@ -139,7 +139,11 @@ export class FormatEditor {
     return serialize(this.#units());
   }
   set value(newValue: string) {
-    this.#replace({ start: 0, end: this.#units().length }, parse(newValue), "set");
+    this.#replace(
+      { start: 0, end: this.#units().length },
+      parse(newValue),
+      "set",
+    );
   }
 
   get knownNames(): readonly string[] {
@@ -174,7 +178,8 @@ export class FormatEditor {
     this.#replace(selection, [{ format: name }], "insert format");
     // The new chip is immediately before the cursor.
     const cursor = this.#getSelection();
-    const chip = cursor && this.#chipElements()[this.#chipIndexBefore(cursor.start)];
+    const chip =
+      cursor && this.#chipElements()[this.#chipIndexBefore(cursor.start)];
     const select = chip?.querySelector("select");
     if (select) {
       select.focus();

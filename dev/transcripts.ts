@@ -8,7 +8,10 @@ import {
   TranscribeProgress,
 } from "./transcribe-core.ts";
 import type { TranscriptWord } from "./transcript-align.ts";
-import type { TranscribeReply, TranscribeRequest } from "./transcribe-worker.ts";
+import type {
+  TranscribeReply,
+  TranscribeRequest,
+} from "./transcribe-worker.ts";
 
 /**
  * Word-by-word transcripts of sound files, for the timeline.
@@ -154,7 +157,9 @@ export function transcriptsSummary(): string {
         : "reading the file";
     return `${name}: ${progress}${more}`;
   }
-  const failed = [...statuses.values()].filter((s) => s.kind === "failed").length;
+  const failed = [...statuses.values()].filter(
+    (s) => s.kind === "failed",
+  ).length;
   return failed ? `${failed} failed (see the Debug Log)` : "";
 }
 
@@ -251,7 +256,8 @@ export async function makeTranscript(
 /** The file at `url` as 16 kHz mono, the way the models want it. */
 async function decode(url: string): Promise<Float32Array> {
   const response = await fetchMedia(url);
-  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  if (!response.ok)
+    throw new Error(`${response.status} ${response.statusText}`);
   // decodeAudioData resamples to its context's rate, which does the 16 kHz part.
   const context = new OfflineAudioContext(1, 1, SAMPLE_RATE);
   const audio = await context.decodeAudioData(await response.arrayBuffer());
@@ -259,7 +265,8 @@ async function decode(url: string): Promise<Float32Array> {
   const mono = new Float32Array(audio.length);
   for (let channel = 0; channel < audio.numberOfChannels; channel++) {
     const data = audio.getChannelData(channel);
-    for (let i = 0; i < mono.length; i++) mono[i] += data[i] / audio.numberOfChannels;
+    for (let i = 0; i < mono.length; i++)
+      mono[i] += data[i] / audio.numberOfChannels;
   }
   return mono;
 }
@@ -288,20 +295,23 @@ function runWorker(
     worker = new Worker(new URL("./transcribe-worker.js", import.meta.url), {
       type: "module",
     });
-    worker.addEventListener("message", (event: MessageEvent<TranscribeReply>) => {
-      const reply = event.data;
-      const job = pending.get(reply.id);
-      if (!job) return;
-      if (reply.kind === "progress") {
-        job.onProgress?.(reply.progress);
-      } else if (reply.kind === "done") {
-        pending.delete(reply.id);
-        job.resolve(reply);
-      } else {
-        pending.delete(reply.id);
-        job.reject(new Error(reply.message));
-      }
-    });
+    worker.addEventListener(
+      "message",
+      (event: MessageEvent<TranscribeReply>) => {
+        const reply = event.data;
+        const job = pending.get(reply.id);
+        if (!job) return;
+        if (reply.kind === "progress") {
+          job.onProgress?.(reply.progress);
+        } else if (reply.kind === "done") {
+          pending.delete(reply.id);
+          job.resolve(reply);
+        } else {
+          pending.delete(reply.id);
+          job.reject(new Error(reply.message));
+        }
+      },
+    );
     worker.addEventListener("error", (event) => {
       for (const job of pending.values()) job.reject(new Error(event.message));
       pending.clear();
@@ -343,7 +353,9 @@ async function cacheKey(url: string): Promise<string> {
   if (modified && length) return `${prefix}${modified} ${length}`;
   const bytes = await (await fetchMedia(url)).arrayBuffer();
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-  return prefix + Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("");
+  return (
+    prefix + Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("")
+  );
 }
 
 /** Every {@link cacheKey} of this URL starts with this:  everything but the file's fingerprint. */
@@ -364,7 +376,8 @@ async function newestCached(url: string): Promise<Transcript | undefined> {
     request.onerror = () => reject(request.error);
   });
   return records.reduce<CacheRecord | undefined>(
-    (newest, record) => (newest && newest.madeAt >= record.madeAt ? newest : record),
+    (newest, record) =>
+      newest && newest.madeAt >= record.madeAt ? newest : record,
     undefined,
   );
 }
@@ -386,16 +399,23 @@ async function readCache(key: string): Promise<Transcript | undefined> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const request = db.transaction(STORE).objectStore(STORE).get(key);
-    request.onsuccess = () => resolve(request.result as CacheRecord | undefined);
+    request.onsuccess = () =>
+      resolve(request.result as CacheRecord | undefined);
     request.onerror = () => reject(request.error);
   });
 }
 
-async function writeCache(key: string, url: string, transcript: Transcript): Promise<void> {
+async function writeCache(
+  key: string,
+  url: string,
+  transcript: Transcript,
+): Promise<void> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE, "readwrite");
-    transaction.objectStore(STORE).put({ ...transcript, key, url } satisfies CacheRecord);
+    transaction
+      .objectStore(STORE)
+      .put({ ...transcript, key, url } satisfies CacheRecord);
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error);
   });

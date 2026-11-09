@@ -441,7 +441,7 @@ export class Random {
     a: number,
     b: number,
     c: number,
-    d: number
+    d: number,
   ): RandomFunction {
     function random() {
       a |= 0;
@@ -513,14 +513,12 @@ export class Random {
       throw new Error("invalid input");
     }
     const [a, b, c, d] = seedObject;
-    if (
-      !(
-        typeof a == "number" &&
-        typeof b == "number" &&
-        typeof c == "number" &&
-        typeof d == "number"
-      )
-    ) {
+    if (!(
+      typeof a == "number" &&
+      typeof b == "number" &&
+      typeof c == "number" &&
+      typeof d == "number"
+    )) {
       throw new Error("invalid input");
     }
     return this.sfc32(a, b, c, d);
@@ -643,19 +641,29 @@ export class Random {
       try {
         action();
       } finally {
-        methods.forEach((method, index) => (console[method] = originals[index]));
+        methods.forEach(
+          (method, index) => (console[method] = originals[index]),
+        );
       }
       return count;
     }
-    function expectMessages(name: string, expected: number, action: () => void) {
+    function expectMessages(
+      name: string,
+      expected: number,
+      action: () => void,
+    ) {
       const count = countMessages(action);
       if (count !== expected) {
-        problems.push(`${name} wrote ${count} console message${count === 1 ? "" : "s"}, expected ${expected}.`);
+        problems.push(
+          `${name} wrote ${count} console message${count === 1 ? "" : "s"}, expected ${expected}.`,
+        );
       }
     }
     function expectSame(name: string, actual: unknown, expected: unknown) {
       if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-        problems.push(`${name}:  got ${JSON.stringify(actual)}, expected ${JSON.stringify(expected)}.`);
+        problems.push(
+          `${name}:  got ${JSON.stringify(actual)}, expected ${JSON.stringify(expected)}.`,
+        );
       }
     }
     const draw = (random: () => number, count: number) =>
@@ -665,37 +673,60 @@ export class Random {
     console.log("Random case 1.  This should record the seed.");
     expectMessages("Random.create()", 1, () => Random.create());
     console.log("Random case 2.  This should run silently.");
-    expectMessages('Random.create("[1,2,3,4]")', 0, () => Random.create("[1,2,3,4]"));
+    expectMessages('Random.create("[1,2,3,4]")', 0, () =>
+      Random.create("[1,2,3,4]"),
+    );
     console.log("Random case 3.  This should also run silently.");
     expectMessages('Random.fromString("Random case 3")', 0, () =>
       Random.fromString("Random case 3"),
     );
     console.log("Random case 4.  Random.seedIsValid(), also silent.");
-    expectMessages('Random.seedIsValid("hello")', 0, () => Random.seedIsValid("hello"));
+    expectMessages('Random.seedIsValid("hello")', 0, () =>
+      Random.seedIsValid("hello"),
+    );
 
     // MARK: Repeatable
     // Everything below is checked silently, so it must not print anything either.
     expectMessages("the repeatability checks", 0, () => {
       const fromSeed = Random.create("[42,17,99,7]");
-      expectSame('Random.create("[42,17,99,7]")', draw(fromSeed, 5), [
-        1.5366822481155396e-8, 2.1327286958694458e-7, 0.435058941366151,
-        0.7251853088382632, 0.7317605882417411,
-      ]);
-      expectSame("its currentSeed after 5", fromSeed.currentSeed, "[1892747913,1308741698,295958450,12]");
+      expectSame(
+        'Random.create("[42,17,99,7]")',
+        draw(fromSeed, 5),
+        [
+          1.5366822481155396e-8, 2.1327286958694458e-7, 0.435058941366151,
+          0.7251853088382632, 0.7317605882417411,
+        ],
+      );
+      expectSame(
+        "its currentSeed after 5",
+        fromSeed.currentSeed,
+        "[1892747913,1308741698,295958450,12]",
+      );
       // Used by makePolygon() in fourier-shared.ts, so it's in finished videos.
-      expectSame('Random.fromString("My seed 2025")', draw(Random.fromString("My seed 2025"), 5), [
-        0.9786544013768435, 0.7879613474942744, 0.050264536403119564,
-        0.07471863739192486, 0.040992809226736426,
-      ]);
-      expectSame('Random.anyStringToSeed("My seed 2025")', Random.anyStringToSeed("My seed 2025"),
-        "[-1446261746,783903852,-1683271991,570679246]");
-      expectSame("Random.anyStringToSeed(Chinese)",
+      expectSame(
+        'Random.fromString("My seed 2025")',
+        draw(Random.fromString("My seed 2025"), 5),
+        [
+          0.9786544013768435, 0.7879613474942744, 0.050264536403119564,
+          0.07471863739192486, 0.040992809226736426,
+        ],
+      );
+      expectSame(
+        'Random.anyStringToSeed("My seed 2025")',
+        Random.anyStringToSeed("My seed 2025"),
+        "[-1446261746,783903852,-1683271991,570679246]",
+      );
+      expectSame(
+        "Random.anyStringToSeed(Chinese)",
         Random.anyStringToSeed("在你用中文测试过之前你还没有测试过它。"),
-        "[-978814459,-622026031,56408694,127018260]");
+        "[-978814459,-622026031,56408694,127018260]",
+      );
       // A string that is already a seed is used as is.
-      expectSame('Random.fromString("[1,2,3,4]")', draw(Random.fromString("[1,2,3,4]"), 3), [
-        1.6298145055770874e-9, 7.916241884231567e-9, 0.01318361610174179,
-      ]);
+      expectSame(
+        'Random.fromString("[1,2,3,4]")',
+        draw(Random.fromString("[1,2,3,4]"), 3),
+        [1.6298145055770874e-9, 7.916241884231567e-9, 0.01318361610174179],
+      );
       for (const [seed, valid] of [
         ["[1,2,3,4]", true],
         ["hello", false],
@@ -704,7 +735,11 @@ export class Random {
         // Odd, but phil-lib 1.8.1 accepts it, so keep accepting it.
         ["[1.5,2,3,4]", true],
       ] as const) {
-        expectSame(`Random.seedIsValid(${JSON.stringify(seed)})`, Random.seedIsValid(seed), valid);
+        expectSame(
+          `Random.seedIsValid(${JSON.stringify(seed)})`,
+          Random.seedIsValid(seed),
+          valid,
+        );
       }
       // A clone made from currentSeed carries on exactly where the original is.
       const original = Random.create("[5,6,7,8]");
@@ -716,7 +751,9 @@ export class Random {
     if (problems.length === 0) {
       console.log("Random done:  all passed.");
     } else {
-      console.error(`Random done:  ${problems.length} problem${problems.length === 1 ? "" : "s"}.\n  ${problems.join("\n  ")}`);
+      console.error(
+        `Random done:  ${problems.length} problem${problems.length === 1 ? "" : "s"}.\n  ${problems.join("\n  ")}`,
+      );
     }
   }
 }

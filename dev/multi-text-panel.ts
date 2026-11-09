@@ -14,7 +14,10 @@ import {
 import { buildNumericInput } from "./schedule-helpers.ts";
 
 /** Whether the frame is drawn on the canvas (👁), and whether it has handles to drag (✎). */
-export type CanvasState = { readonly viewing: boolean; readonly editing: boolean };
+export type CanvasState = {
+  readonly viewing: boolean;
+  readonly editing: boolean;
+};
 
 /** What the panel needs from the Visual Editor.  It never reaches into canvas-recorder.ts directly. */
 export type TextFramePanelHooks = {
@@ -158,7 +161,8 @@ export function buildTextFramePanel(
 
   function turnBy(quarterTurns: 1 | 3): void {
     const before = text.frameIsEditable ? text.frameAt(0) : undefined;
-    text.rotationScalar.value = ROTATIONS[(text.quarterTurns + quarterTurns) % 4];
+    text.rotationScalar.value =
+      ROTATIONS[(text.quarterTurns + quarterTurns) % 4];
     if (before) {
       // Turn in place, about the frame's center, the way PowerPoint does.  A
       // quarter turn swaps the frame's width and height on screen.
