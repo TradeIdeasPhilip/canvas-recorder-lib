@@ -129,6 +129,10 @@ export const playerBodyHtml = `
                 value="0"
                 title="The play position, in seconds.  Option-← and Option-→ step one frame."
               />
+              <label
+                title="Checked:  the time is measured from the start of the component you're editing.  Unchecked:  from the start of the video."
+                ><input type="checkbox" id="playPositionLocal" checked />local</label
+              >
               <input type="range" id="playPositionRange" value="0" step="any" />
             </div>
           </fieldset>

@@ -142,15 +142,15 @@ export function askHowToSplit(options: {
     "Keep",
     "splitKeep",
     [
-      { value: "both", label: "Both pieces", title: "An ordinary split." },
+      { value: "both", label: "Both ■■", title: "An ordinary split." },
       {
         value: "first",
-        label: "First only",
+        label: "First ■□",
         title: "Trim the end of the clip at the split.  The second piece and its sounds are removed.",
       },
       {
         value: "second",
-        label: "Second only",
+        label: "Second □■",
         title: "Trim the start of the clip at the split.  The first piece and its sounds are removed.",
       },
     ],
@@ -349,15 +349,15 @@ export function askHowToSplitSound(options: {
   keepFieldset.append(keepLegend);
   const keepInputs = (
     [
-      { value: "both", label: "Both pieces", title: "An ordinary split." },
+      { value: "both", label: "Both ■■", title: "An ordinary split." },
       {
         value: "first",
-        label: "First only",
+        label: "First ■□",
         title: "Trim the end of the clip at the split.",
       },
       {
         value: "second",
-        label: "Second only",
+        label: "Second □■",
         title: "Trim the start of the clip at the split.",
       },
     ] as const

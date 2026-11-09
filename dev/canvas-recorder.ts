@@ -262,7 +262,7 @@ function applyZoom(zoom: number, px = panX, py = panY) {
     canvas.height = physH;
     canvas.style.width = `${cssW}px`;
     canvas.style.height = `${cssH}px`;
-    showFrame(playPositionSeconds.valueAsNumber * 1000, true);
+    showFrame(playheadInVideoMs(), true);
   }
   [panX, panY] = clampPan(cssW, cssH, px, py);
   canvas.style.left = `${panX}px`;
@@ -297,7 +297,7 @@ function zoomToFit() {
   canvas.style.left = `${Math.round((vpW - cssW) / 2)}px`;
   canvas.style.top = `${Math.round((vpH - cssH) / 2)}px`;
   // Immediately redraw so the canvas clear doesn't show as a gray flash.
-  showFrame(playPositionSeconds.valueAsNumber * 1000, true);
+  showFrame(playheadInVideoMs(), true);
 }
 
 zoomSelect.addEventListener("change", () => {
@@ -615,8 +615,18 @@ const playPositionRange = getById("playPositionRange", HTMLInputElement);
  * This can be a number outside of the normal range of the current section.
  * This, like all user visible number, is measured in seconds.  Internal
  * things measure time in milliseconds.
+ *
+ * It's measured from the start of the Visual Editor's root when
+ * {@link playPositionLocal} is checked, otherwise from the start of the video.
+ * Read it with {@link playheadInVideoMs} and write it with
+ * {@link loadPlayPositionSeconds}, which take care of that.
  */
 const playPositionSeconds = getById("playPositionSeconds", HTMLInputElement);
+/**
+ * Checked:  {@link playPositionSeconds} is measured from the start of the
+ * Visual Editor's root.  Unchecked:  from the start of the video.
+ */
+const playPositionLocal = getById("playPositionLocal", HTMLInputElement);
 /**
  * When we get to the end of the section, automatically jump back to the
  * beginning of the section.
@@ -627,22 +637,50 @@ const repeatRadioButton = querySelector(
 );
 
 /**
+ * The playhead, measured from the start of the whole video.
+ * {@link playPositionSeconds} is the source of truth.
+ */
+function playheadInVideoMs(): number {
+  const shownMs = playPositionSeconds.valueAsNumber * 1000;
+  return playPositionLocal.checked ? shownMs + rootStartMs : shownMs;
+}
+
+/**
  * The playhead, measured from the start of the Visual Editor's root:  the
  * time its keyframes use.
  */
 function playheadInRootMs(): number {
-  return playPositionSeconds.valueAsNumber * 1000 - rootStartMs;
+  return playheadInVideoMs() - rootStartMs;
 }
 
 /**
  * Update the input that shows the time as a number.
- * @param timeInMs The time to display in the number control.
+ * @param timeInMs The time to display in the number control, measured from the start of the
+ * video.  It's shown from the start of the root instead if {@link playPositionLocal} says so.
  * This is *automatically* converted to seconds and rounded to the nearest ⅒ of a millisecond.
  * We only use milliseconds, not seconds, inside the code.
  */
 function loadPlayPositionSeconds(timeInMs: number) {
-  playPositionSeconds.value = (timeInMs / 1000).toFixed(4);
+  const shownMs = playPositionLocal.checked ? timeInMs - rootStartMs : timeInMs;
+  playPositionSeconds.value = (shownMs / 1000).toFixed(4);
 }
+
+/**
+ * Move the Visual Editor's root.  The playhead stays where it is in the video, so a local
+ * {@link playPositionSeconds} changes to match.
+ */
+function setRootStartMs(ms: number): void {
+  if (ms === rootStartMs) return;
+  const playheadMs = playheadInVideoMs();
+  rootStartMs = ms;
+  loadPlayPositionSeconds(playheadMs);
+}
+
+playPositionLocal.addEventListener("input", () => {
+  // The same time, shown the other way.  The number still means what the checkbox used to say.
+  const shownMs = playPositionSeconds.valueAsNumber * 1000;
+  loadPlayPositionSeconds(playPositionLocal.checked ? shownMs : shownMs + rootStartMs);
+});
 
 /**
  * Update the range input to show the same time as the number input.
@@ -653,7 +691,7 @@ function loadPlayPositionSeconds(timeInMs: number) {
  * If the user changes the range input, and the value is immediately copied to the number input for use in the program.
  */
 function loadPlayPositionRange() {
-  playPositionRange.valueAsNumber = playPositionSeconds.valueAsNumber * 1000;
+  playPositionRange.valueAsNumber = playheadInVideoMs();
 }
 
 // The same rate as the decoded files and the voice recorder, whatever the hardware uses.
@@ -868,7 +906,7 @@ const animationLoop = new AnimationLoop((_rAFTimeInMs: number) => {
     // Pausing is how a voice recording stops, once the video has started.
     if (voiceRecording && !voiceChirping) stopVoiceRecording();
     playPositionSeconds.disabled = false;
-    showFrame(playPositionSeconds.valueAsNumber * 1000, true);
+    showFrame(playheadInVideoMs(), true);
     return;
   }
 
@@ -878,7 +916,7 @@ const animationLoop = new AnimationLoop((_rAFTimeInMs: number) => {
   if (!audioPlaying && !rafFallbackPlaying) {
     // Not running: first play, after pause/seek, or after repeat.
     // Clips whose file isn't decoded yet join in when it is, so nothing waits for them.
-    let startMs = playPositionSeconds.valueAsNumber * 1000;
+    let startMs = playheadInVideoMs();
     if (startMs >= sectionEndTime - 0.05) {
       // At the end — jump to the beginning.
       startMs = sectionStartTime;
@@ -982,7 +1020,7 @@ addEventListener("keypress", (event) => {
 getById("back5s", HTMLButtonElement).addEventListener("click", () => {
   const backMs = Math.max(
     sectionStartTime,
-    playPositionSeconds.valueAsNumber * 1000 - 5000,
+    playheadInVideoMs() - 5000,
   );
   loadPlayPositionSeconds(backMs);
   loadPlayPositionRange();
@@ -1039,7 +1077,7 @@ function framesBetween(startMs: number, endMs: number): number {
  * It stays inside the play limits.
  */
 function stepOneFrame(direction: 1 | -1): void {
-  const position = framePosition(playPositionSeconds.valueAsNumber * 1000);
+  const position = framePosition(playheadInVideoMs());
   let frame =
     direction > 0
       ? Math.floor(position + FRAME_TOLERANCE) + 1
@@ -2223,7 +2261,7 @@ function applyLimits(): void {
  */
 function updateFromSelect() {
   const info = chapterList[select.selectedIndex];
-  rootStartMs = info.start;
+  setRootStartMs(info.start);
   if (keepLimitsCheckbox.checked && limitsShowable) {
     // Only the "Play this one" button changes.  Playback carries on.
     applyLimits();
@@ -2270,7 +2308,7 @@ playRootBtn.addEventListener("click", () => {
  */
 function refreshChapters(): void {
   if (initChapters()) {
-    rootStartMs = chapterList[select.selectedIndex].start;
+    setRootStartMs(chapterList[select.selectedIndex].start);
     applyLimits();
     // The range clamped itself to the new bounds; show the real position again.  The
     // number input stays the source of truth, so a playhead past a shortened end is left
@@ -2776,7 +2814,13 @@ function saveState() {
     "limitsIndex",
     chapterList.findIndex((d) => d.selectable === limitsShowable).toString(),
   );
-  sessionStorage.setItem("timeInSeconds", playPositionSeconds.value);
+  // From the start of the video, however the field shows it.  "" for an empty field.
+  const playheadMs = playheadInVideoMs();
+  sessionStorage.setItem(
+    "timeInSeconds",
+    isFinite(playheadMs) ? (playheadMs / 1000).toString() : "",
+  );
+  sessionStorage.setItem("playPositionLocal", playPositionLocal.checked ? "1" : "0");
   sessionStorage.setItem(
     "state",
     querySelector('input[name="onSectionEnd"]:checked', HTMLInputElement).value,
@@ -4426,7 +4470,7 @@ function buildScheduleSection(
   }
 
   function currentTimeMs() {
-    return playPositionSeconds.valueAsNumber * 1000;
+    return playheadInVideoMs();
   }
 
   /**
@@ -5704,7 +5748,7 @@ function buildSoundClipSection(selectable: Showable): HTMLElement {
     "display:flex;align-items:center;gap:0.4em;margin-bottom:0.3em;font-size:0.85em;color:#555";
   header.textContent = "Times are in ms, measured from the start of this component.";
   const playheadInOwner = () =>
-    tidyMs(playPositionSeconds.valueAsNumber * 1000 - selfStartMs);
+    tidyMs(playheadInVideoMs() - selfStartMs);
   const addBtn = document.createElement("button");
   addBtn.type = "button";
   addBtn.textContent = "+ Add";
@@ -7476,6 +7520,11 @@ function applyMarkerDrag(localX: number, localY: number, shiftKey = false) {
   // So when you configure the web page, and you hit refresh, or the page automatically
   // refreshes, you don't lose your settings.
   try {
+    if (sessionStorage.getItem("playPositionLocal") === "0") {
+      const playheadMs = playheadInVideoMs();
+      playPositionLocal.checked = false;
+      loadPlayPositionSeconds(playheadMs);
+    }
     const index = sessionStorage.getItem("index");
     const timeInSeconds = sessionStorage.getItem("timeInSeconds");
     const state = sessionStorage.getItem("state");

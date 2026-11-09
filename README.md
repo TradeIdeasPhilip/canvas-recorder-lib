@@ -65,6 +65,36 @@ This refers to simple-video-editor and showcase found in this repository.
 Note: [Riemann](https://github.com/TradeIdeasPhilip/riemann-surfaces-3d) provides a different type of example.
 This shows how to attach this library to a project that was not specifically developed for this library.
 
+## Quick Instructions for Publishing
+
+Start with everything committed.
+
+1. **Breaking changes?** If [BREAKING-CHANGES.md](BREAKING-CHANGES.md) has an "Unreleased" section, change that heading to the new version and today's date, and commit.
+2. **Bump the version.** This makes a commit and a tag.
+
+   | Command             | When                                                                  | Example       |
+   | ------------------- | --------------------------------------------------------------------- | ------------- |
+   | `npm version patch` | Nothing breaking                                                      | 0.7.1 → 0.7.2 |
+   | `npm version minor` | BREAKING-CHANGES.md has an "Unreleased" section                       | 0.7.1 → 0.8.0 |
+   | `npm version major` | Going to 1.0 (see [release-1.0.md](development-plans/release-1.0.md)) | 0.7.1 → 1.0.0 |
+
+3. `git push --follow-tags`. Pushing also publishes the API docs and the showcase.
+4. `npm whoami` says whether you're logged in. If not, `npm login`, which opens a browser. Logins time out eventually.
+5. `npm publish`. It opens a browser to confirm, even right after `npm login`.
+   It empties and rebuilds `dist/` first, so restart `npm run dev` in `test-project/` or `simple-video-editor/` if it's running. `npm run watch` can keep running.
+
+The new version can take a few minutes to appear. Check the library's [npm page](https://www.npmjs.com/package/canvas-recorder-lib) before installing it.
+
+Then, in each project that uses the library:
+
+```bash
+npm install canvas-recorder-lib@0.7.2    # the new version
+npx tsc --noEmit                         # a breaking change shows up here
+git commit -m "canvas-recorder-lib 0.7.2" package.json package-lock.json
+```
+
+Restart that project's `npm run dev`: Vite only notices a new version of a dependency when it starts.
+
 ## Notes for a project that uses this library
 
 Things the first project to use this library ([riemann-surfaces-3d](https://github.com/TradeIdeasPhilip/riemann-surfaces-3d)) ran into.
@@ -237,11 +267,4 @@ A project that has linked this library (see [Working on the library at the same 
 
 The Simple Video Editor is a separate npm project inside this repo. [simple-video-editor/README.md](simple-video-editor/README.md) says how to run it.
 
-## Releasing
-
-1. Bump the version. If [BREAKING-CHANGES.md](BREAKING-CHANGES.md) has an "Unreleased" section: `npm version minor --no-git-tag-version`, and replace "Unreleased" with the new version and the date.
-   Otherwise: `npm version patch --no-git-tag-version`. Commit and push.
-2. `npm publish`. `prepublishOnly` empties and rebuilds `dist/` first, so nothing stale is published.
-3. In each project: `npm install canvas-recorder-lib@<version>`, `npx tsc --noEmit`, and commit `package.json` and `package-lock.json`.
-
-The API docs publish themselves on every push to master.
+To publish a new version, see [Quick Instructions for Publishing](#quick-instructions-for-publishing).

@@ -340,6 +340,11 @@ body {
   flex-grow: 1;
 }
 
+/* About 60% of the default width, to make room for "local". */
+#playPositionSeconds {
+  width: 6.5em;
+}
+
 /* ── History dialog ──────────────────────────────────────────────────── */
 
 #historyList li.selected {

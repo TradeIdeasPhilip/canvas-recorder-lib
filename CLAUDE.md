@@ -47,9 +47,11 @@ That works for `test-project/`, `simple-video-editor/` and an `npm link`ed proje
 
 ## Releasing a change
 
-1. Bump the version.  If BREAKING-CHANGES.md has an "Unreleased" section:  `npm version minor --no-git-tag-version`, and replace "Unreleased" with the version and date.  Otherwise `patch`.  Commit and `git push`.
+README.md's "Quick Instructions for Publishing" is the checklist the user follows.  Keep it right, and give the same advice.  In short:
+
+1. If BREAKING-CHANGES.md has an "Unreleased" section, replace it with the version and date and commit, then `npm version minor`.  Otherwise `npm version patch`.  Either one commits and tags.  `git push --follow-tags`.
 2. `npm publish`.  `prepublishOnly` empties and rebuilds `dist/` first.  (The user runs this:  it needs their npm login and 2FA.)
-3. In each project that uses the library:  `npm install canvas-recorder-lib@<new version>`, `npx tsc --noEmit`, and commit `package.json` and `package-lock.json`.
+3. In each project that uses the library:  `npm install canvas-recorder-lib@<new version>`, `npx tsc --noEmit`, commit `package.json` and `package-lock.json`, and restart `npm run dev`.
 
 **A breaking change gets an entry in BREAKING-CHANGES.md, under "Unreleased", in the same commit.**  Breaking means a project that uses the library could stop compiling or look different:
 removing or renaming an export, changing a signature, or changing a component's default value (save files leave out defaults, so an old save would load differently).
