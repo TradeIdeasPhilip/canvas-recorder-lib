@@ -67,8 +67,8 @@ type Samples = readonly Complex[];
  * Paths go through samplesFromPath(), which always samples each corner, so a polyline through
  * the samples is exactly the original polygon.
  *
- * A parametric function is sampled at `i / sampleCount`, not `i / (sampleCount - 1)` like
- * samplesFromParametric():  for a closed curve, the last sample would repeat the first.
+ * A parametric function is sampled at `i / sampleCount`, the same as samplesFromParametric(),
+ * but without its power-of-2 check.
  */
 function samplesOf(source: FourierSource, sampleCount: number): Complex[] {
   if ("path" in source) {

@@ -107,9 +107,12 @@ Collect them here before release.  So far:
     The generated TypeScript in the diff files (`properties/*.txt`) uses class names, so it says `Component` from the next sync on.
   - Users:  18 lines in the library, `affine-transforms.ts`, and the showcase.
   - Docs:  `Showable` is the interface; `Component` is the standard implementation.  A plain object can still be a `Showable` in the tree.
-- **`samplesFromParametric()` samples at `i / (N - 1)`** ([src/peano-fourier/fourier-shared.ts](../src/peano-fourier/fourier-shared.ts)), 7-pointed-star's issue 10.
-  For a closed curve the last sample repeats the first; `i / N` spaces them evenly.
-  `FourierComponent` uses it for parametric sources, so the fix changes how those slides look:  breaking.
+- ~~**`samplesFromParametric()` samples at `i / (N - 1)`**~~ Fixed 2026-11-09 as a patch:  a bug fix isn't breaking, even when it changes what's drawn.  7-pointed-star's issue 10.
+
+- **The video size moves into the save file** ([configurable-video-size.md](configurable-video-size.md#proposal--the-size-and-the-last-save-range-in-the-json-file-2026-10-24)), added 2026-11-09.
+  Wanted for the Simple Video Editor's projects.  It isn't an API change.
+  But an old save has no size, so once the localStorage key goes away, the old save would open at the program's default size instead of the size it was made at.
+  Copy the size from localStorage into the state the first time an old save loads, and it isn't breaking.  Without that copy step, it's breaking, and belongs in this release.
 
 Additions aren't breaking and can come any time.  7-pointed-star's issues 5 and 9 (export `FourierComponent` and `LatticeValue` from the package root) went into 0.6.0.
 
@@ -121,12 +124,13 @@ The sound work in [live-sound-mixing.md](live-sound-mixing.md) changes no public
 
 1. Items 1–4 above.  Small.
 2. Release 1.0.0.
-3. The sound work, as 1.1.0.
+
+The sound work didn't wait:  it shipped in 0.7.0.
 
 ## The release itself
 
 1. BREAKING-CHANGES.md:  an "Unreleased" section, with every entry from above, becomes "1.0.0 (date)".
-2. `npm version major --no-git-tag-version` (0.6.x → 1.0.0).  Commit and push.
+2. README.md's "Quick Instructions for Publishing", with `npm version major` (0.7.x → 1.0.0).
 3. `npm publish` (you:  login and 2FA).
 4. In affine-transforms, riemann-surfaces-3d and 7-pointed-star:  `npm install canvas-recorder-lib@1.0.0`, `npx tsc --noEmit`, commit both package files.
 5. Update CLAUDE.md's "Releasing a change":  from now on, an Unreleased section in BREAKING-CHANGES.md means `npm version major`; new features `minor`; fixes `patch`.

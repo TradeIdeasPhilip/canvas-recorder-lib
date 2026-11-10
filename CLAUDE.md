@@ -62,6 +62,7 @@ README.md's "Quick Instructions for Publishing" is the checklist the user follow
 **A breaking change gets an entry in BREAKING-CHANGES.md, under "Unreleased", in the same commit.**  Breaking means a project that uses the library could stop compiling or look different:
 removing or renaming an export, changing a signature, or changing a component's default value (save files leave out defaults, so an old save would load differently).
 Say what to do instead.  The library is a production tool now.
+**A bug fix is a patch, even when it changes what's drawn:**  nobody depended on the wrong output.  Breaking means changing behavior that was working as intended.
 
 Projects depend on the published version, so their GitHub Pages builds work.
 To try unpublished library changes in a project, run `npm link ../canvas-recorder-lib` there.

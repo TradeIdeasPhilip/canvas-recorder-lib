@@ -93,6 +93,13 @@ export type Complex = [real: number, imaginary: number];
  */
 export const numberOfFourierSamples = 1024;
 
+/**
+ * Sample a closed curve, ready for {@link samplesToFourier}.
+ * @param func A closed curve:  `func(1)` is the same point as `func(0)`.
+ * @param numSamples A power of 2.
+ * @returns The points at `t = i / numSamples`, evenly spaced in `t`.
+ * `t = 1` isn't sampled:  it would repeat the first point.
+ */
 export function samplesFromParametric(
   func: ParametricFunction,
   numSamples: number = numberOfFourierSamples,
@@ -102,7 +109,7 @@ export function samplesFromParametric(
   }
   const samples: Complex[] = [];
   for (let i = 0; i < numSamples; i++) {
-    const t = i / (numSamples - 1);
+    const t = i / numSamples;
     const point = func(t);
     samples.push([point.x, point.y]);
   }
