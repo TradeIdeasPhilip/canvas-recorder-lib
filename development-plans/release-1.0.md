@@ -98,15 +98,17 @@ Recommendation:  the README sentence now, and narrow `exports` later only if it 
 Renames, default values, signatures:  anything we've wanted to change but didn't want to break.
 Collect them here before release.  So far:
 
-- **`InParallelComponent` → `Component`** (proposed 2026-11-03).
+- **`InParallelComponent` → `ComponentBase`** (proposed 2026-11-03 as `Component`; **name decided 2026-11-11**).
   It's the base of every component, `InSeriesComponent` included, so "in parallel" is just its default, and "In Series extends In Parallel" reads wrong.
-  - Rename the file too:  `src/slide-components/in-parallel.ts` → `component.ts`, and maybe move `PaddingComponent` into its own `padding.ts`.
+  - **Why not `Component`:**  "create a component" would sound like `new Component()`, which is almost never what's meant.
+    You usually create a particular kind, like a Fourier or an In Series.  `ComponentBase` says it's what they're built on.
+  - Rename the file too:  `src/slide-components/in-parallel.ts` → `component-base.ts`, and maybe move `PaddingComponent` into its own `padding.ts`.
     That changes the deep-import paths, which is fine in this release.
   - `ParallelChildInfo` and `ShowChildInfo` follow:  `ChildInfo`, `ShowChildInfo`.
   - Save files don't change:  they store `registryKey`, and nothing registers a plain In Parallel.
-    The generated TypeScript in the diff files (`properties/*.txt`) uses class names, so it says `Component` from the next sync on.
+    The generated TypeScript in the diff files (`properties/*.txt`) uses class names, so it says `ComponentBase` from the next sync on.
   - Users:  18 lines in the library, `affine-transforms.ts`, and the showcase.
-  - Docs:  `Showable` is the interface; `Component` is the standard implementation.  A plain object can still be a `Showable` in the tree.
+  - Docs:  `Showable` is the interface; `ComponentBase` is the standard implementation.  A plain object can still be a `Showable` in the tree.
 - ~~**`samplesFromParametric()` samples at `i / (N - 1)`**~~ Fixed 2026-11-09 as a patch:  a bug fix isn't breaking, even when it changes what's drawn.  7-pointed-star's issue 10.
 
 - **The video size moves into the save file** ([configurable-video-size.md](configurable-video-size.md#proposal--the-size-and-the-last-save-range-in-the-json-file-2026-10-24)), added 2026-11-09.

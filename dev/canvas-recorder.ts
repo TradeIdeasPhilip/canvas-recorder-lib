@@ -4181,6 +4181,8 @@ async function initFromDB(unloadBackup?: string | null): Promise<void> {
   }
   _loadSource = source;
   _baselineTreeJson = currentTreeJson();
+  // The unload backup is in the database now, or older than it.  See the end of "Load previous state".
+  sessionStorage.removeItem("pendingScheduleSave");
 
   canvas.style.visibility = "";
   canvasLoading.style.display = "none";
@@ -4298,6 +4300,11 @@ function currentSaveTarget(): Showable | null {
 }
 
 function saveOnUnload() {
+  // Still starting up:  the live tree is the TypeScript defaults, not the user's work.
+  // A backup of it would be newer than the real state, so the next startup would load it,
+  // and everything made in the Visual Editor would disappear.  The last session's backup,
+  // if there was one, is still in sessionStorage until initFromDB() has saved it.
+  if (_loadSource === undefined) return;
   // When the history dialog is open the live tree may hold a transient preview from
   // _dialogSelectItem.  Back up the pre-dialog state instead, so a preview is never
   // persisted as if the user had accepted it.
@@ -7924,6 +7931,15 @@ function applyMarkerDrag(localX: number, localY: number, shiftKey = false) {
     if (fL) getById("left-col", HTMLDivElement).style.flex = fL;
   } finally {
     sessionStorage.clear();
+    // Keep the unload backup until initFromDB() has saved it.  If the page reloads before
+    // then, saveOnUnload() saves nothing, so this is the only copy.
+    if (unloadBackup !== null) {
+      try {
+        sessionStorage.setItem("pendingScheduleSave", unloadBackup);
+      } catch {
+        // It fit a moment ago.
+      }
+    }
   }
 }
 

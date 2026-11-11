@@ -1,6 +1,6 @@
 # Multi-Window Sync
 
-_Idea and assessment, 10/8/2026.  Raised in priority 11/8/2026:  see "One slide per window".  Lab, agent and script use cases added 11/10/2026:  see "A lab window"._
+_Idea and assessment, 10/8/2026.  Raised in priority 11/8/2026:  see "One slide per window".  Lab, agent and script use cases added 11/10/2026:  see "A lab window".  A real example added 11/11/2026:  see "An example:  Scratch 5"._
 
 Several windows open on the same video stay in sync with each other's changes, the way
 canvas-recorder's [sound-explorer.html](https://github.com/TradeIdeasPhilip/canvas-recorder/blob/master/sound-explorer.html) already does.
@@ -17,7 +17,7 @@ canvas-recorder's [sound-explorer.html](https://github.com/TradeIdeasPhilip/canv
   also the main reason Sound Explorer got this feature.
 - **Copying between slides.**  _Added 11/8/2026._  One tab on an old slide and one on a new
   slide, copying and comparing back and forth.  This is now the case to design for.  See the
-  next section.
+  next section, and its example, Scratch 5.
 - **A lab window.**  _Added 11/10/2026, with the next two._  The canvas and basic playback
   controls, and none of the editor's other features.  The rest of the screen is for trying
   something new, starting with the editing API in [ai-in-the-editor.md](ai-in-the-editor.md):
@@ -51,6 +51,33 @@ and each holds its own replaceable components.  A new short starts as pieces cop
   - The synced files report "⚠ changed on disk".
   - A read-only tab would avoid both, but it's a hack.
 - **Two different videos in two tabs already work.**  Each has its own history.
+
+### An example:  Scratch 5 (11/11/2026)
+
+[Scratch 5](https://github.com/TradeIdeasPhilip/7-pointed-star/blob/7c1587788cea48d1fb5e335f389939c1da5071c2/properties/7-pointed-star-shorts.json#L1514)
+was built from pieces of three slides at once.
+
+<img src="8%20Fourier.png" width="250" alt="Scratch 4:  eight Fourier animations">
+<img src="4%20fourier%20and%204%20reference.png" width="250" alt="Scratch 5:  four Star Circuits, eight circles">
+<img src="alpha%2033.png" width="250" alt="The slide with the 33% fill">
+
+Left to right:  Scratch 4, Scratch 5, and the slide the fill came from.
+
+- **The layout came from Scratch 4.**  Scratch 4 has eight Fourier animations, in two staggered columns.
+- **Scratch 5 has four components, not eight.**  Each Star Circuit draws two circles:  its Fourier
+  animation (Fourier Rect) and a finished star to compare it with (Reference Rect).  So there are
+  still eight circles, in the same eight places.
+- **The fill came from a third slide.**  Each circuit kept its own color (red, white, blue), and
+  took only the alpha, 33%, from the slide on the right.
+
+What it shows:
+- **It's a merge, not a copy.**  No old component became one new component.  Eight rectangles went
+  into four components, two each, and part of a color came from somewhere else.
+- **Copy and paste was the easy way.**  A script, or a prompt describing the changes, was tempting,
+  but copying each value by hand was less work.
+- **The GUI did the job.  The back and forth was the cost.**  With one root per window, every value
+  meant switching chapters and finding the place again, across three slides.  Two or three windows
+  side by side, each on its own slide, would have removed that.
 
 ### What makes this case easy
 
