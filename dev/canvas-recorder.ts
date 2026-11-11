@@ -149,7 +149,7 @@ import {
   splitSoundClip,
   splitVideoClip,
 } from "../src/slide-components/split-video-clip.ts";
-import { TranscriptView } from "./transcript-view.ts";
+import { TranscriptView, type TranscriptViewClip } from "./transcript-view.ts";
 import { TraditionalTextComponent } from "../src/slide-components/traditional-text.ts";
 import { PaddingComponent } from "../src/slide-components/in-parallel.ts";
 
@@ -522,13 +522,10 @@ function checkVideosLocalFiles() {
  * input (pointermove, etc.).
  */
 function showFrame(timeInMs: number, live: boolean) {
-  // While playing, the timeline keeps the play head on screen.
-  timelineDisplay.setPlayMs(
-    timeInMs - rootStartMs,
-    live && playCheckBox.checked,
-  );
-  if (live)
-    transcriptView?.update(timeInMs - rootStartMs, playCheckBox.checked);
+  // While playing or saving, the timeline and 📖 Text keep the play head on screen.
+  const following = !live || playCheckBox.checked;
+  timelineDisplay.setPlayMs(timeInMs - rootStartMs, following);
+  transcriptView?.update(timeInMs - rootStartMs, following);
   for (const update of goToButtonUpdaters) update();
   editorPanelsTimeChanged();
   context.reset();
@@ -1411,6 +1408,7 @@ async function startRecording(
 
     await output.start();
     infoDiv.innerHTML = "Recording in progress...";
+    showTranscriptViewForSave();
 
     const frameDuration = 1000 / FPS;
 
@@ -1534,6 +1532,7 @@ async function startRecording(
       applyZoom(currentZoomFactor);
     }
     suspendLiveAnimationLoop = false;
+    endTranscriptViewForSave();
   }
 }
 
@@ -2552,20 +2551,7 @@ onTranscriptsChange(() => {
 // The transcript as text.  It rebuilds itself when the clips or transcripts
 // change, so it needs no calls besides the one in showFrame().
 transcriptView = new TranscriptView({
-  clips() {
-    const root = currentRoot();
-    if (!root) return [];
-    return soundOwners(root)
-      .flatMap(({ owner, startMs }) =>
-        (owner.soundClips ?? []).map((clip) => ({
-          clip,
-          owner,
-          startMs: startMs + clip.startMsIntoScene,
-          lengthMs: soundClipLengthMs(clip),
-        })),
-      )
-      .sort((a, b) => a.startMs - b.startMs);
-  },
+  clips: transcriptViewClips,
   transcript(source) {
     const status = transcriptStatus(source);
     if (!status) return undefined;
@@ -2596,31 +2582,86 @@ transcriptView = new TranscriptView({
   },
 });
 getById("timelineCanvas", HTMLCanvasElement).after(transcriptView.element);
-{
-  const READ_KEY = "transcriptView.on";
-  const checkbox = getById("transcriptViewCheckbox", HTMLInputElement);
-  const timelineCanvas = getById("timelineCanvas", HTMLCanvasElement);
-  const apply = () => {
-    transcriptView!.hidden = !checkbox.checked;
-    // The timeline's CSS sets `display`, which would beat the `hidden` attribute.
-    timelineCanvas.style.display = checkbox.checked ? "none" : "";
-    if (!checkbox.checked) timelineDisplay.redraw();
-  };
-  try {
-    checkbox.checked = localStorage.getItem(READ_KEY) === "true";
-  } catch {
-    // Remembering is only a convenience.
-  }
-  checkbox.addEventListener("input", () => {
-    try {
-      localStorage.setItem(READ_KEY, String(checkbox.checked));
-    } catch {
-      // See above.
-    }
-    apply();
-  });
-  apply();
+
+/** The current chapter's sound clips, in order of time, for 📖 Text. */
+function transcriptViewClips(): TranscriptViewClip[] {
+  const root = currentRoot();
+  if (!root) return [];
+  return soundOwners(root)
+    .flatMap(({ owner, startMs }) =>
+      (owner.soundClips ?? []).map((clip) => ({
+        clip,
+        owner,
+        startMs: startMs + clip.startMsIntoScene,
+        lengthMs: soundClipLengthMs(clip),
+      })),
+    )
+    .sort((a, b) => a.startMs - b.startMs);
 }
+
+// MARK: 📖 Text checkbox
+
+const transcriptViewCheckbox = getById(
+  "transcriptViewCheckbox",
+  HTMLInputElement,
+);
+const TRANSCRIPT_VIEW_KEY = "transcriptView.on";
+
+/** Show 📖 Text or the timeline, to match the checkbox. */
+function applyTranscriptViewCheckbox() {
+  const on = transcriptViewCheckbox.checked;
+  transcriptView!.hidden = !on;
+  // The timeline's CSS sets `display`, which would beat the `hidden` attribute.
+  getById("timelineCanvas", HTMLCanvasElement).style.display = on ? "none" : "";
+  if (!on) timelineDisplay.redraw();
+}
+
+/**
+ * True while a save has switched to 📖 Text, and the user hasn't touched the checkbox since.
+ * Then the save switches back when it's done.
+ */
+let transcriptViewJustForSave = false;
+
+/**
+ * A save shows 📖 Text by default, so you can read along while it records.
+ * Only when there's something to read:  transcripts are on, and the chapter has sound.
+ */
+function showTranscriptViewForSave() {
+  if (transcriptViewCheckbox.checked) return;
+  if (!transcriptsEnabled() || transcriptViewClips().length === 0) return;
+  transcriptViewCheckbox.checked = true;
+  transcriptViewJustForSave = true;
+  applyTranscriptViewCheckbox();
+}
+
+/** The save is over.  Go back to the timeline, unless the user chose since. */
+function endTranscriptViewForSave() {
+  if (!transcriptViewJustForSave) return;
+  transcriptViewJustForSave = false;
+  transcriptViewCheckbox.checked = false;
+  applyTranscriptViewCheckbox();
+}
+
+try {
+  transcriptViewCheckbox.checked =
+    localStorage.getItem(TRANSCRIPT_VIEW_KEY) === "true";
+} catch {
+  // Remembering is only a convenience.
+}
+transcriptViewCheckbox.addEventListener("input", () => {
+  // The user's choice, so a save won't change it back, and it's remembered.
+  transcriptViewJustForSave = false;
+  try {
+    localStorage.setItem(
+      TRANSCRIPT_VIEW_KEY,
+      String(transcriptViewCheckbox.checked),
+    );
+  } catch {
+    // See above.
+  }
+  applyTranscriptViewCheckbox();
+});
+applyTranscriptViewCheckbox();
 
 timelineDisplay.onSeek = (localMs) => {
   stopAudio();
