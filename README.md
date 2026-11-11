@@ -222,6 +222,19 @@ For a new project, take the next number and add it here.
   When the editor loads saved changes, it rebuilds those children from the registry, so a `description` from your constructor comes back as the registry's default.
   `userEditableDescription` is saved with the rest, and the diff file uses it to match each child with its TypeScript.
 
+### Your own panels in the Visual Editor
+
+A panel is your own HTML, shown with a component's properties, bottom right, whenever that component is selected.
+It can read the playhead in the component's own time, move it, and change the component's properties.
+See `EditorPanel` in `src/showable.ts`, and the showcase's "Editor Panels" slide (`test-project/src/showcase/editor-panel.ts`).
+
+- **On your own component:** give it an `editorPanel`.
+- **On any component, including the library's:** `canvasRecorder.addEditorPanel((component) => …)` returns a panel for the components you choose, and `undefined` for the rest.
+  The showcase gives every Fourier a list of its terms this way.
+- **After changing a property, call `propertyChanged()`.** That saves it, like any other edit, and rebuilds the tables.
+- **Anything worth keeping goes in a property.** The panel object lasts as long as its component, but not across a reload.
+- **Touch the DOM only in `start()` and later,** never while a module loads.
+
 ### Recording a program that has its own state
 
 Most of canvas-recorder's components draw any time you ask, in any order.

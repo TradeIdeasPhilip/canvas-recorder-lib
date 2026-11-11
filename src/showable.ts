@@ -83,6 +83,79 @@ export type RootComponentEditor = {
   resetAll(): void;
 };
 
+// MARK: Editor panels
+
+/**
+ * Lets a component add its own panel to the Visual Editor, shown with the component's
+ * properties, bottom right, whenever the component is selected.
+ *
+ * Two ways to supply one:
+ * * {@link Showable.editorPanel}, set by the component itself.
+ * * `canvasRecorder.addEditorPanel()`, for components the project didn't write, like a
+ *   `FourierComponent` added in the Visual Editor.
+ *
+ * Only the Visual Editor calls these, and only after it has loaded.
+ *
+ * * **One panel object per component, closing over it.**  It outlives the editor's frequent
+ *   rebuilds, so it can remember things that aren't properties, like which item the user picked.
+ * * **Anything worth saving goes in a property.**  The panel object is forgotten on reload.
+ * * **A module never touches the DOM while it loads.**  Only {@link EditorPanel.start} and
+ *   the calls after it do.
+ * * A panel module may import small helpers from the library's `dev/`, but never
+ *   `dev/canvas-recorder.ts`:  that would load the whole editor at startup.
+ * * If a call throws, the editor shows the error where the panel was, and stops calling
+ *   that panel until the properties are rebuilt.
+ */
+export type EditorPanel = {
+  /**
+   * Build the panel.  Called each time the editor shows this component's properties,
+   * which is often:  every time it's selected, and after many edits.
+   * @param editor What the panel can ask of the Visual Editor.  Good until {@link suspend}.
+   * @returns Shown with the component's properties, bottom right.
+   */
+  start(editor: EditorPanelAPI): HTMLElement;
+  /**
+   * The panel is going away, maybe to be started again right away.
+   * Cancel any timers, animation frames and listeners.  Don't use `editor` after this.
+   */
+  suspend?(): void;
+  /**
+   * Something may have changed:  a property, a duration, a drag on the canvas.
+   * Re-read and redraw.  Called after every keystroke, so keep it quick.
+   * Only redraw the panel here:  a property changed from here would rebuild the
+   * properties, which calls this again.
+   */
+  update?(): void;
+  /**
+   * The playhead moved.  At most once per frame, so keep it quick.
+   * {@link EditorPanelAPI.getTimeMs} says where.
+   */
+  timeChanged?(): void;
+};
+
+/**
+ * What an {@link EditorPanel} can ask of the Visual Editor.
+ *
+ * Times are the component's own, what `show()` gets as `timeInMs`.
+ */
+export type EditorPanelAPI = {
+  /**
+   * Where the playhead is.
+   * Can be before 0 or past the end, when the component isn't showing.
+   */
+  getTimeMs(): number;
+  /** Move the playhead. */
+  seek(ms: number): void;
+  /**
+   * This panel changed one of its component's properties.
+   * Save it, redraw the canvas, and rebuild the property tables so they show the new value.
+   * The rebuild calls {@link EditorPanel.suspend} and then {@link EditorPanel.start} again.
+   */
+  propertyChanged(property: ScalarInfo | ScheduleInfo): void;
+  /** Bigger changes.  The same as {@link VisualEditorAPI.refreshGUI}. */
+  refreshGUI(howMuch: "sound" | "properties" | "structure"): void;
+};
+
 /**
  * This is mostly aimed at {@link ShowableParent.scheduleHasChanged}.
  * That needs to ripple up the tree toward the root.
@@ -372,6 +445,12 @@ export type Showable = {
    * If so, call {@link RootComponentEditor.start}() and honer the other callbacks in {@link RootComponentEditor}.
    */
   readonly rootComponentEditor?: RootComponentEditor;
+
+  /**
+   * This component's own panel in the Visual Editor, shown with its properties whenever
+   * it's selected.  See {@link EditorPanel}.
+   */
+  readonly editorPanel?: EditorPanel;
 
   /**
    * Key in `componentRegistry` that can recreate this component.

@@ -8,6 +8,7 @@ import { calligraphyEffect } from "./calligraphy.ts";
 import { colorPairReadability } from "./color-pair-readability.ts";
 import { crossFade } from "./cross-fade.ts";
 import { easingFunctions } from "./easing-functions.ts";
+import { editorPanels } from "./editor-panel.ts";
 import { flowersWithNPetals } from "./flowers.ts";
 import { fontSamples } from "./font-samples.ts";
 import { formattingPiecesOfText } from "./formatting-text.ts";
@@ -82,6 +83,7 @@ export const showcaseSlides: (() => Showable)[] = [
   simpleAnimatedColors,
   calligraphyEffect,
   fourierComponent,
+  editorPanels,
   fourierMorph,
   fourierMorphEaseOut,
   fourierMorphViaHalfway,

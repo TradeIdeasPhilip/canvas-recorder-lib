@@ -21,6 +21,8 @@ import {
   QUALITY_HIGH,
 } from "mediabunny";
 import {
+  EditorPanel,
+  EditorPanelAPI,
   RootComponentEditor,
   SerializedScalar,
   SerializedSchedule,
@@ -528,6 +530,7 @@ function showFrame(timeInMs: number, live: boolean) {
   if (live)
     transcriptView?.update(timeInMs - rootStartMs, playCheckBox.checked);
   for (const update of goToButtonUpdaters) update();
+  editorPanelsTimeChanged();
   context.reset();
   context.setTransform(mainTransform());
   if (live) {
@@ -1972,6 +1975,8 @@ const visualEditorAPI: VisualEditorAPI = {
     if (howMuch === "sound") {
       soundtrack.request();
     } else if (howMuch === "properties") {
+      // A property changed, so it has to be saved, like any other edit.
+      markDirty();
       updateScheduleEditor(selectedSlideChild ?? selectable);
     } else {
       // "structure"
@@ -2197,6 +2202,124 @@ const timelineWordsMemo = new WeakMap<
  * Cleared whenever {@link updateScheduleEditor} rebuilds.
  */
 const scheduleEditorRefreshers: Array<() => void> = [];
+
+// MARK: Editor panels
+
+/** One {@link EditorPanel} shown with the selected component's properties. */
+type ActivePanel = {
+  readonly panel: EditorPanel;
+  readonly component: Showable;
+  /** What's shown:  the panel's element, or an error in its place. */
+  element: HTMLElement;
+  /** False once suspended or broken.  Then the panel isn't called again, and its API does nothing. */
+  live: boolean;
+};
+
+/**
+ * The panels shown now.  Rebuilt by {@link updateScheduleEditor}.
+ * Declared up here because the first schedule editor is built while this module is still loading.
+ */
+const activePanels: ActivePanel[] = [];
+
+/** Where `component` starts, in the Visual Editor's root's time. */
+function componentStartMs(component: Showable): number {
+  const root = currentRoot();
+  return root ? (startWithin(root, component) ?? 0) : 0;
+}
+
+/** The playhead in `component`'s own time:  what its `show()` gets as `timeInMs`. */
+function componentTimeMs(component: Showable): number {
+  return playheadInRootMs() - componentStartMs(component);
+}
+
+/** Show `reason` where `active`'s panel was, and stop calling that panel. */
+function panelFailed(active: ActivePanel, reason: unknown): void {
+  console.error(reason);
+  active.live = false;
+  const name =
+    active.component.userEditableDescription ?? active.component.description;
+  const line = document.createElement("div");
+  line.style.cssText = "color:#b00;margin-bottom:0.4em";
+  line.textContent = `✗ A panel for "${name}" failed:  ${String(reason)}`;
+  active.element.replaceWith(line);
+  active.element = line;
+}
+
+/** Call into a panel, unless it's suspended or broken.  A bug in a panel mustn't break the editor. */
+function callPanel(
+  active: ActivePanel,
+  call: (panel: EditorPanel) => void,
+): void {
+  if (!active.live) return;
+  try {
+    call(active.panel);
+  } catch (reason) {
+    panelFailed(active, reason);
+  }
+}
+
+/** Tell each panel it's going away.  Called before every rebuild. */
+function suspendEditorPanels(): void {
+  for (const active of activePanels.splice(0)) {
+    callPanel(active, (panel) => panel.suspend?.());
+    active.live = false;
+  }
+}
+
+/**
+ * Start `component`'s panels:  its own {@link Showable.editorPanel}, then the project's,
+ * from `canvasRecorder.addEditorPanel()`.
+ * @returns The elements to show, in order.
+ */
+function startEditorPanels(component: Showable): HTMLElement[] {
+  return canvasRecorder.editorPanelsFor(component).map((panel) => {
+    const active: ActivePanel = {
+      panel,
+      component,
+      element: document.createElement("div"),
+      live: true,
+    };
+    activePanels.push(active);
+    const api: EditorPanelAPI = {
+      getTimeMs: () => componentTimeMs(component),
+      seek(ms) {
+        if (!active.live) return;
+        visualEditorAPI.seek(ms + componentStartMs(component));
+      },
+      propertyChanged(property) {
+        if (!active.live) return;
+        activeRootComponentEditor?.update(component, property);
+        markDirty();
+        // Rebuild so the tables show the new value.  That restarts this panel too.
+        updateScheduleEditor(component);
+      },
+      refreshGUI(howMuch) {
+        if (!active.live) return;
+        visualEditorAPI.refreshGUI(howMuch);
+      },
+    };
+    callPanel(active, (panel) => {
+      const element = panel.start(api);
+      if (!(element instanceof HTMLElement)) {
+        throw new Error("start() didn't return an HTMLElement.");
+      }
+      active.element = element;
+    });
+    // Every keystroke in the properties, and every duration change.
+    scheduleEditorRefreshers.push(() =>
+      callPanel(active, (panel) => panel.update?.()),
+    );
+    return active.element;
+  });
+}
+
+/** The playhead moved.  Called from {@link showFrame}. */
+function editorPanelsTimeChanged(): void {
+  // A copy:  a panel's call may rebuild the list.
+  for (const active of [...activePanels]) {
+    callPanel(active, (panel) => panel.timeChanged?.());
+  }
+}
 
 /**
  * The schedules the user switched to **Durations**, as opposed to the
@@ -2526,6 +2649,7 @@ timelineDisplay.onBlockClick = (id) => {
         updateComponentEditor(container);
         updateScheduleEditor(child);
         timelineDisplay.setSelectedId(child);
+        activeRootComponentEditor?.selectionChanged(child);
         return true;
       }
       if (child.children?.length && findIn(child.children, child)) return true;
@@ -6350,6 +6474,7 @@ function buildNameSection(selectable: Showable): HTMLElement {
 }
 
 function updateScheduleEditor(selectable: Showable) {
+  suspendEditorPanels();
   scheduleEditorFieldset.replaceChildren();
   editingRectKf = null;
   viewingRectKfs.clear();
@@ -6496,11 +6621,7 @@ function updateScheduleEditor(selectable: Showable) {
   }
   if (selectable instanceof HandwritingEffectComponent) {
     const handwritingPanel = buildHandwritingPanel(selectable, {
-      localTimeMs(owner) {
-        const root = currentRoot();
-        const ownerStart = root ? (startWithin(root, owner) ?? 0) : 0;
-        return playheadInRootMs() - ownerStart;
-      },
+      localTimeMs: componentTimeMs,
       progressChanged() {
         activeRootComponentEditor?.update(
           selectable,
@@ -6515,6 +6636,9 @@ function updateScheduleEditor(selectable: Showable) {
     // Every keystroke in Divisions or Progress updates the status.
     scheduleEditorRefreshers.push(handwritingPanel.refresh);
   }
+  // A component's own panels, and the project's:  after the library's, so on a Fourier
+  // the library's status comes first.
+  scheduleEditorFieldset.append(...startEditorPanels(selectable));
 
   for (const info of scalars ?? []) {
     const section = buildScalarSection(info, selectable, (s, i) =>

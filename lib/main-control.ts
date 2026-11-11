@@ -1,4 +1,4 @@
-import type { Showable } from "../src/showable.ts";
+import type { EditorPanel, Showable } from "../src/showable.ts";
 import { playerBodyHtml } from "../dev/player-body.ts";
 
 /**
@@ -226,6 +226,77 @@ export class CanvasRecorder {
     return this.#startRequest;
   }
 
+  // MARK: Editor panels
+
+  readonly #editorPanelFactories = new Set<EditorPanelFactory>();
+  /** Each factory's answer for each component, so a panel lives as long as its component. */
+  readonly #editorPanelCache = new WeakMap<
+    Showable,
+    Map<EditorPanelFactory, EditorPanel | undefined>
+  >();
+
+  /**
+   * Add a panel to the Visual Editor for any component that `factory` chooses, including
+   * components this project didn't write, like a `FourierComponent` added in the Visual Editor.
+   *
+   * The Visual Editor calls `factory` the first time it shows each component's properties,
+   * and keeps the answer for as long as the component exists.  Return `undefined` for
+   * components that don't get this panel.  `factory` itself shouldn't touch the DOM:  the
+   * panel's {@link EditorPanel.start} does that.
+   *
+   * A component's own {@link Showable.editorPanel} comes first, then these, in the order
+   * they were added.
+   *
+   * ```ts
+   * canvasRecorder.addEditorPanel((component) =>
+   *   component instanceof FourierComponent ? termsPanel(component) : undefined,
+   * );
+   * ```
+   *
+   * Works before or after {@link start}.
+   * @returns A function that removes the factory.  Panels it already made disappear the
+   * next time the properties are rebuilt.
+   */
+  addEditorPanel(factory: EditorPanelFactory): () => void {
+    this.#editorPanelFactories.add(factory);
+    return () => this.#editorPanelFactories.delete(factory);
+  }
+
+  /**
+   * The panels to show with `component`'s properties:  its own {@link Showable.editorPanel},
+   * then one from each {@link addEditorPanel} factory that offers one.
+   * @internal For the player.
+   */
+  editorPanelsFor(component: Showable): EditorPanel[] {
+    const result: EditorPanel[] = [];
+    if (component.editorPanel) {
+      result.push(component.editorPanel);
+    }
+    let cache = this.#editorPanelCache.get(component);
+    if (!cache) {
+      cache = new Map();
+      this.#editorPanelCache.set(component, cache);
+    }
+    for (const factory of this.#editorPanelFactories) {
+      if (!cache.has(factory)) {
+        let panel: EditorPanel | undefined;
+        try {
+          panel = factory(component);
+        } catch (reason) {
+          // A bug in a project's panel mustn't break the editor.
+          console.error(reason);
+          panel = errorPanel(`The panel factory threw:  ${String(reason)}`);
+        }
+        cache.set(factory, panel);
+      }
+      const panel = cache.get(factory);
+      if (panel) {
+        result.push(panel);
+      }
+    }
+    return result;
+  }
+
   /**
    * Replace the page with the player, and show `showable` in it.
    *
@@ -248,6 +319,26 @@ export class CanvasRecorder {
     // Loading it here, on demand, means it runs after the request is in place.
     await import("../dev/canvas-recorder.ts");
   }
+}
+
+/**
+ * See {@link CanvasRecorder.addEditorPanel}.
+ * @returns A panel for `component`, or `undefined` for none.
+ */
+export type EditorPanelFactory = (
+  component: Showable,
+) => EditorPanel | undefined;
+
+/** A panel that only shows `message`, in red. */
+function errorPanel(message: string): EditorPanel {
+  return {
+    start() {
+      const element = document.createElement("div");
+      element.style.color = "#b00";
+      element.textContent = `✗ ${message}`;
+      return element;
+    },
+  };
 }
 
 /** The main control object for this library.  See {@link CanvasRecorder}. */
