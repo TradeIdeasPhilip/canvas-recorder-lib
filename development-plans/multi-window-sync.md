@@ -1,6 +1,6 @@
 # Multi-Window Sync
 
-_Idea and assessment, 10/8/2026.  Raised in priority 11/8/2026:  see "One slide per window"._
+_Idea and assessment, 10/8/2026.  Raised in priority 11/8/2026:  see "One slide per window".  Lab, agent and script use cases added 11/10/2026:  see "A lab window"._
 
 Several windows open on the same video stay in sync with each other's changes, the way
 canvas-recorder's [sound-explorer.html](https://github.com/TradeIdeasPhilip/canvas-recorder/blob/master/sound-explorer.html) already does.
@@ -18,6 +18,17 @@ canvas-recorder's [sound-explorer.html](https://github.com/TradeIdeasPhilip/canv
 - **Copying between slides.**  _Added 11/8/2026._  One tab on an old slide and one on a new
   slide, copying and comparing back and forth.  This is now the case to design for.  See the
   next section.
+- **A lab window.**  _Added 11/10/2026, with the next two._  The canvas and basic playback
+  controls, and none of the editor's other features.  The rest of the screen is for trying
+  something new, starting with the editing API in [ai-in-the-editor.md](ai-in-the-editor.md):
+  instructions for each feature, and a simple GUI to try it.
+- **An agent window.**  The lab, grown up.  The test controls become a conversation:  a
+  different GUI on the same video, next to the regular editor.  The line between testing a
+  feature and using it is just which panel is showing.
+- **A script workbench.**  Custom code that's too specific for a Visual Editor tool, and a little
+  too long for the console.  For example, coordinating the schedules of 4 controls, which has to
+  be redone after any small change.  Each script is kept as a file, to copy from next time, and
+  runs only when asked, never automatically.
 
 ## One slide per window (11/8/2026)
 
@@ -206,6 +217,78 @@ serialized tree, node by node, gets it right.
 3. **The general case:**  two windows editing overlapping parts of the tree.  Do it only if it
    comes up.  Most of it is item 8's full diff-apply, plus item 9.
 
+_11/10/2026:_  the lab window, next, is a second reason for stage 0.
+
+## A lab window (11/10/2026)
+
+_Speculation.  Nothing here is built yet._
+
+### What it is
+
+- **The canvas and basic playback:**  play and pause, the position, the chapter.  The rest of the
+  editor is hidden.
+- **The rest of the screen is a lab panel,** with a section for each feature being tried:  a few
+  lines of instructions, and a small GUI.
+  - The first is the editing API in [ai-in-the-editor.md](ai-in-the-editor.md).  Type a path for
+    `find()`, see `properties()` as a table, change a value with `set()`, take a `screenshot()`.
+  - It's a manual test as well as a playground.  test-project's pages, like `sound-test.html`,
+    test the library on its own.  The lab tests it on a real video, live.
+- **The agent window is the same window with a different panel:**  a conversation instead of test
+  controls.  That's ai-in-the-editor.md's option C or D.
+
+### Scripts
+
+The script workbench is one more lab section.
+
+- **A script is a file in the project,** e.g. `editor-scripts/coordinate-circuits.ts`, exporting a
+  description and a `run(editor)` function.
+  - Written in VS Code, with types and autocompletion.
+  - Committed, so it's there to copy next time.
+- **The lab lists them,** each with a Run button.  Vite's `import.meta.glob()` can find them.
+  Nothing runs on load, only on the button.
+- **A run goes through the editing API.**  So it's one history entry, autosaved, in the diff file,
+  and one Cmd+Z undoes it.  Or it offers its result in the history without applying it, with the
+  script's name on it:  see [load-history.md](load-history.md).
+- **Why not TypeScript defaults?**  A script's output is ordinary saved state.
+  - It can still be hand-tuned in the editor afterwards.
+  - After a small change somewhere else, run the script again to redo the coordinated work.
+- **Open:**  saving a script in VS Code makes Vite reload the page, which is the reload annoyance
+  again.  If the lab accepts hot updates for the script files (`import.meta.hot.accept()`), a save
+  only swaps in the new code.  Untested.
+
+### What it needs from this plan
+
+- **It can start without sync,** as a "lab" mode in the one window.  Hide the right column and
+  most of the left, and put the lab panel there.  One window, one tree, nothing to sync.
+  - Hiding with CSS is much easier than a second, smaller page.  The player looks up every
+    control by id when it loads, so leaving controls out would break it.
+- **Side by side needs sync.**  The lab or agent window next to the regular editor is the real
+  goal:  ask for a change on one side, and watch it land in the editor on the other.  That's two
+  windows on one video, which isn't safe today.  See "The case", above.
+- **These windows change what the editor is showing, on purpose.**  That's the opposite of "one
+  slide per window", where the roots are disjoint.
+  - So step 7's test usually fails, and the editor window takes the fallback:  apply the whole
+    tree and rebuild both editors.
+  - Step 6, skipping identical nodes, keeps that small.
+  - Stage 0's snapshot puts the selection back, so the component you were looking at stays
+    selected, with its new values.  Without stage 0, every script run or agent reply sends the
+    editor's selection back to the root.
+  - Conflicts stay rare.  A script run or an agent reply is one change, saved and sent right away,
+    not after the 5 s debounce.
+- **The lab window has no editor of its own,** so the blunt apply is all it needs for changes
+  coming the other way.
+
+### Order
+
+| # | Step | Effort | Certainty |
+|---|---|---|---|
+| 1 | The editing API, with lab mode in one window as its playground | 1–2 days, mostly the API | High |
+| 2 | Scripts, as a lab section | Small | Medium:  the hot-update question |
+| 3 | Sync (steps 1–11 above) and stage 0, to put the lab beside the editor | See those sections | High |
+| 4 | The agent panel | A few days | See ai-in-the-editor.md |
+
+Steps 1 and 2 need nothing from the rest of this plan, so they can come first.
+
 ## The design, as proposed
 
 1. **Start of a batch.**  When the first change of a batch starts the autosave timer, tell
@@ -387,6 +470,8 @@ This raises its priority.  It could be done first, before any of the multi-windo
 The common case after a reload is a tree identical to the one before it.  The next most common
 is a small, local change.  When something odd happens, landing somewhere reasonable is good
 enough.  With those expectations, most of this is small.
+
+_Step 1 done 2026-11-10:  `restorePlace()` in `dev/canvas-recorder.ts`.  7-pointed-star-shorts hit the bug every reload once its saved state added children to Scratch 1 and 2._
 
 **An existing bug first.**  Today's restore runs *before* the saved tree is restored.
 - `initFromDB()` is async, but the block that reads `sessionStorage` runs synchronously at the

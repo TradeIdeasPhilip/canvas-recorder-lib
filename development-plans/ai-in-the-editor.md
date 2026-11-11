@@ -153,5 +153,5 @@ They share the foundation, and they don't exclude each other.
 
 1. **Measuring:**  how much does "center it" need real bounds, and how to get them generically?
 2. **Is a path by names good enough?**  Renaming breaks a path in the middle of a conversation.  Maybe the API also hands out short ids, good for one session.
-3. **Should an AI's change be marked** in the history ("Claude:  moved Bottom left"), so it's easy to find and undo?
+3. **Should an AI's change be marked** in the history ("Claude:  moved Bottom left"), so it's easy to find and undo?  See [load-history.md](load-history.md):  names, and offered entries.
 4. **The diff file and the editor disagree about where work belongs.**  With A, B and C, more of the work stays in saved state instead of code.  Is that fine, or should "promote to code" become a regular step?

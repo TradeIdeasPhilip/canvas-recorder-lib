@@ -4,7 +4,6 @@ import {
   assertNonNullable,
   FIGURE_SPACE,
   parseFloatX,
-  parseIntX,
   ReadOnlyRect,
 } from "phil-lib/misc";
 import {
@@ -1885,6 +1884,59 @@ function currentRoot(): Showable | undefined {
   return chapterList[select.selectedIndex]?.selectable;
 }
 
+// MARK: Chapter paths
+
+/**
+ * One step down the tree:  the child's position among its parent's children, and its name.
+ *
+ * A chapter's row in the `<select>` changes whenever the tree above it changes shape, e.g.
+ * when saved state adds components to an earlier scene.  A path of these doesn't.
+ */
+type ChapterPathStep = { readonly index: number; readonly name: string };
+
+/** The name the chapter `<select>` shows. */
+function chapterName(showable: Showable): string {
+  return showable.userEditableDescription ?? showable.description;
+}
+
+/** The way down from the top of the video to this chapter.  Find it again with {@link findChapter}. */
+function chapterPath(info: ShowableTree): ChapterPathStep[] {
+  const path: ChapterPathStep[] = [];
+  for (let step = info; step.parent; step = step.parent) {
+    const child = step.selectable;
+    const index =
+      step.parent.selectable.children?.findIndex((c) => c.child === child) ??
+      -1;
+    path.push({ index, name: chapterName(child) });
+  }
+  return path.reverse();
+}
+
+/**
+ * Find a chapter again from its {@link chapterPath}, in a tree that may have changed.
+ *
+ * At each step, the child at the same position if it still has the same name, otherwise the
+ * first sibling with that name.  If a step can't be found, the deepest chapter found so far.
+ * @returns An index into {@link chapterList}.  0, the whole video, if nothing matched.
+ */
+function findChapter(path: readonly ChapterPathStep[]): number {
+  let current: Showable = toShow;
+  let found = 0;
+  for (const { index, name } of path) {
+    const children = current.children ?? [];
+    const atIndex = children[index]?.child;
+    const next =
+      atIndex && chapterName(atIndex) === name
+        ? atIndex
+        : children.find((c) => chapterName(c.child) === name)?.child;
+    if (!next) break;
+    current = next;
+    const position = chapterList.findIndex((d) => d.selectable === next);
+    if (position >= 0) found = position;
+  }
+  return found;
+}
+
 /** When checked, picking another root leaves the play limits alone. */
 const keepLimitsCheckbox = getById("keepLimits", HTMLInputElement);
 /** Says what the play limits are, below the chapter `<select>`. */
@@ -2838,32 +2890,102 @@ function _updateTimeline(selectable: Showable): void {
 }
 
 /**
+ * Where the user was in the video:  the chapter, the play limits, the playhead, and whether
+ * it was playing.  {@link saveState} keeps it across a reload.
+ *
+ * Which chapters exist, and where they start, depends on the saved tree, and that's restored
+ * asynchronously, by `initFromDB()`.  So this is put back after that, by {@link restorePlace}.
+ */
+type SavedPlace = {
+  readonly rootPath: readonly ChapterPathStep[];
+  readonly keepLimits: boolean;
+  readonly limitsPath: readonly ChapterPathStep[] | null;
+  /** From the start of the root, so it stays put if an earlier chapter changes length.  null for an empty field. */
+  readonly timeInRootMs: number | null;
+  /** The "on section end" radio button's value. */
+  readonly onSectionEnd: string;
+  readonly wasPlaying: boolean;
+};
+
+/**
+ * Read from the last session, waiting for the saved tree to load.  If the page unloads
+ * first, {@link saveState} saves this again, not the default place the page is showing.
+ */
+let placeToRestore: SavedPlace | undefined;
+
+function currentPlace(): SavedPlace {
+  const root = chapterList[select.selectedIndex];
+  const limits = chapterList.find((d) => d.selectable === limitsShowable);
+  const timeInRootMs = playheadInRootMs();
+  return {
+    rootPath: root ? chapterPath(root) : [],
+    keepLimits: keepLimitsCheckbox.checked,
+    limitsPath: limits ? chapterPath(limits) : null,
+    timeInRootMs: isFinite(timeInRootMs) ? timeInRootMs : null,
+    onSectionEnd: querySelector(
+      'input[name="onSectionEnd"]:checked',
+      HTMLInputElement,
+    ).value,
+    wasPlaying: playCheckBox.checked,
+  };
+}
+
+/** Parse what {@link saveState} wrote.  undefined if there's nothing, or it's from an older version. */
+function parseSavedPlace(json: string | null): SavedPlace | undefined {
+  if (!json) return undefined;
+  try {
+    const place = JSON.parse(json) as SavedPlace;
+    return Array.isArray(place?.rootPath) ? place : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Go back to the place saved by the last session, in the tree as it is now.
+ * Call this after the saved tree is restored.
+ */
+function restorePlace(place: SavedPlace): void {
+  // The saved tree can change which chapters exist, and where they start.
+  initChapters();
+  select.selectedIndex = findChapter(place.rootPath);
+  updateFromSelect();
+  if (place.keepLimits) {
+    keepLimitsCheckbox.checked = true;
+    if (place.limitsPath) {
+      limitsShowable = chapterList[findChapter(place.limitsPath)].selectable;
+      applyLimits();
+    }
+  }
+  if (place.timeInRootMs !== null) {
+    const savedMs = rootStartMs + place.timeInRootMs;
+    loadPlayPositionSeconds(
+      Math.max(sectionStartTime, Math.min(sectionEndTime, savedMs)),
+    );
+  }
+  loadPlayPositionRange();
+  // "continue" was removed.  A page saved with it pauses instead.
+  const onEnd = document.querySelector<HTMLInputElement>(
+    `input[name="onSectionEnd"][value="${place.onSectionEnd}"]`,
+  );
+  if (onEnd) onEnd.checked = true;
+  if (place.wasPlaying) playCheckBox.checked = true;
+}
+
+/**
  * When someone hits refresh in their browser,
  * or hits save in vs code so vite causes a refresh,
  * restart the user with the same gui settings.
  */
 function saveState() {
-  sessionStorage.setItem("index", select.selectedIndex.toString());
-  sessionStorage.setItem("keepLimits", keepLimitsCheckbox.checked ? "1" : "0");
   sessionStorage.setItem(
-    "limitsIndex",
-    chapterList.findIndex((d) => d.selectable === limitsShowable).toString(),
-  );
-  // From the start of the video, however the field shows it.  "" for an empty field.
-  const playheadMs = playheadInVideoMs();
-  sessionStorage.setItem(
-    "timeInSeconds",
-    isFinite(playheadMs) ? (playheadMs / 1000).toString() : "",
+    "place",
+    JSON.stringify(placeToRestore ?? currentPlace()),
   );
   sessionStorage.setItem(
     "playPositionLocal",
     playPositionLocal.checked ? "1" : "0",
   );
-  sessionStorage.setItem(
-    "state",
-    querySelector('input[name="onSectionEnd"]:checked', HTMLInputElement).value,
-  );
-  sessionStorage.setItem("wasPlaying", playCheckBox.checked ? "1" : "0");
   sessionStorage.setItem("zoomSelect", zoomSelect.value);
   sessionStorage.setItem("panX", panX.toString());
   sessionStorage.setItem("panY", panY.toString());
@@ -7552,6 +7674,12 @@ function applyMarkerDrag(localX: number, localY: number, shiftKey = false) {
     if (jsonResult.ok) {
       applyJsonSnapshot(jsonResult.data, true, false);
     }
+    // Now the chapters are the saved tree's, so the last session's place can be found.
+    if (placeToRestore) {
+      const place = placeToRestore;
+      placeToRestore = undefined;
+      restorePlace(place);
+    }
     // Catch the synced files up with whatever was restored, rather than
     // trusting the last session's final write:  a write started as the page
     // unloads usually never finishes.  (It can't leave a corrupt file, only a
@@ -7591,46 +7719,8 @@ function applyMarkerDrag(localX: number, localY: number, shiftKey = false) {
       playPositionLocal.checked = false;
       loadPlayPositionSeconds(playheadMs);
     }
-    const index = sessionStorage.getItem("index");
-    const timeInSeconds = sessionStorage.getItem("timeInSeconds");
-    const state = sessionStorage.getItem("state");
-    if (index && timeInSeconds && state) {
-      select.selectedIndex = assertNonNullable(parseIntX(index));
-      if (select.selectedIndex < 0) {
-        // What if you save the state when row 13 is selected, but there are currently
-        // only 5 rows available?  That's when we get here.  Without this change
-        // updateFromSelect() would throw an exception.
-        select.selectedIndex = 0;
-      }
-      updateFromSelect();
-      if (sessionStorage.getItem("keepLimits") === "1") {
-        keepLimitsCheckbox.checked = true;
-        const limitsIndex = parseIntX(
-          sessionStorage.getItem("limitsIndex") ?? "",
-        );
-        const saved =
-          limitsIndex === undefined ? undefined : chapterList[limitsIndex];
-        if (saved) {
-          limitsShowable = saved.selectable;
-          applyLimits();
-        }
-      }
-      const savedMs = parseFloat(timeInSeconds) * 1000;
-      const clampedMs = Math.max(
-        sectionStartTime,
-        Math.min(sectionEndTime, savedMs),
-      );
-      loadPlayPositionSeconds(clampedMs);
-      loadPlayPositionRange();
-      // "continue" was removed.  A page saved with it pauses instead.
-      const onEnd = document.querySelector<HTMLInputElement>(
-        `input[name="onSectionEnd"][value="${state}"]`,
-      );
-      if (onEnd) onEnd.checked = true;
-      if (sessionStorage.getItem("wasPlaying") === "1") {
-        playCheckBox.checked = true;
-      }
-    }
+    // Applied when the saved tree is in:  see initFromDB() above.
+    placeToRestore = parseSavedPlace(sessionStorage.getItem("place"));
     if (sessionStorage.getItem("quality") === "Low Power") {
       getById("lowPower", HTMLInputElement).checked = true;
     }
