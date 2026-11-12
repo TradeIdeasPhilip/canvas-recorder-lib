@@ -187,7 +187,7 @@ export function editorPanels(): Showable {
     child: new FourierComponent({
       description: "Fourier with a terms panel",
       source: "Star",
-      termGroups: "0, 1, 2, 3-9, 10-1023",
+      termGroups: "0, 1, 2, 3-9, 10-1022",
       step: [
         { time: 0, value: 0 },
         { time: 9_000, value: 5 },

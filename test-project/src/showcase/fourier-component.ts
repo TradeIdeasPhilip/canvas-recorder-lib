@@ -43,24 +43,25 @@ export function fourierComponent(): Showable {
   const columns = [
     {
       description: "Less detail",
-      // fourier-intro.ts's keyframes:  [2, 3, 6, 9, 12]
-      termGroups: "0 1, 2, 3-5, 6-8, 9-11",
+      // fourier-intro.ts's keyframes:  [2, 3, 6, 9, 12].  Its term 0 was the
+      // center, which samplesToFourier() leaves out now, so these are one less.
+      termGroups: "0, 1, 2-4, 5-7, 8-10",
       color: "red",
       lineWidth: 0.06,
       x: 0.3,
     },
     {
       description: "Some detail",
-      // [12, 25, 31, 43, 50]
-      termGroups: "0-11, 12-24, 25-30, 31-42, 43-49",
+      // [12, 25, 31, 43, 50], less one
+      termGroups: "0-10, 11-23, 24-29, 30-41, 42-48",
       color: "white",
       lineWidth: 0.04,
       x: 5.5,
     },
     {
       description: "More detail",
-      // [50, 75, 100, 150, 1000]
-      termGroups: "0-49, 50-74, 75-99, 100-149, 150-999",
+      // [50, 75, 100, 150, 1000], less one
+      termGroups: "0-48, 49-73, 74-98, 99-148, 149-998",
       color: myRainbow.myBlue,
       lineWidth: 0.02,
       x: 10.7,

@@ -90,6 +90,14 @@ function samplesOf(source: FourierSource, sampleCount: number): Complex[] {
   });
 }
 
+/**
+ * For every samplesToFourier() here.  These terms must add up to exactly the curve they came
+ * from, in place:  before plus all of the difference's terms is exactly after, and a rounded
+ * shape stays where it was.  The difference's frequency 0 term is how far apart the two
+ * shapes' averages are.
+ */
+const KEEP_CENTER = { keepCenter: true } as const;
+
 /** The sum of these terms at each sample's `t`, added to `base`, or to 0. */
 function addTerms(
   terms: readonly FourierTerm[],
@@ -139,7 +147,7 @@ export type MiddleShape = (before: Samples, after: Samples) => Complex[];
  * total amplitude.  0.85 throws away the bottom 15%.
  */
 export function roundShape(samples: Samples, keepAmplitude = 0.85): Complex[] {
-  const terms = samplesToFourier(samples);
+  const terms = samplesToFourier(samples, KEEP_CENTER);
   return addTerms(largestTerms(terms, keepAmplitude), samples.length);
 }
 
@@ -162,7 +170,10 @@ export function halfwayByFourier(share = 0.5): MiddleShape {
       after[i][0] - x,
       after[i][1] - y,
     ]);
-    const terms = largestTerms(samplesToFourier(difference), share);
+    const terms = largestTerms(
+      samplesToFourier(difference, KEEP_CENTER),
+      share,
+    );
     return addTerms(terms, before.length, before);
   };
 }
@@ -202,8 +213,8 @@ export const circleShape: MiddleShape = (before, after) => {
 export const maxAmplitudeShape: MiddleShape = (before, after) => {
   const strongest = new Map<number, FourierTerm>();
   for (const term of [
-    ...samplesToFourier(before),
-    ...samplesToFourier(after),
+    ...samplesToFourier(before, KEEP_CENTER),
+    ...samplesToFourier(after, KEEP_CENTER),
   ]) {
     const existing = strongest.get(term.frequency);
     if (!existing || term.amplitude > existing.amplitude) {
@@ -402,7 +413,7 @@ function createLeg(from: Samples, to: Samples, termGroups: TermGrouper): Leg {
     to[i][0] - x,
     to[i][1] - y,
   ]);
-  const terms = samplesToFourier(difference);
+  const terms = samplesToFourier(difference, KEEP_CENTER);
   const groups = termGroups(terms);
   const ordered = orderTerms(terms, groups);
 

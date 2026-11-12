@@ -31,6 +31,9 @@ import { philDebug, Random } from "../utility.ts";
  * The animation has to move toward the center of the final image.
  * That's why I talk about moving the origin, relative to the image,
  * rather than moving the image relative to the origin.
+ *
+ * {@link samplesToFourier} leaves out the frequency 0 term unless asked to keep it,
+ * which centers the curve on the average of its samples.  Then the origin doesn't matter.
  * @param path The path to transform
  * @param x 0 puts the origin at the far left of the bounding box,
  * 1 puts it at the far right, 0.5 in the middle.
@@ -126,7 +129,39 @@ function keepNonZeroTerms(terms: readonly FourierTerm[]): FourierTerm[] {
   return result;
 }
 
-export function samplesToFourier(samples: readonly Complex[]): FourierTerm[] {
+/** Options for {@link samplesToFourier}. */
+export type SamplesToFourierOptions = {
+  /**
+   * Keep the frequency 0 term, the center.  The default is false:  it's left out.
+   *
+   * That term doesn't turn.  It's a fixed offset, the average of the samples.
+   * Without it, the terms add up to the same curve, moved so that average is at (0, 0).
+   * Code that places the curve afterward, with panAndZoom() or makeItFit(), loses nothing.
+   *
+   * **Keeping it is rarely what you want for an animation.**
+   * * Its size depends on where the art happens to sit, not on its shape.
+   *   It's often one of the largest terms:  the showcase's Walking Man's is term 0, 45% of the total amplitude.
+   * * So it takes a term number that depends on the source.
+   *   Term Groups that work for one source can give it a step of its own in another.
+   * * Adding it draws nothing new.  It slides the whole curve over, and the viewer can't see why.
+   *
+   * Keep it when the terms must add up to exactly the samples, in place.
+   * E.g. the showcase's Fourier Morph adds the terms of a difference to another curve.
+   */
+  readonly keepCenter?: boolean;
+};
+
+/**
+ * Decompose a closed curve into its Fourier series.
+ * @param samples Points evenly spaced in `t`, from {@link samplesFromPath} or
+ * {@link samplesFromParametric}.  A power of 2 of them.
+ * @returns The terms, largest first.  Terms under 1/10⁷ of the total amplitude
+ * are left out, and so is the frequency 0 term, unless `options.keepCenter` is set.
+ */
+export function samplesToFourier(
+  samples: readonly Complex[],
+  options: SamplesToFourierOptions = {},
+): FourierTerm[] {
   const numSamples = samples.length;
   if (Math.log2(numSamples) % 1 !== 0) {
     throw new Error("numSamples must be a power of 2");
@@ -142,7 +177,12 @@ export function samplesToFourier(samples: readonly Complex[]): FourierTerm[] {
   }
   // Sort by amplitude, descending
   terms.sort((a, b) => b.amplitude - a.amplitude);
-  return keepNonZeroTerms(terms);
+  // The cutoff for "too small" still counts the center, so every other term is
+  // kept or dropped the same either way.
+  const kept = keepNonZeroTerms(terms);
+  return options.keepCenter
+    ? kept
+    : kept.filter((term) => term.frequency !== 0);
 }
 
 /**
@@ -509,9 +549,11 @@ export function getAnimationRules(
         };
       } else {
         // TODO this should probably be the largest from the group that we are adding.
-        const firstInterestingFrequency = Math.abs(
-          terms[startingTermCount].frequency,
-        );
+        // A step that adds only the frequency 0 term has no frequency to time it by,
+        // and 0.2 / 0 would make every point NaN.  Time it like frequency 1:  it slides
+        // the curve over, a piece at a time.
+        const firstInterestingFrequency =
+          Math.abs(terms[startingTermCount].frequency) || 1;
         const r = 0.2 / firstInterestingFrequency;
         /**
          * This creates a function which takes a time in milliseconds,

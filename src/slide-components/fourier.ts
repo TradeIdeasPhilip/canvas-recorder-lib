@@ -1,4 +1,4 @@
-import { ReadOnlyRect } from "phil-lib/misc";
+import { ReadOnlyRect, sum } from "phil-lib/misc";
 import { myRainbow } from "../glib/my-rainbow.ts";
 import { ParametricFunction, PathShape } from "../glib/path-shape.ts";
 import { panAndZoom } from "../glib/transforms.ts";
@@ -42,9 +42,14 @@ import { showError } from "./show-error.ts";
  * time.  The terms are computed once and cached, so anything outside the
  * function that could change its answer would be silently ignored.
  *
- * The origin matters.  Step 0 is a single dot at (0, 0), and the curve grows
- * from there.  recenter() in fourier-shared.ts moves a path's origin, e.g. to
- * the middle of its bounding box.
+ * The origin doesn't matter for a `path` or a `parametric`.  samplesToFourier()
+ * leaves out the frequency 0 term, the center, so Step 0 is a single dot at the
+ * average of the samples, and the curve grows from there.
+ *
+ * `terms` are used as given.  Terms from `samplesToFourier(samples, {
+ * keepCenter: true })` include the center:  Step 0 is a dot at (0, 0), and the
+ * center is a term like any other.  `keepCenter`'s comment, in
+ * fourier-shared.ts, says why that's rarely wanted.
  */
 export type FourierSource =
   | {
@@ -163,9 +168,10 @@ export function checkTermGroups(
         `Left out:  ${shown}.`,
     );
   }
-  // The frequency 0 term is the shape's center.  It has nothing to sweep, so
-  // a step can't grow it in on its own, except as the very first step, which
-  // has an animation of its own:  the dot moves to the center.
+  // The frequency 0 term is the shape's center.  samplesToFourier() leaves it
+  // out, but `terms` sources can have it.  It has nothing to sweep, so a step
+  // with only that term just slides the curve over.  Except the very first
+  // step, which has an animation of its own:  the dot moves to the center.
   groups.forEach((group, index) => {
     if (index === 0) return;
     const valid = group.filter((term) => term < terms.length);
@@ -174,7 +180,7 @@ export function checkTermGroups(
       valid.every((term) => terms[term].frequency === 0)
     ) {
       warnings.push(
-        `Group ${index + 1} is only the center (frequency 0), which can't animate on its own.  ` +
+        `Group ${index + 1} is only the center (frequency 0), so that step just slides the curve over.  ` +
           `Put it in the first group, or with other terms.`,
       );
     }
@@ -420,6 +426,11 @@ export class FourierComponent extends DurationAgnosticComponent {
           ? samplesFromPath(source.path, source.sampleCount)
           : samplesFromParametric(source.parametric, source.sampleCount);
       terms = samplesToFourier(samples);
+      // samplesToFourier() left out the frequency 0 term, the average of the
+      // samples, so the terms add up to the samples moved by minus that.
+      const averageX = sum(samples.map(([x]) => x)) / samples.length;
+      const averageY = sum(samples.map(([, y]) => y)) / samples.length;
+      samples = samples.map(([x, y]): Complex => [x - averageX, y - averageY]);
     }
     this.#termsCache = { name, terms, bounds: boundsOf(samples) };
     return this.#termsCache;

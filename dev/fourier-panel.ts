@@ -67,8 +67,9 @@ import {
 // * fourier-shared.ts, cacheHealth (philDebug.cacheHealth):  hits and misses of
 //   the per-t cache in termsToParametricFunction().
 // * fourier-shared.ts, hasFixedContribution():  finds the frequency 0 term,
-//   the center.  checkTermGroups() already warns when it's somewhere it can't
-//   animate.
+//   the center.  samplesToFourier() leaves it out unless asked to keep it, so
+//   only a `terms` source can have it.  checkTermGroups() already warns when
+//   it's a group of its own.
 
 export type FourierPanel = {
   readonly element: HTMLElement;
