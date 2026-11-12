@@ -224,18 +224,22 @@ function clampPan(
   px: number,
   py: number,
 ): [number, number] {
-  const viewportWidth = viewport.clientWidth;
-  const viewportHeight = viewport.clientHeight;
-  if (canvasCssWidth <= viewportWidth) {
-    return [
-      Math.round((viewportWidth - canvasCssWidth) / 2),
-      Math.round((viewportHeight - canvasCssHeight) / 2),
-    ];
-  }
+  // Each direction on its own:  a portrait video at 100% can fit across but not down.
   return [
-    Math.max(viewportWidth - canvasCssWidth, Math.min(0, px)),
-    Math.max(viewportHeight - canvasCssHeight, Math.min(0, py)),
+    clampPanAxis(canvasCssWidth, viewport.clientWidth, px),
+    clampPanAxis(canvasCssHeight, viewport.clientHeight, py),
   ];
+}
+
+/** Centered if the canvas fits this way, otherwise no gap at either edge. */
+function clampPanAxis(
+  canvasSize: number,
+  viewportSize: number,
+  pan: number,
+): number {
+  return canvasSize <= viewportSize
+    ? Math.round((viewportSize - canvasSize) / 2)
+    : Math.max(viewportSize - canvasSize, Math.min(0, pan));
 }
 
 /**
@@ -268,6 +272,11 @@ function applyZoom(zoom: number, px = panX, py = panY) {
   [panX, panY] = clampPan(cssW, cssH, px, py);
   canvas.style.left = `${panX}px`;
   canvas.style.top = `${panY}px`;
+  // The hand cursor, only when there's something to drag into view.
+  canvas.classList.toggle(
+    "pannable",
+    cssW > viewport.clientWidth || cssH > viewport.clientHeight,
+  );
 }
 
 /** Fits the 16:9 canvas into the viewport at pixel-perfect resolution. */
@@ -297,6 +306,7 @@ function zoomToFit() {
   canvas.style.height = `${cssH}px`;
   canvas.style.left = `${Math.round((vpW - cssW) / 2)}px`;
   canvas.style.top = `${Math.round((vpH - cssH) / 2)}px`;
+  canvas.classList.remove("pannable");
   // Immediately redraw so the canvas clear doesn't show as a gray flash.
   showFrame(playheadInVideoMs(), true);
 }
@@ -1344,6 +1354,8 @@ async function startRecording(
   canvas.style.top = "50%";
   canvas.style.transform = "translate(-50%, -50%)";
   canvas.style.transformOrigin = "";
+  // No panning while saving.  The finally block puts the zoom back, and this with it.
+  canvas.classList.remove("pannable");
 
   // `output` is created inside the try block below, but we need to reach it
   // from the catch block too, so we can still finalize (and thus flush)

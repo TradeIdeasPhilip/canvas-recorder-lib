@@ -90,6 +90,10 @@ body {
 #main {
   position: absolute;
   outline: 1px solid rgba(0, 0, 0, 0.3);
+}
+
+/* Set by applyZoom() when part of the canvas is out of sight. */
+#main.pannable {
   cursor: grab;
 }
 
@@ -104,7 +108,7 @@ body {
   pointer-events: none;
 }
 
-#main:active {
+#main.pannable:active {
   cursor: grabbing;
 }
 
