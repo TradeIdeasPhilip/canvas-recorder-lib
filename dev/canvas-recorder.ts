@@ -2458,10 +2458,25 @@ function applyLimits(): void {
 }
 
 /**
+ * Two playhead times this close are the same:  {@link playPositionSeconds} shows ⅒ ms.
+ */
+const PLAYHEAD_TOLERANCE_MS = 0.1;
+
+/**
+ * Set when {@link refreshChapters} pulled the playhead back inside a chapter that got shorter.
+ * Durations change on every keystroke, so typing 25000 over 30000 makes the chapter 2 ms long
+ * on the way.  If the chapter grows again before the playhead moves, it goes back toward `fromMs`.
+ * Both are in the video's time.
+ */
+let playheadPulledBack: { fromMs: number; toMs: number } | undefined;
+
+/**
  * Switch the Visual Editor to the root picked in the `<select>`.  The play
  * limits follow, unless Keep play limits is checked.
  */
 function updateFromSelect() {
+  // Where the playhead was in another chapter means nothing here.
+  playheadPulledBack = undefined;
   const info = chapterList[select.selectedIndex];
   setRootStartMs(info.start);
   if (keepLimitsCheckbox.checked && limitsShowable) {
@@ -2509,12 +2524,42 @@ playRootBtn.addEventListener("click", () => {
  * playback and the editors alone.  When it's gone, this switches roots properly.
  */
 function refreshChapters(): void {
+  const playheadMs = playheadInVideoMs();
+  // Not moved since the last clamp:  aim for where it was before that.
+  if (
+    playheadPulledBack &&
+    Math.abs(playheadMs - playheadPulledBack.toMs) > PLAYHEAD_TOLERANCE_MS
+  ) {
+    playheadPulledBack = undefined;
+  }
+  const wantedMs = playheadPulledBack?.fromMs ?? playheadMs;
+  // limitsChapter still has the start and end from before this change.
+  const old = limitsChapter;
+  const wasInside =
+    playheadPulledBack !== undefined ||
+    old === undefined ||
+    (playheadMs >= old.start - PLAYHEAD_TOLERANCE_MS &&
+      playheadMs <= old.end + PLAYHEAD_TOLERANCE_MS);
   if (initChapters()) {
     setRootStartMs(chapterList[select.selectedIndex].start);
     applyLimits();
-    // The range clamped itself to the new bounds; show the real position again.  The
-    // number input stays the source of truth, so a playhead past a shortened end is left
-    // for playback to wrap rather than moved here.
+    // A shorter chapter can leave the playhead past its end, showing nothing.  Keep it inside
+    // the play limits.  sectionEndTime already stops just short of the next chapter's start.
+    // A playhead the user put outside the limits stays there.
+    if (wasInside) {
+      const clampedMs = Math.max(
+        sectionStartTime,
+        Math.min(sectionEndTime, wantedMs),
+      );
+      if (Math.abs(clampedMs - playheadMs) > PLAYHEAD_TOLERANCE_MS) {
+        loadPlayPositionSeconds(clampedMs);
+      }
+      playheadPulledBack =
+        clampedMs === wantedMs
+          ? undefined
+          : { fromMs: wantedMs, toMs: clampedMs };
+    }
+    // The range clamped itself to the new bounds; show the real position again.
     loadPlayPositionRange();
   } else {
     updateFromSelect();
