@@ -180,6 +180,8 @@ export class Font {
    * This says how much to *change* the font, not the final value.
    * font.oblique(5) != font.oblique(5).oblique(5).oblique(5).
    * This differs from resize() which takes the desired resulting value, where this takes the change as an input.
+   *
+   * Call {@link stretch} first, if you use both.  It would stretch the slant too.
    * @returns A new font.  Or the same font if you request a 0° change.
    */
   oblique(degreesRight = 15): Font {
@@ -196,13 +198,7 @@ export class Font {
       [],
     );
     const matrix = new DOMMatrixReadOnly().skewX(-degreesRight);
-    this.#letters.forEach((originalLetter, key) => {
-      const newLetter: DescriptionOfLetter = {
-        advance: originalLetter.advance,
-        shape: originalLetter.shape.transform(matrix),
-      };
-      result.#letters.set(key, newLetter);
-    });
+    this.#copyLettersTo(result, matrix, 1);
     return result;
   }
   resize(newSize: number): Font {
@@ -221,14 +217,85 @@ export class Font {
     );
     const matrix = new DOMMatrix();
     matrix.scaleSelf(ratio);
+    this.#copyLettersTo(result, matrix, ratio);
+    return result;
+  }
+  /**
+   * Make the letters wider or narrower, keeping their height.
+   *
+   * Only the shapes change, not the pen:  stroke them with one line width, and
+   * the vertical lines are as thick as the horizontal ones.
+   *
+   * Everything horizontal scales with the letters:  each letter's advance, the
+   * kerning and the space.  So a line of text is exactly `widthRatio` times as
+   * long, and cursive letters still meet.  `top`, `bottom` and `mHeight` don't
+   * change.
+   *
+   * The recommended {@link strokeWidth} changes by √`widthRatio`, the geometric
+   * mean of the change in width and the change in height (none).  That's the
+   * rule resize() follows, where both change by the same amount.  So a wide
+   * font is a little bolder and a narrow one a little lighter, as in a real type
+   * family, and narrow letters don't fill in.
+   *
+   * **Stretch first, then oblique.**  Stretching a slanted font stretches its
+   * slant too:  `font.oblique(15).stretch(2)` leans about 28°, and
+   * `font.stretch(2).oblique(15)` leans 15°.
+   *
+   * For the line font, `makeLineFont({ size, width })` does a little better
+   * than `makeLineFont(size).stretch(width)`.  Some of its letters depend on the
+   * stroke width, like the K, whose lines meet exactly, and it builds those
+   * for the stretched size.
+   * @param widthRatio 2 for twice as wide, 0.5 for half as wide.  Must be
+   * positive.  Like oblique(), this is a change, not the final value:
+   * `font.stretch(2).stretch(2)` is 4 times as wide as `font`.
+   * @returns A new font.  Or the same font if `widthRatio` is 1.
+   */
+  stretch(widthRatio: number): Font {
+    if (widthRatio == 1) {
+      return this;
+    }
+    if (!(widthRatio > 0 && isFinite(widthRatio))) {
+      throw new Error(`widthRatio must be positive, not ${widthRatio}.`);
+    }
+    const result = new Font(
+      this.top,
+      this.bottom,
+      widthRatio * this.spaceWidth,
+      Math.sqrt(widthRatio) * this.strokeWidth,
+      widthRatio * this.kerning,
+      this.mHeight,
+      [],
+    );
+    const matrix = new DOMMatrixReadOnly().scale(widthRatio, 1);
+    this.#copyLettersTo(result, matrix, widthRatio);
+    return result;
+  }
+  /**
+   * Copy every letter into a new font, transformed.  For resize(), oblique()
+   * and stretch().
+   *
+   * Each shape is transformed the first time something asks for it, not all
+   * at once.  The line font has hundreds of letters, and a text component
+   * builds a new font every frame while its size, width or slant is animated,
+   * but only draws a few of them.
+   * @param advanceRatio Each letter's advance is multiplied by this.
+   */
+  #copyLettersTo(
+    result: Font,
+    matrix: DOMMatrixReadOnly,
+    advanceRatio: number,
+  ): void {
     this.#letters.forEach((originalLetter, key) => {
+      let shape: PathShape | undefined;
       const newLetter: DescriptionOfLetter = {
-        advance: ratio * originalLetter.advance,
-        shape: originalLetter.shape.transform(matrix),
+        advance: advanceRatio * originalLetter.advance,
+        get shape() {
+          shape ??= originalLetter.shape.transform(matrix);
+          return shape;
+        },
       };
       result.#letters.set(key, newLetter);
     });
-    return result;
   }
   static cursive(size: number, degreesRight = 0): Font {
     const base = this.fromJSON(cursiveBase);

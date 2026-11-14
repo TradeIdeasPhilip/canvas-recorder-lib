@@ -1,5 +1,5 @@
 import { ReadOnlyRect } from "phil-lib/misc";
-import { makeLineFontRatio } from "../glib/line-font.ts";
+import { makeLineFont, MIN_FONT_WIDTH } from "../glib/line-font.ts";
 import { ParagraphLayout } from "../glib/paragraph-layout.ts";
 import {
   ColorScheduleInfo,
@@ -16,6 +16,7 @@ import { Font } from "../glib/letters-base.ts";
 type CachedFont = {
   readonly font: Font;
   readonly size: number;
+  readonly fontWidth: number;
   readonly boldness: number;
   readonly obliqueness: number;
 };
@@ -31,6 +32,11 @@ export class TextComponent extends DurationAgnosticComponent {
   });
   readonly textSchedule = new StringScheduleInfo("Text", "Type Here");
   readonly sizeSchedule = new NumberScheduleInfo("Size", 1);
+  /**
+   * How wide the letters are, compared to normal, keeping their height.  See
+   * `width` in {@link makeLineFont}'s options.
+   */
+  readonly fontWidthSchedule = new NumberScheduleInfo("Font Width", 1);
   readonly boldnessSchedule = new NumberScheduleInfo("Boldness", 1);
   readonly obliquenessSchedule = new NumberScheduleInfo("Obliqueness", 0);
   readonly alignmentSchedule = new SelectScheduleInfo("Alignment", "left", [
@@ -48,6 +54,7 @@ export class TextComponent extends DurationAgnosticComponent {
       rect?: ReadOnlyRect | readonly Keyframe<ReadOnlyRect>[];
       text?: string | readonly Keyframe<string>[];
       size?: number | readonly Keyframe<number>[];
+      fontWidth?: number | readonly Keyframe<number>[];
       boldness?: number | readonly Keyframe<number>[];
       obliqueness?: number | readonly Keyframe<number>[];
       // I have mixed feelings on the complicated type definition.
@@ -69,6 +76,7 @@ export class TextComponent extends DurationAgnosticComponent {
       this.rectSchedule,
       this.textSchedule,
       this.sizeSchedule,
+      this.fontWidthSchedule,
       this.boldnessSchedule,
       this.obliquenessSchedule,
       this.alignmentSchedule,
@@ -84,6 +92,9 @@ export class TextComponent extends DurationAgnosticComponent {
     }
     if (initialValues.size !== undefined) {
       this.sizeSchedule.set(initialValues.size);
+    }
+    if (initialValues.fontWidth !== undefined) {
+      this.fontWidthSchedule.set(initialValues.fontWidth);
     }
     if (initialValues.boldness !== undefined) {
       this.boldnessSchedule.set(initialValues.boldness);
@@ -111,6 +122,11 @@ export class TextComponent extends DurationAgnosticComponent {
     const rect = this.rectSchedule.at(timeInMs);
     const text = this.textSchedule.at(timeInMs);
     const size = this.sizeSchedule.at(timeInMs);
+    // 0 or less can't be drawn.  As thin as it goes is the closest thing.
+    const fontWidth = Math.max(
+      MIN_FONT_WIDTH,
+      this.fontWidthSchedule.at(timeInMs) || 0,
+    );
     const boldness = this.boldnessSchedule.at(timeInMs);
     const obliqueness = this.obliquenessSchedule.at(timeInMs);
     const alignment = this.alignmentSchedule.at(timeInMs);
@@ -118,11 +134,17 @@ export class TextComponent extends DurationAgnosticComponent {
     if (
       !this.#cachedFont ||
       this.#cachedFont.size != size ||
+      this.#cachedFont.fontWidth != fontWidth ||
       this.#cachedFont.boldness != boldness ||
       this.#cachedFont.obliqueness != obliqueness
     ) {
-      const font = makeLineFontRatio(size, boldness).oblique(obliqueness);
-      this.#cachedFont = { font, size, boldness, obliqueness };
+      const font = makeLineFont({
+        size,
+        width: fontWidth,
+        boldness,
+        obliqueness,
+      });
+      this.#cachedFont = { font, size, fontWidth, boldness, obliqueness };
     }
     if (
       !this.#cachedPath ||

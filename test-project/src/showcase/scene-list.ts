@@ -11,6 +11,7 @@ import { easingFunctions } from "./easing-functions.ts";
 import { editorPanels } from "./editor-panel.ts";
 import { flowersWithNPetals } from "./flowers.ts";
 import { fontSamples } from "./font-samples.ts";
+import { fontStretch } from "./font-stretch.ts";
 import { formattingPiecesOfText } from "./formatting-text.ts";
 import { fourierComponent } from "./fourier-component.ts";
 import {
@@ -32,6 +33,11 @@ import { morphingText } from "./morphing-text.ts";
 import { multiTextAlignment } from "./multi-text-alignment.ts";
 import { multiTextAutoSize } from "./multi-text-auto-size.ts";
 import { multiTextFitABox } from "./multi-text-fit-a-box.ts";
+import {
+  multiTextFontWidth,
+  multiTextFontWidthAndObliqueness,
+  multiTextFontWidthInUse,
+} from "./multi-text-font-width.ts";
 import { multiTextFrame } from "./multi-text-frame.ts";
 import { multiTextHeightMode } from "./multi-text-height-mode.ts";
 import { multiTextMayGrow } from "./multi-text-may-grow.ts";
@@ -79,6 +85,7 @@ export const showcaseSlides: (() => Showable)[] = [
   flowersWithNPetals,
   strokableFontList,
   fontSamples,
+  fontStretch,
   formattingPiecesOfText,
   simpleAnimatedColors,
   calligraphyEffect,
@@ -114,6 +121,9 @@ export const showcaseSlides: (() => Showable)[] = [
   multiTextFitABox,
   multiTextAutoSize,
   multiTextRotation,
+  multiTextFontWidth,
+  multiTextFontWidthAndObliqueness,
+  multiTextFontWidthInUse,
   multiTextPleaseCheck,
 ];
 

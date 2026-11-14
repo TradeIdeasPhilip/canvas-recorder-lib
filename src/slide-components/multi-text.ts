@@ -3,7 +3,7 @@
 import { Point } from "bezier-js";
 import { ReadOnlyRect } from "phil-lib/misc";
 import { Font } from "../glib/letters-base.ts";
-import { makeLineFontRatio } from "../glib/line-font.ts";
+import { makeLineFont, MIN_FONT_WIDTH } from "../glib/line-font.ts";
 import {
   LaidOut,
   ParagraphLayout,
@@ -1203,6 +1203,7 @@ export class TextSpanComponent implements Showable {
 type CachedFont = {
   readonly font: Font;
   readonly size: number;
+  readonly fontWidth: number;
   readonly boldness: number;
   readonly obliqueness: number;
 };
@@ -1213,6 +1214,12 @@ export class TextFormatComponent implements Showable {
   readonly scalars = [this.nameScalar] as const;
   readonly colorSchedule: ColorScheduleInfo;
   readonly sizeSchedule = new NumberScheduleInfo("Font Size", 1);
+  /**
+   * How wide the letters are, compared to normal, keeping their height.  See
+   * `width` in {@link makeLineFont}'s options.  Not Multi Text's own Width,
+   * which is its frame's.
+   */
+  readonly fontWidthSchedule = new NumberScheduleInfo("Font Width", 1);
   readonly boldnessSchedule = new NumberScheduleInfo("Boldness", 1);
   readonly obliquenessSchedule = new NumberScheduleInfo("Obliqueness", 0);
   readonly alphaSchedule = new NumberScheduleInfo("Alpha", 1);
@@ -1225,6 +1232,7 @@ export class TextFormatComponent implements Showable {
       name?: string;
       color?: string | readonly Keyframe<string>[] | ColorScheduleInfo;
       size?: number | readonly Keyframe<number>[];
+      fontWidth?: number | readonly Keyframe<number>[];
       boldness?: number | readonly Keyframe<number>[];
       obliqueness?: number | readonly Keyframe<number>[];
       alpha?: number | readonly Keyframe<number>[];
@@ -1239,6 +1247,8 @@ export class TextFormatComponent implements Showable {
     );
     if (initialValues.size !== undefined)
       this.sizeSchedule.set(initialValues.size);
+    if (initialValues.fontWidth !== undefined)
+      this.fontWidthSchedule.set(initialValues.fontWidth);
     if (initialValues.boldness !== undefined)
       this.boldnessSchedule.set(initialValues.boldness);
     if (initialValues.obliqueness !== undefined)
@@ -1248,6 +1258,7 @@ export class TextFormatComponent implements Showable {
     this.schedules.push(
       this.colorSchedule,
       this.sizeSchedule,
+      this.fontWidthSchedule,
       this.boldnessSchedule,
       this.obliquenessSchedule,
       this.alphaSchedule,
@@ -1270,17 +1281,28 @@ export class TextFormatComponent implements Showable {
   freeze(timeInMs: number, sizeMultiplier = 1) {
     const color = this.colorSchedule.at(timeInMs);
     const size = this.sizeSchedule.at(timeInMs) * sizeMultiplier;
+    // 0 or less can't be drawn.  As thin as it goes is the closest thing.
+    const fontWidth = Math.max(
+      MIN_FONT_WIDTH,
+      this.fontWidthSchedule.at(timeInMs) || 0,
+    );
     const boldness = this.boldnessSchedule.at(timeInMs);
     const obliqueness = this.obliquenessSchedule.at(timeInMs);
     const alpha = this.alphaSchedule.at(timeInMs);
     if (
       !this.#cachedFont ||
       this.#cachedFont.size != size ||
+      this.#cachedFont.fontWidth != fontWidth ||
       this.#cachedFont.boldness != boldness ||
       this.#cachedFont.obliqueness != obliqueness
     ) {
-      const font = makeLineFontRatio(size, boldness).oblique(obliqueness);
-      this.#cachedFont = { font, size, boldness, obliqueness };
+      const font = makeLineFont({
+        size,
+        width: fontWidth,
+        boldness,
+        obliqueness,
+      });
+      this.#cachedFont = { font, size, fontWidth, boldness, obliqueness };
     }
     const font = this.#cachedFont.font;
     function drawText({ context }: ShowOptions, pathShape: PathShape): void {

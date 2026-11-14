@@ -103,13 +103,66 @@ class DescriptionOfLetter {
 export type FontMap = Map<string, DescriptionOfLetter>;
 
 /**
+ * Everything about a line font, all at once, for {@link makeLineFont}.
+ * Only `size` is required.
  *
+ * Give `boldness` or `strokeWidth`, not both.
+ */
+export type LineFontOptions = {
+  /** The height of a capital M, the font's `mHeight`.  Width doesn't change it. */
+  readonly size: number;
+  /**
+   * How wide the letters are, compared to normal.  1, the default, is
+   * normal.  2 is twice as wide, 0.5 half as wide.  Must be positive.
+   * The height stays `size`.  See {@link Font.stretch}.
+   */
+  readonly width?: number;
+  /**
+   * The slant in degrees, like {@link Font.oblique}.  0, the default, is
+   * upright.  It's the angle you see, whatever the width:  the letters are
+   * stretched first, then slanted.
+   */
+  readonly obliqueness?: number;
+} & (
+  | {
+      /**
+       * The stroke width, compared to normal.  1, the default, is normal; 2
+       * is twice as thick.
+       *
+       * Normal is a tenth of the font's size.  For a stretched font, the size
+       * is the geometric mean of its height and its width:
+       * `size × √width`.  So 1 is a little bolder in a wide font and a little
+       * lighter in a narrow one.  See {@link Font.stretch}.
+       */
+      readonly boldness?: number;
+      readonly strokeWidth?: never;
+    }
+  | {
+      /** The stroke width, in the same units as `size`. */
+      readonly strokeWidth: number;
+      readonly boldness?: never;
+    }
+);
+
+/**
+ * Make a line font.
  * @param fontMetrics How big to make the font.
  * There are additional things you can configure with a LineFontMetrics object.
  * In particular, some letters get a little wider if you use a thicker line width.
+ *
+ * Or a {@link LineFontOptions}, to set the size, boldness, width and slant all
+ * at once.
  * @returns
  */
-export function makeLineFont(fontMetrics: number | LineFontMetrics): Font {
+export function makeLineFont(
+  fontMetrics: number | LineFontMetrics | LineFontOptions,
+): Font {
+  if (
+    typeof fontMetrics === "object" &&
+    !(fontMetrics instanceof LineFontMetrics)
+  ) {
+    return makeLineFontFromOptions(fontMetrics);
+  }
   const fontMap = makeLineFontMap(fontMetrics);
   const { top, bottom, spaceWidth, strokeWidth, defaultKerning, mHeight } =
     (fontMap.get("0") ?? pickAny(fontMap))!.fontMetrics;
@@ -123,6 +176,35 @@ export function makeLineFont(fontMetrics: number | LineFontMetrics): Font {
     fontMap,
   );
   return result;
+}
+
+/**
+ * The narrowest `width` ({@link LineFontOptions}) the text components draw.  A
+ * Font Width of 0 or less in the Visual Editor is drawn at this width, as
+ * thin as it goes, instead of throwing.
+ */
+export const MIN_FONT_WIDTH = 0.01;
+
+/** {@link makeLineFont} with a {@link LineFontOptions}. */
+function makeLineFontFromOptions(options: LineFontOptions): Font {
+  const { size, width = 1, obliqueness = 0 } = options;
+  if (!(width > 0 && isFinite(width))) {
+    throw new Error(`width must be positive, not ${width}.`);
+  }
+  // Some letters are drawn for a particular stroke width at a particular size:
+  // the K's three lines meet exactly, for example.  A stretched font has two
+  // sizes, so build it at their geometric mean, then scale it to the height and
+  // width asked for.  With a width of 1, that's exactly makeLineFontRatio().
+  const buildSize = size * Math.sqrt(width);
+  const strokeWidth =
+    options.strokeWidth ??
+    LineFontMetrics.defaultStrokeWidth(buildSize) * (options.boldness ?? 1);
+  // resize() scales the stroke width by size / buildSize, and stretch() by
+  // √width, so it comes out as strokeWidth.
+  return makeLineFont(new LineFontMetrics(buildSize, strokeWidth))
+    .resize(size)
+    .stretch(width)
+    .oblique(obliqueness);
 }
 
 /**

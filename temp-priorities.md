@@ -1,19 +1,17 @@
 I raised "One editor, many videos" to the Simple Video Editor's first priority. I also added a "Toward a real product" section to [simple-video-editor.md](development-plans/simple-video-editor.md) with your screen-recording case and the gaps. Here's the whole list.
 
-**First: a bug that loses work.** _Added 2026-11-11. Fixed the same day, not released yet._ 7-pointed-star's `development-plans/library-issues.md`, item 30.
-- A reload during startup, before the saved tree is in, backs up the TypeScript defaults as the newest entry. The next startup applies that backup, and everything made in the Visual Editor disappears, with no warning.
-- Confirmed in the code: `saveOnUnload()` runs from `vite:beforeFullReload`, `beforeunload` and `visibilitychange`, and nothing stops it while `_loadSource` is still undefined.
-- The fix: `saveOnUnload()` does nothing until the restore is done, and the last session's backup stays in sessionStorage until `initFromDB()` has saved it, so a reload in that window can't lose it either. `saveState()` was already safe: since 0.7.3 it saves the place still waiting to be restored. A bug fix, so a patch release.
-- The hard part of recovering was noticing: nothing said anything was wrong. git diff and the autosaves showed what happened. Loading just one chapter is a feature, for splicing together pieces of different versions.
+**Done:** item 30, the bug that lost work, shipped in 0.7.4. `samplesToFourier()` leaving out the center shipped in 0.8.0.
+
+**Next: rename `InParallelComponent` → `ComponentBase`.** _Raised 2026-11-12: get the breaking changes out of the way._ Details in [release-1.0.md](development-plans/release-1.0.md), item 4. It touches affine-transforms and the showcase.
 
 **For 1.0: the breaking changes ([release-1.0.md](development-plans/release-1.0.md)). All small.**
 1. Remove the old builders. Convert the 20 showcase slides that use `MakeShowableInParallel`.
 2. Remove `formatVersion` from the save file.
 3. Say what's public. One README sentence, plus moving what projects need (like `makeTranscript()`) out of `dev/`.
 4. Changes that have been waiting:
-   - Rename `InParallelComponent` → `ComponentBase`. This touches affine-transforms and the showcase.
-   - The `samplesFromParametric()` fix, your 7-pointed-star issue 10. It changes how parametric Fourier slides look, so check your stars shorts after upgrading.
-   - **New today:** moving the video size into the save file, which the Simple Video Editor's projects need. It breaks old saves only if we skip copying the remembered size over the first time an old save loads, so it can come either before or after 1.0.
+   - Rename `InParallelComponent` → `ComponentBase`, first (above).
+   - Moving the video size into the save file, which the Simple Video Editor's projects need. It breaks old saves only if we skip copying the remembered size over the first time an old save loads, so it can come either before or after 1.0.
+   - (The `samplesFromParametric()` fix shipped as a patch on 2026-11-09: a bug fix isn't breaking.)
 
 **Groundwork for saving.** Projects and the two-window sync both rework the same saving code. Doing this part once, with tests, guards against losing work:
 - Read and write the history in one transaction.
@@ -38,6 +36,6 @@ I raised "One editor, many videos" to the Simple Video Editor's first priority. 
   - Cmd+Z undoes the last edit (today it opens the Load history)
   - saying up front that it needs desktop Chrome
 
-**Recommended order:** release item 30's fix, then finish the 1.0 items and release 1.0.0, then the saving groundwork with its tests, then projects, then the two-window sync. 1.0 is a few small sessions, and after it, nothing in the rest is breaking.
+**Recommended order:** the `ComponentBase` rename, then the other 1.0 items and release 1.0.0, then the saving groundwork with its tests, then projects, then the two-window sync. 1.0 is a few small sessions, and after it, nothing in the rest is breaking.
 
 I also fixed two stale lines in release-1.0.md. The release steps now point to the README checklist (`npm version major`), and the order notes that the sound work already shipped in 0.7.0.
