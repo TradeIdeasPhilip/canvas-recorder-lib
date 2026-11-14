@@ -2,10 +2,22 @@
 
 _Assessment, 10/8/2026.  Not scheduled._
 
+## Testing
+
+I recently noticed that the examples in https://github.com/TradeIdeasPhilip/7-pointed-star were pushing the limits of my computer.
+Some of those examples were giving me about 2/3 of the requested frame rate when playing in real time.
+(And there were noticeable pauses when all 8 had a cache miss to compute at the same time.)
+This is the first time I've had trouble keeping up in a "real" (non-contrived) example in a while.
+The ideas below could fix that.
+
+It's still not urgent.
+The software is amazingly robust.
+But we have a great place to start testing whenever we are ready to try the improvements listed below.
+
 ## The idea
 
 `PathShape.glitchFreeParametric()` (`src/glib/path-shape.ts`) samples a function and fits
-quadratic Béziers between the samples, using the curve's direction at each sample.  Today that
+quadratic Bézier segments between the samples, using the curve's direction at each sample.  Today that
 direction is estimated numerically.  Let the caller optionally supply the derivative instead.
 
 The automatic estimate stays the common case.  Fourier series are the motivation:  their

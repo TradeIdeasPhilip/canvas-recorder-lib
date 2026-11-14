@@ -116,6 +116,9 @@ Collect them here before release.  So far:
   But an old save has no size, so once the localStorage key goes away, the old save would open at the program's default size instead of the size it was made at.
   Copy the size from localStorage into the state the first time an old save loads, and it isn't breaking.  Without that copy step, it's breaking, and belongs in this release.
 
+- **"Style Name", with a saved name apart from the visible one** ([saturday-afternoon.md](saturday-afternoon.md#style-name-not-name-and-style)), added 2026-11-13.
+  Not breaking, but it looks odd, and 1.0 is when other people start looking.  So it comes before 1.0.
+
 Additions aren't breaking and can come any time.  7-pointed-star's issues 5 and 9 (export `FourierComponent` and `LatticeValue` from the package root) went into 0.6.0.
 
 ## Order

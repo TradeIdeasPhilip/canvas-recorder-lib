@@ -39,7 +39,7 @@ A Text Format's properties start with two called "Name":  the component's own, w
 
 - **Where:**  `nameScalar = new StringScalarInfo("Name", "")` on `TextFormatComponent`, and `styleSchedule = new StringScheduleInfo("Style", "")` on `TextSpanComponent`, both in [src/slide-components/multi-text.ts](../src/slide-components/multi-text.ts).
   The property types are in [src/schedule-helper.ts](../src/schedule-helper.ts).
-- **This is more than a rename.**  The name you see is also the key in the save file:  `keyOf()` in [src/snapshot.ts](../src/snapshot.ts) pairs saved properties by type and description.  Renamed without help, every saved Text Format would load without its name, and every saved Text Span without its style.
-- **So:**  restore has to read the old key when there isn't a new one.  One way (speculation):  an optional list of former descriptions on a property, which `keyOf()`'s callers try in turn.  Write a test that loads a save from before the rename.
-- **Release:**  with the old keys still read, nothing breaks, so it's a patch.  Without that, it's a breaking change.
-- **Also check:**  anything that looks a property up by its description, in the library and in the projects.  For example, search for `"Style"`.
+- **The save key:**  the name you see is also the key in the save file.  `keyOf()` in [src/snapshot.ts](../src/snapshot.ts) pairs saved properties by type and description.
+- **The fix (the user's, 2026-11-13):**  an optional constructor parameter for the saved name.  By default it's the same as the visible name, so nothing else changes.  These two properties would show "Style Name" and keep saving as "Name" and "Style".  No changes to any saved data.
+- **Release:**  not breaking, so a patch.
+- **When:**  before 1.0 (the user, 2026-11-13).  It looks odd to anyone new.  Listed in [release-1.0.md](release-1.0.md), item 4.
