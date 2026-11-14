@@ -12,7 +12,7 @@ The originals are still in place; follow the links for full context.
 
 **The goal is to get one real video out:** the robots from [riemann-surfaces-3d](https://github.com/TradeIdeasPhilip/riemann-surfaces-3d), recorded in 4K and always perfect, with sounds and text added in our editor.
 
-- This is a *first* version of the library, not a perfect one. Semantic versioning lets version 2 start fresh.
+- This is a _first_ version of the library, not a perfect one. Semantic versioning lets version 2 start fresh.
 - Try for a complete library. Anything unnecessary that gets in the way gets commented out.
 - riemann-surfaces-3d is our customer, and it represents a serious, common use case: another program wants to save what it already shows on screen to a video file, and use our editor for annotations.
   - Make as few changes to it as possible.
@@ -25,18 +25,18 @@ The originals are still in place; follow the links for full context.
 
 ### Projects
 
-| Project | Role in version 1 |
-| --- | --- |
-| `canvas-recorder-lib` (new repo) | The library |
-| `riemann-surfaces-3d` (existing, port 5179) | The customer; the first real consumer |
-| `canvas-recorder` (port 5173) | Unchanged. Still the source of truth |
+| Project                                                 | Role in version 1                               |
+| ------------------------------------------------------- | ----------------------------------------------- |
+| `canvas-recorder-lib` (new repo)                        | The library                                     |
+| `riemann-surfaces-3d` (existing, port 5179)             | The customer; the first real consumer           |
+| `canvas-recorder` (port 5173)                           | Unchanged. Still the source of truth            |
 | `canvas-recorder-dev` (Font Inspector + Kerning slides) | Deferred until after the video (see question 4) |
-| `canvas-recorder-sample` (help page) | Deferred until after the video (see question 4) |
+| `canvas-recorder-sample` (help page)                    | Deferred until after the video (see question 4) |
 
 ### The library: `canvas-recorder-lib`
 
 - **Built by a copy script.** `scripts/import-from-canvas-recorder.mjs` copies the player's import tree from `../canvas-recorder` verbatim, keeping `dev/` and `src/` as they are, so relative imports still work.
-  The tree is about 12 `dev/` files and 40 `src/` files, *minus* `src/dynamic-exports.ts`, so none of the old videos come along.
+  The tree is about 12 `dev/` files and 40 `src/` files, _minus_ `src/dynamic-exports.ts`, so none of the old videos come along.
   - Commit A is the verbatim import; hand edits are separate commits after it.
   - To re-sync, re-run the script on a branch and rebase the edits onto it.
 - **The main control object, `canvasRecorder`.** It's exported and documented, and holds:
@@ -48,6 +48,7 @@ The originals are still in place; follow the links for full context.
   Any part of a video can read the settings. They're frozen once `start()` runs.
   Video code should read them inside `show()`, not at module top level, because static imports run before `main.ts`'s body.
   The library's own uses of 3840/2160/16/9/60 switch to these properties. The old videos aren't copied, so they aren't touched.
+
 - **`start()` replaces `document.body`** with the player's HTML, stored as a TS string extracted from `canvas-recorder.html`.
   It then loads the player module with one internal `import()`, so its 6,200 lines run unchanged.
   - The "Select a video" menu, `resolveToShow()`, and the `?toShow=` registry are gone.
@@ -89,7 +90,9 @@ type LiveCanvasHost = {
   /** True once the clip is over.  Used to measure the duration. */
   isDone?(): boolean;
   /** Render the current state.  Each canvas must come back at exactly the requested pixel size. */
-  render(sizes: readonly { width: number; height: number }[]): readonly HTMLCanvasElement[];
+  render(
+    sizes: readonly { width: number; height: number }[],
+  ): readonly HTMLCanvasElement[];
   /** Lines for the statistics area. */
   status?(): readonly string[];
 };
@@ -164,6 +167,7 @@ These override anything above that disagrees.
 
   Fixing seeking is not in scope.
   (Live Canvas steps in 1/60 s increments, so the big-jump rule may never fire during catch-up. Worth a look someday, not today.)
+
 - **The component is named `FullScreenComponent`.** It lives in riemann, not in the library.
   It has no domain words in it, so another program can copy it as is.
   The library doesn't need a new component at all; the host-interface idea above becomes this one class.
@@ -185,6 +189,7 @@ These override anything above that disagrees.
    - The end-of-demo toasts could be drawn, or dropped in favor of text you add in the editor.
 
    I'd draw the captions and drop the toasts.
+
 3. **Is the narrated tour in the video?** Its moves are pinned to `RECORDED` voiceover times (narration.ts).
    With our sound tools placing the voiceover, that could line up nicely, but it's the longest clip and the hardest to seek in.
 4. **Dev and sample projects:** OK to defer both until the video is out?
@@ -247,6 +252,7 @@ But you could never clip two parts together unless they were recorded in order.
   Size the three.js renderer to `context.canvas.width × height`, so the copy is 1:1 and stays pixel-perfect.
   Do the `drawImage` right after `render()`, or use `preserveDrawingBuffer: true`.
   If models load asynchronously, report them through `getFramePromises()`.
+
 - **Make time the only input.** This is the fix for the concern. `show(t)` has to be a function of `t` alone:
   - a fixed simulation timestep, not the RAF's variable `dt`, so the recording (exact 1/60 s steps, slower than real time) matches the preview;
   - seeded randomness, and no `performance.now()`;
@@ -256,6 +262,7 @@ But you could never clip two parts together unless they were recorded in order.
   That's cheap when the simulation steps without rendering.
   Any range can be recorded, and separately recorded clips line up exactly.
   A bonus: an interactive session could be recorded as a log of timestamped inputs, then rendered offline at full quality.
+
 - **Maybe a library helper for that pattern:** something like `replayable({ reset, step, render, stepMs })`.
   Any simulation would benefit (physics, boids, cellular automata), and it keeps the robots adapter tiny.
 - **Ship a real build sooner.** The robots project will be the first consumer with a different tsconfig and code style.
@@ -330,6 +337,7 @@ These aren't in any plan yet. I found them while collecting the notes above.
 
   Side note: [docs/saved_state/README.md](../docs/saved_state/README.md) lives inside the build output.
   That conflicts with ci-pages-deploy.md, and it may be stale now that `properties/` exists.
+
 - **The service worker.** [public/delay-files-sw.js](../public/delay-files-sw.js) has to be served from the app's own origin.
   A library can't drop it into the consumer's `public/` automatically.
 - **The other pages:** sound-explorer, media-browser, random-tests, test-rig.

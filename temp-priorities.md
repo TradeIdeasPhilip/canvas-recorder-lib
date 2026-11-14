@@ -5,6 +5,7 @@ I raised "One editor, many videos" to the Simple Video Editor's first priority. 
 **Next: rename `InParallelComponent` → `ComponentBase`.** _Raised 2026-11-12: get the breaking changes out of the way._ Details in [release-1.0.md](development-plans/release-1.0.md), item 4. It touches affine-transforms and the showcase.
 
 **For 1.0: the breaking changes ([release-1.0.md](development-plans/release-1.0.md)). All small.**
+
 1. Remove the old builders. Convert the 20 showcase slides that use `MakeShowableInParallel`.
 2. Remove `formatVersion` from the save file.
 3. Say what's public. One README sentence, plus moving what projects need (like `makeTranscript()`) out of `dev/`.
@@ -14,6 +15,7 @@ I raised "One editor, many videos" to the Simple Video Editor's first priority. 
    - (The `samplesFromParametric()` fix shipped as a patch on 2026-11-09: a bug fix isn't breaking.)
 
 **Groundwork for saving.** Projects and the two-window sync both rework the same saving code. Doing this part once, with tests, guards against losing work:
+
 - Read and write the history in one transaction.
 - Reuse one IndexedDB connection instead of opening a new one each time.
 - Synced files re-read their saved record before each write.
@@ -21,11 +23,13 @@ I raised "One editor, many videos" to the Simple Video Editor's first priority. 
 - Automated tests of save files. [automated-tests.md](development-plans/automated-tests.md) says to start there.
 
 **Features:**
+
 - **Simple Video Editor projects:** New, Open, Save As, the file name always showing, and a separate history and size for each video. Raised today.
 - **One slide per window** ([multi-window-sync.md](development-plans/multi-window-sync.md)). Raised yesterday.
 - **Putting the GUI back after a Vite reload**, including fixing the bug where the restore runs before the saved tree loads.
 
 **What's keeping the Simple Video Editor from being a real product**, besides projects:
+
 - Hide the programmer-only controls.
 - A help page.
 - A shorter Insert list.

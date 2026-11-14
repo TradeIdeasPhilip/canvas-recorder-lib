@@ -48,7 +48,6 @@ What could possibly go wrong?
 
 Notice that the transform is always centered about the origin.
 
-
 ## What could possibly go wrong?
 
 "Computer, move that 5 units to the left, and make it twice as big."

@@ -1,9 +1,7 @@
 # Prettier also skips everything in .gitignore (dist/, docs/, node_modules/).
 
-# In markdown and HTML, Prettier treats a run of spaces as one space.  That
-# removes the two spaces after each period in the docs, and has broken HTML
+# In HTML, Prettier treats a run of spaces as one space.  That has broken HTML
 # that relied on its spaces.
-*.md
 *.html
 
 package-lock.json

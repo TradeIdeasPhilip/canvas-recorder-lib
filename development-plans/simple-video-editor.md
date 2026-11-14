@@ -43,49 +43,49 @@ All use cases will benefit from custom features as they are added to the library
 [simple-video-editor/](../simple-video-editor/), with both prerequisites built at the same time
 (see their "Prototype" sections).
 
-- **It lives in this repo,** not in its own.  It uses the library from `file:..`, so it always has the newest library, locally and on GitHub Pages, with no npm release in between.
+- **It lives in this repo,** not in its own. It uses the library from `file:..`, so it always has the newest library, locally and on GitHub Pages, with no npm release in between.
   [.github/workflows/docs.yml](../.github/workflows/docs.yml) builds it with the API docs and publishes it at https://tradeideasphilip.github.io/canvas-recorder-lib/simple-video-editor/.
 - **Port 5177** (see the README's Ports table).
-- **Defaults:**  2880 × 1800 pixels, 16 × 10 units, unlocked.
-- **The starting project:**  a black Background, a Clips series holding one empty 10 s Clip 1, and an Instructions text ("Select Clip 1, then 📂 Open file…") to delete.
+- **Defaults:** 2880 × 1800 pixels, 16 × 10 units, unlocked.
+- **The starting project:** a black Background, a Clips series holding one empty 10 s Clip 1, and an Instructions text ("Select Clip 1, then 📂 Open file…") to delete.
   Everything is replaceable, so the user can rebuild it in the Visual Editor.
 - **Saves stay in the browser** (IndexedDB), or in JSON files the user picks.
 
-**To try:**  see [simple-video-editor/README.md](../simple-video-editor/README.md).
+**To try:** see [simple-video-editor/README.md](../simple-video-editor/README.md).
 
 **Next:**
 
-- One editor, many videos.  See below.
+- One editor, many videos. See below.
 - Hide the programmer-only controls (Sync defaults, Sync diffs, TypeScript defaults, Debug Log) for this audience.
-- A help page.  The player replaces the whole `<body>`, so it would be a link or a dialog.
-- A shorter component list in the Insert dialog:  clips, text, rectangles, arrows, images.
+- A help page. The player replaces the whole `<body>`, so it would be a link or a dialog.
+- A shorter component list in the Insert dialog: clips, text, rectangles, arrows, images.
 
 ## Toward a real product (2026-11-09)
 
 _"One editor, many videos" is now this editor's first priority._
 
-**The case:**  a screen recording at an unusual size and aspect ratio.  Cut one quiet section out of the middle, at an exact frame.
-QuickTime made that hard:  clicking near its playhead does nothing, so there are only big jumps and single frames.
-This editor can already do it:  the timeline, Option-← and Option-→ for single frames, and ✂ Split with Keep.
+**The case:** a screen recording at an unusual size and aspect ratio. Cut one quiet section out of the middle, at an exact frame.
+QuickTime made that hard: clicking near its playhead does nothing, so there are only big jumps and single frames.
+This editor can already do it: the timeline, Option-← and Option-→ for single frames, and ✂ Split with Keep.
 
-**What got in the way:**  the previous video (Ms. Pac-Man) was still loaded.
+**What got in the way:** the previous video (Ms. Pac-Man) was still loaded.
 The workaround was one last save of `ms pac man.json`, then deleting most of it and changing the size.
 That's fine when a video is really finished, and risky when it isn't, or when two videos are going at once.
 It's problems 2 and 3 in the next section.
 
 **What's missing before it's a real product,** in rough order:
 
-1. **Projects:**  New, Open, Save As, the file name always visible, and a separate history and size for each project.  See the next section.
-2. **The size in the save file:**  [configurable-video-size.md](configurable-video-size.md#proposal--the-size-and-the-last-save-range-in-the-json-file-2026-10-24)'s proposal.  Part of 1.
-3. **Hide the programmer controls.**  (In "Next", above.)
+1. **Projects:** New, Open, Save As, the file name always visible, and a separate history and size for each project. See the next section.
+2. **The size in the save file:** [configurable-video-size.md](configurable-video-size.md#proposal--the-size-and-the-last-save-range-in-the-json-file-2026-10-24)'s proposal. Part of 1.
+3. **Hide the programmer controls.** (In "Next", above.)
 4. **A help page,** or a note the first time it starts.
 5. **A shorter Insert list.**
-6. **Long screen recordings.**  The sound of a file too big to read ([audio-from-large-videos.md](audio-from-large-videos.md)), and memory over a long session ([video-clip-memory.md](video-clip-memory.md)).  Not tried yet on a long recording.
-7. _Speculation:_  things someone used to other editors would expect.
-   - Cut out a range in one step:  mark the start and the end, then delete.  Today that's two splits and a delete.
-   - Space to play and pause.  Today it's Option-Space.
-   - Cmd+Z undoes the last edit.  Today it opens the Load history.
-   - Saying up front that it needs desktop Chrome.  It uses the File System Access API and WebCodecs.
+6. **Long screen recordings.** The sound of a file too big to read ([audio-from-large-videos.md](audio-from-large-videos.md)), and memory over a long session ([video-clip-memory.md](video-clip-memory.md)). Not tried yet on a long recording.
+7. _Speculation:_ things someone used to other editors would expect.
+   - Cut out a range in one step: mark the start and the end, then delete. Today that's two splits and a delete.
+   - Space to play and pause. Today it's Option-Space.
+   - Cmd+Z undoes the last edit. Today it opens the Load history.
+   - Saying up front that it needs desktop Chrome. It uses the File System Access API and WebCodecs.
 
 ## One editor, many videos (2026-10-27)
 
@@ -97,29 +97,29 @@ This editor uses one name, `simple-video-editor`, for every video anyone makes w
 
 ### What goes wrong
 
-1. **Load can overwrite another video's file.**  This is the dangerous one.
-   Loading a `.json` doesn't change which file is synced, on purpose:  see the comment in `loadFromJsonFile()` in [dev/canvas-recorder.ts](../dev/canvas-recorder.ts) ("Opening a file doesn't change which file is synced").
+1. **Load can overwrite another video's file.** This is the dangerous one.
+   Loading a `.json` doesn't change which file is synced, on purpose: see the comment in `loadFromJsonFile()` in [dev/canvas-recorder.ts](../dev/canvas-recorder.ts) ("Opening a file doesn't change which file is synced").
    So while syncing to `video1.json`, loading `video2.json` writes video 2 into `video1.json`.
    With one video per program, Load always meant "an older version of this video", and that was correct.
    Here it means "open a different video".
-   **Workaround until it's fixed:**  uncheck Sync to file before loading or starting a different video, then check it again and pick that video's own file.
-2. **Every video shares one autosave and one Load/undo history.**  IndexedDB is keyed by the same name (`toShowKey` in dev/canvas-recorder.ts).
+   **Workaround until it's fixed:** uncheck Sync to file before loading or starting a different video, then check it again and pick that video's own file.
+2. **Every video shares one autosave and one Load/undo history.** IndexedDB is keyed by the same name (`toShowKey` in dev/canvas-recorder.ts).
    Nothing is lost, but the history mixes videos, and a reload comes back to whichever video was edited last.
-3. **The video size isn't in the save file.**  It's in localStorage under `canvas-recorder-size|<name>` (`videoSizeStorageKey`).
+3. **The video size isn't in the save file.** It's in localStorage under `canvas-recorder-size|<name>` (`videoSizeStorageKey`).
    Loading another video's `.json` keeps the current size.
-   The fix is already proposed:  [configurable-video-size.md](configurable-video-size.md#proposal--the-size-and-the-last-save-range-in-the-json-file-2026-10-24).
-4. **File names.**  Each Sync checkbox opens a Save dialog that suggests `<name>.json`, `<name>.txt` or `<name>-ts-defaults.json` (`defaultName` in dev/canvas-recorder.ts).
+   The fix is already proposed: [configurable-video-size.md](configurable-video-size.md#proposal--the-size-and-the-last-save-range-in-the-json-file-2026-10-24).
+4. **File names.** Each Sync checkbox opens a Save dialog that suggests `<name>.json`, `<name>.txt` or `<name>-ts-defaults.json` (`defaultName` in dev/canvas-recorder.ts).
    The user can type any name, but the suggestion is the same for every video, so it's easy to accept without noticing.
-   To rename later:  uncheck Sync, check it again, and pick a new name.  The old file stays.
-5. **Sync defaults and Sync diffs are for programmers.**  Here they only ever describe the empty starting project.  (Already in Next, above.)
+   To rename later: uncheck Sync, check it again, and pick a new name. The old file stays.
+5. **Sync defaults and Sync diffs are for programmers.** Here they only ever describe the empty starting project. (Already in Next, above.)
 
 ### Possible direction (speculation)
 
-Give the editor a real idea of a *project*:  one video, one `.json` file.
+Give the editor a real idea of a _project_: one video, one `.json` file.
 
-- **Open…** picks a `.json` and makes it the synced file, so later saves go back to the file that was opened.  **New** starts the empty project, and the first save asks for a name.
-  Load (the history dialog) stays as it is:  older versions of the *current* video.
+- **Open…** picks a `.json` and makes it the synced file, so later saves go back to the file that was opened. **New** starts the empty project, and the first save asks for a name.
+  Load (the history dialog) stays as it is: older versions of the _current_ video.
 - Show the current file name prominently, near the top, so it's always clear which video this is.
-- Key the IndexedDB history by the project's file, not by the program's name.  Unknown:  how to name a project before its first save, and what to do with the history already stored under `simple-video-editor`.
+- Key the IndexedDB history by the project's file, not by the program's name. Unknown: how to name a project before its first save, and what to do with the history already stored under `simple-video-editor`.
 - Put the size (and the last Save range) in the `.json`, per configurable-video-size.md, so opening a project restores everything.
-- Should this be a `start()` option, so other programs could opt in, or just how this editor works?  The one-video programs (affine-transforms, riemann) want today's behavior.
+- Should this be a `start()` option, so other programs could opt in, or just how this editor works? The one-video programs (affine-transforms, riemann) want today's behavior.

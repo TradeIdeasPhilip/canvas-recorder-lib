@@ -17,7 +17,7 @@ The existing command-line recording path has two major problems:
 
 ## Proposal: Puppeteer as an Optional Driver
 
-Throw away the CLI/TSX recording path entirely. The app only ever runs as an interactive browser window. But optionally, Puppeteer can *drive* that same browser window and inject a small set of extra APIs into it.
+Throw away the CLI/TSX recording path entirely. The app only ever runs as an interactive browser window. But optionally, Puppeteer can _drive_ that same browser window and inject a small set of extra APIs into it.
 
 When the main program detects those injected APIs, it shows additional controls — for example, a "Save via FFmpeg" button. Everything else looks and works exactly as it does now; the extra options are just additional buttons that appear when Puppeteer is running.
 
@@ -65,22 +65,23 @@ There is [a separate project](https://github.com/TradeIdeasPhilip/handwriting-ef
 After additional thought, I realized that the WASM FFmpeg actually might be useful in this project.
 
 I was originally critical of that approach because it only works for small files.
-But I also noted that the past Puppeteer solutions and this project's TSX solution are *very* slow.
+But I also noted that the past Puppeteer solutions and this project's TSX solution are _very_ slow.
 They only make sense because I expect them to be used on small videos.
 
 The encoder for my existing WASM FFmeg project, [handwriting-effect](https://www.youtube.com/watch?v=qIwXfSPh-8s), is small and self-contained, so it would be easy to import into this project as an option.
 That project works well and has been tested thoroughly.
 
 ### Memory limit quantified
+
 The constraint: all frames must live simultaneously in WASM's virtual filesystem as PNGs before FFmpeg runs.
 
 In this project the canvas is currently fixed at **4K (3840×2160) at 60fps**. Math animations with flat colors and clean edges compress very well — probably 3–8 MB per PNG frame.
 
-| Resolution | FPS | MB/sec (PNGs) | Comfortable limit (~1.5 GB) |
-|---|---|---|---|
-| 4K (3840×2160) | 60 | ~300 MB/s | ~5 seconds |
-| 1080p (1920×1080) | 30 | ~45 MB/s | ~30 seconds |
-| 720p (1280×720) | 30 | ~20 MB/s | ~75 seconds |
+| Resolution        | FPS | MB/sec (PNGs) | Comfortable limit (~1.5 GB) |
+| ----------------- | --- | ------------- | --------------------------- |
+| 4K (3840×2160)    | 60  | ~300 MB/s     | ~5 seconds                  |
+| 1080p (1920×1080) | 30  | ~45 MB/s      | ~30 seconds                 |
+| 720p (1280×720)   | 30  | ~20 MB/s      | ~75 seconds                 |
 
 **4K at 60fps is too big for WASM**.
 CapCut stickers don't need 4K — 1080p or 720p at 30fps is exactly right for this use case, and 30 seconds is a very comfortable ceiling for a "sticker."
