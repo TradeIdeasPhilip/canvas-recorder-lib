@@ -12,6 +12,7 @@ import {
   tidyRect,
 } from "./rect-snap.ts";
 import { buildNumericInput } from "./schedule-helpers.ts";
+import { describeMissing } from "./character-panel.ts";
 
 /** Whether the frame is drawn on the canvas (👁), and whether it has handles to drag (✎). */
 export type CanvasState = {
@@ -231,6 +232,11 @@ export function buildTextFramePanel(
       note(
         `Height Mode is unbounded, so the frame's ${sideways ? "width" : "height"} doesn't limit the text.`,
       );
+    }
+    // Over the whole timeline, not just the playhead.  Select a Text Format to see every
+    // character its font has.
+    for (const missing of text.missingCharacters()) {
+      note(describeMissing(missing, true));
     }
   }
 

@@ -43,7 +43,7 @@ type MultiTextOptions = NonNullable<
 >;
 
 /** One Multi Text, one Text Format per part. */
-function multiText(
+export function multiText(
   parts: readonly { readonly text: string; readonly format: FormatOptions }[],
   options: MultiTextOptions,
 ): { text: MultiTextComponent; formats: TextFormatComponent[] } {
@@ -77,7 +77,7 @@ function firstLine(text: MultiTextComponent, options: ShowOptions) {
 const GUIDE_COLOR = "#4a6ea8";
 
 /** Dashed lines at the capital top and the baseline of the first line. */
-function heightGuides(
+export function heightGuides(
   text: MultiTextComponent,
   format: TextFormatComponent,
   overhang = 0.3,
@@ -147,7 +147,12 @@ function slantGuideFor(
 }
 
 /** A small gray caption. */
-function caption(text: string, x: number, y: number, width = 4): Showable {
+export function caption(
+  text: string,
+  x: number,
+  y: number,
+  width = 4,
+): Showable {
   return makeNote({ text, x, y, width, size: 0.24, color: "#c8c8c8" }).showable;
 }
 

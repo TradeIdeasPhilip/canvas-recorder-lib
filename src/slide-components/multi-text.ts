@@ -3,7 +3,14 @@
 import { Point } from "bezier-js";
 import { ReadOnlyRect } from "phil-lib/misc";
 import { Font } from "../glib/letters-base.ts";
-import { makeLineFont, MIN_FONT_WIDTH } from "../glib/line-font.ts";
+import { MIN_FONT_SIZE, MIN_FONT_WIDTH } from "../glib/line-font.ts";
+import {
+  checkCharacters,
+  FONT_NAMES,
+  FontName,
+  makeFontByName,
+  MissingCharacters,
+} from "../glib/font-choices.ts";
 import {
   LaidOut,
   ParagraphLayout,
@@ -490,6 +497,47 @@ export class MultiTextComponent extends DurationAgnosticComponent {
   /** The Text Format that a span in this Multi Text named `name` would use, or undefined. */
   formatInScope(name: string): TextFormatComponent | undefined {
     return getFormat(name, this.#formatsInScope());
+  }
+  /**
+   * Characters in this text that its fonts can't draw.  They're left out of
+   * the layout, so they never reach the canvas.  For the Visual Editor's
+   * status.
+   *
+   * Checked over the whole timeline, not just the playhead:  at every keyframe
+   * of every span's Content and Style, and of every Text Format's Font.
+   * A span whose format can't be found is skipped; {@link show} draws an
+   * error for that already.
+   */
+  missingCharacters(): MissingCharacters[] {
+    const formats = this.#formatsInScope();
+    const spans = [
+      ...this.children.flatMap(({ child }) =>
+        child instanceof TextSpanComponent ? [child] : [],
+      ),
+      ...this.#programText,
+    ];
+    const times = [
+      ...spans.flatMap((span) => [
+        ...span.contentSchedule.schedule,
+        ...span.styleSchedule.schedule,
+      ]),
+      ...formats.flatMap((format) => format.fontSchedule.schedule),
+    ].map(({ time }) => time);
+    return checkCharacters(times, (timeInMs) =>
+      spans.flatMap((span) => {
+        const { content, style } = span.get(timeInMs);
+        const format = getFormat(style, formats);
+        return format
+          ? [
+              {
+                text: content,
+                fontName: format.fontSchedule.at(timeInMs),
+                formatName: style,
+              },
+            ]
+          : [];
+      }),
+    );
   }
   /**
    * The point the finished text is anchored to.
@@ -1202,6 +1250,7 @@ export class TextSpanComponent implements Showable {
 
 type CachedFont = {
   readonly font: Font;
+  readonly fontName: FontName;
   readonly size: number;
   readonly fontWidth: number;
   readonly boldness: number;
@@ -1213,11 +1262,19 @@ export class TextFormatComponent implements Showable {
   readonly nameScalar = new StringScalarInfo("Name", "");
   readonly scalars = [this.nameScalar] as const;
   readonly colorSchedule: ColorScheduleInfo;
+  /**
+   * Which font:  Line Font, Futura L or Cursive.  See {@link FONT_NAMES}.
+   * Each font has its own set of characters.
+   */
+  readonly fontSchedule = new SelectScheduleInfo<FontName, FontName>(
+    "Font",
+    "Line Font",
+    FONT_NAMES,
+  );
   readonly sizeSchedule = new NumberScheduleInfo("Font Size", 1);
   /**
    * How wide the letters are, compared to normal, keeping their height.  See
-   * `width` in {@link makeLineFont}'s options.  Not Multi Text's own Width,
-   * which is its frame's.
+   * {@link Font.stretch}.  Not Multi Text's own Width, which is its frame's.
    */
   readonly fontWidthSchedule = new NumberScheduleInfo("Font Width", 1);
   readonly boldnessSchedule = new NumberScheduleInfo("Boldness", 1);
@@ -1231,6 +1288,7 @@ export class TextFormatComponent implements Showable {
       description?: string;
       name?: string;
       color?: string | readonly Keyframe<string>[] | ColorScheduleInfo;
+      font?: FontName | readonly Keyframe<FontName>[];
       size?: number | readonly Keyframe<number>[];
       fontWidth?: number | readonly Keyframe<number>[];
       boldness?: number | readonly Keyframe<number>[];
@@ -1245,6 +1303,8 @@ export class TextFormatComponent implements Showable {
       "Color",
       initialValues.color ?? "#666",
     );
+    if (initialValues.font !== undefined)
+      this.fontSchedule.set(initialValues.font);
     if (initialValues.size !== undefined)
       this.sizeSchedule.set(initialValues.size);
     if (initialValues.fontWidth !== undefined)
@@ -1257,6 +1317,7 @@ export class TextFormatComponent implements Showable {
       this.alphaSchedule.set(initialValues.alpha);
     this.schedules.push(
       this.colorSchedule,
+      this.fontSchedule,
       this.sizeSchedule,
       this.fontWidthSchedule,
       this.boldnessSchedule,
@@ -1280,7 +1341,12 @@ export class TextFormatComponent implements Showable {
    */
   freeze(timeInMs: number, sizeMultiplier = 1) {
     const color = this.colorSchedule.at(timeInMs);
-    const size = this.sizeSchedule.at(timeInMs) * sizeMultiplier;
+    const fontName = this.fontSchedule.at(timeInMs);
+    // 0 or less can't be drawn.  Too small to see is the closest thing.
+    const size = Math.max(
+      MIN_FONT_SIZE,
+      this.sizeSchedule.at(timeInMs) * sizeMultiplier || 0,
+    );
     // 0 or less can't be drawn.  As thin as it goes is the closest thing.
     const fontWidth = Math.max(
       MIN_FONT_WIDTH,
@@ -1291,18 +1357,26 @@ export class TextFormatComponent implements Showable {
     const alpha = this.alphaSchedule.at(timeInMs);
     if (
       !this.#cachedFont ||
+      this.#cachedFont.fontName != fontName ||
       this.#cachedFont.size != size ||
       this.#cachedFont.fontWidth != fontWidth ||
       this.#cachedFont.boldness != boldness ||
       this.#cachedFont.obliqueness != obliqueness
     ) {
-      const font = makeLineFont({
+      const font = makeFontByName(fontName, {
         size,
         width: fontWidth,
         boldness,
         obliqueness,
       });
-      this.#cachedFont = { font, size, fontWidth, boldness, obliqueness };
+      this.#cachedFont = {
+        font,
+        fontName,
+        size,
+        fontWidth,
+        boldness,
+        obliqueness,
+      };
     }
     const font = this.#cachedFont.font;
     function drawText({ context }: ShowOptions, pathShape: PathShape): void {

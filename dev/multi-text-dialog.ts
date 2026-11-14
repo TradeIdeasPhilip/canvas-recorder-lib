@@ -4,6 +4,7 @@ import {
   TextFormatComponent,
   TextSpanComponent,
 } from "../src/slide-components/multi-text.ts";
+import { buildCharacterPanel, describeMissing } from "./character-panel.ts";
 import { FormatEditor } from "./format-editor.ts";
 
 /** What the dialog needs from the Visual Editor.  It never reaches into canvas-recorder.ts directly. */
@@ -19,6 +20,8 @@ export type MultiTextDialogHooks = {
   readonly copyComponent: (component: Showable) => Showable | undefined;
   /** The dialog closed.  Rebuild the editors it covered. */
   readonly closed: () => void;
+  /** The Multi Text's own time at the playhead.  A format's Font can change over time. */
+  readonly timeMs: () => number;
 };
 
 /** Someone animated this span, by hand or in TypeScript.  Editing its text flattens it. */
@@ -107,7 +110,10 @@ export async function openMultiTextDialog(
   toolbar.append(insertFormatBtn);
   const notes = document.createElement("div");
   notes.style.cssText = "font-size:0.85em;color:#a06000;margin-top:0.3em";
-  top.append(heading, hint, toolbar, notes);
+  /** Characters a font doesn't have.  It changes as you type, so it's apart from the notes. */
+  const missingLines = document.createElement("div");
+  missingLines.style.cssText = notes.style.cssText;
+  top.append(heading, hint, toolbar, notes, missingLines);
 
   const middle = document.createElement("div");
   middle.style.cssText = "flex:1;overflow-y:auto;padding:0.8em";
@@ -167,6 +173,16 @@ export async function openMultiTextDialog(
       );
     }
   }
+  /** Every character the text uses that its font doesn't have, over the whole timeline. */
+  const showMissing = () => {
+    missingLines.replaceChildren(
+      ...text.missingCharacters().map((missing) => {
+        const div = document.createElement("div");
+        div.textContent = describeMissing(missing, true);
+        return div;
+      }),
+    );
+  };
   const noFormatsNote = note(
     "This text has no Text Formats yet.  Pick New… in a menu to make one.",
   );
@@ -174,6 +190,7 @@ export async function openMultiTextDialog(
   const formatsChanged = () => {
     editor.knownNames = text.formatNamesInScope();
     noFormatsNote.hidden = editor.knownNames.length > 0;
+    showMissing();
   };
 
   // MARK: Behavior
@@ -185,7 +202,16 @@ export async function openMultiTextDialog(
     onNewFormat: newFormat,
   });
   editor.element.style.minHeight = "12rem";
-  middle.append(editor.element, errorLine);
+  // Grayed for the font of the format at the cursor.  A click types the character there.
+  const characters = buildCharacterPanel({
+    fontName: () =>
+      text
+        .formatInScope(editor.formatAtCursor())
+        ?.fontSchedule.at(hooks.timeMs()) ?? "Line Font",
+    onPick: (char) => editor.insertText(char),
+  });
+  editor.onCursorMove = () => characters.timeChanged();
+  middle.append(editor.element, errorLine, characters.palette);
   formatsChanged();
 
   editor.onChange = (value) => {
@@ -199,6 +225,9 @@ export async function openMultiTextDialog(
     }
     errorLine.textContent = "";
     revertBtn.disabled = false;
+    showMissing();
+    // Picking another format in a menu doesn't move the cursor.
+    characters.timeChanged();
     hooks.changed();
   };
 

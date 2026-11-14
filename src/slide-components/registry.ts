@@ -288,8 +288,9 @@ export const componentRegistry = new Map<string, ComponentRegistryEntry>([
       description:
         "A way to draw fancy text.  " +
         "This can contain multiple TextFormat and TextSpan components as children, " +
-        "and one text effect, like Handwriting Effect.",
-      isGoodForWrapping: false,
+        "and one text effect, like Handwriting Effect.  " +
+        "Its Text Formats also work in every Multi Text inside it, so wrap a group of them in one to share styles.",
+      isGoodForWrapping: true,
       howToGenerate: { type: "class", class: MultiTextComponent },
     },
   ],

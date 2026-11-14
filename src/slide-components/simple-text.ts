@@ -1,5 +1,12 @@
 import { ReadOnlyRect } from "phil-lib/misc";
-import { makeLineFont, MIN_FONT_WIDTH } from "../glib/line-font.ts";
+import { MIN_FONT_SIZE, MIN_FONT_WIDTH } from "../glib/line-font.ts";
+import {
+  checkCharacters,
+  FONT_NAMES,
+  FontName,
+  makeFontByName,
+  MissingCharacters,
+} from "../glib/font-choices.ts";
 import { ParagraphLayout } from "../glib/paragraph-layout.ts";
 import {
   ColorScheduleInfo,
@@ -15,6 +22,7 @@ import { Font } from "../glib/letters-base.ts";
 
 type CachedFont = {
   readonly font: Font;
+  readonly fontName: FontName;
   readonly size: number;
   readonly fontWidth: number;
   readonly boldness: number;
@@ -31,10 +39,19 @@ export class TextComponent extends DurationAgnosticComponent {
     height: 4,
   });
   readonly textSchedule = new StringScheduleInfo("Text", "Type Here");
+  /**
+   * Which font:  Line Font, Futura L or Cursive.  See {@link FONT_NAMES}.
+   * Each font has its own set of characters.
+   */
+  readonly fontSchedule = new SelectScheduleInfo<FontName, FontName>(
+    "Font",
+    "Line Font",
+    FONT_NAMES,
+  );
   readonly sizeSchedule = new NumberScheduleInfo("Size", 1);
   /**
    * How wide the letters are, compared to normal, keeping their height.  See
-   * `width` in {@link makeLineFont}'s options.
+   * {@link Font.stretch}.
    */
   readonly fontWidthSchedule = new NumberScheduleInfo("Font Width", 1);
   readonly boldnessSchedule = new NumberScheduleInfo("Boldness", 1);
@@ -53,6 +70,7 @@ export class TextComponent extends DurationAgnosticComponent {
       color?: string | readonly Keyframe<string>[];
       rect?: ReadOnlyRect | readonly Keyframe<ReadOnlyRect>[];
       text?: string | readonly Keyframe<string>[];
+      font?: FontName | readonly Keyframe<FontName>[];
       size?: number | readonly Keyframe<number>[];
       fontWidth?: number | readonly Keyframe<number>[];
       boldness?: number | readonly Keyframe<number>[];
@@ -75,6 +93,7 @@ export class TextComponent extends DurationAgnosticComponent {
       this.colorSchedule,
       this.rectSchedule,
       this.textSchedule,
+      this.fontSchedule,
       this.sizeSchedule,
       this.fontWidthSchedule,
       this.boldnessSchedule,
@@ -89,6 +108,9 @@ export class TextComponent extends DurationAgnosticComponent {
     }
     if (initialValues.text !== undefined) {
       this.textSchedule.set(initialValues.text);
+    }
+    if (initialValues.font !== undefined) {
+      this.fontSchedule.set(initialValues.font);
     }
     if (initialValues.size !== undefined) {
       this.sizeSchedule.set(initialValues.size);
@@ -106,6 +128,24 @@ export class TextComponent extends DurationAgnosticComponent {
       this.alignmentSchedule.set(initialValues.alignmentSchedule);
     }
   }
+  /**
+   * Characters in Text that Font can't draw.  They're left out, so they never
+   * reach the canvas.  For the Visual Editor's status.
+   *
+   * Checked over the whole timeline:  at every keyframe of Text and of Font.
+   */
+  missingCharacters(): MissingCharacters[] {
+    const times = [
+      ...this.textSchedule.schedule,
+      ...this.fontSchedule.schedule,
+    ].map(({ time }) => time);
+    return checkCharacters(times, (timeInMs) => [
+      {
+        text: this.textSchedule.at(timeInMs),
+        fontName: this.fontSchedule.at(timeInMs),
+      },
+    ]);
+  }
   #cachedFont: undefined | CachedFont;
   #cachedPath:
     | undefined
@@ -121,7 +161,9 @@ export class TextComponent extends DurationAgnosticComponent {
     const color = this.colorSchedule.at(timeInMs);
     const rect = this.rectSchedule.at(timeInMs);
     const text = this.textSchedule.at(timeInMs);
-    const size = this.sizeSchedule.at(timeInMs);
+    const fontName = this.fontSchedule.at(timeInMs);
+    // 0 or less can't be drawn.  Too small to see is the closest thing.
+    const size = Math.max(MIN_FONT_SIZE, this.sizeSchedule.at(timeInMs) || 0);
     // 0 or less can't be drawn.  As thin as it goes is the closest thing.
     const fontWidth = Math.max(
       MIN_FONT_WIDTH,
@@ -133,18 +175,26 @@ export class TextComponent extends DurationAgnosticComponent {
     context.strokeStyle = color;
     if (
       !this.#cachedFont ||
+      this.#cachedFont.fontName != fontName ||
       this.#cachedFont.size != size ||
       this.#cachedFont.fontWidth != fontWidth ||
       this.#cachedFont.boldness != boldness ||
       this.#cachedFont.obliqueness != obliqueness
     ) {
-      const font = makeLineFont({
+      const font = makeFontByName(fontName, {
         size,
         width: fontWidth,
         boldness,
         obliqueness,
       });
-      this.#cachedFont = { font, size, fontWidth, boldness, obliqueness };
+      this.#cachedFont = {
+        font,
+        fontName,
+        size,
+        fontWidth,
+        boldness,
+        obliqueness,
+      };
     }
     if (
       !this.#cachedPath ||

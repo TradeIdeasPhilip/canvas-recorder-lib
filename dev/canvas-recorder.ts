@@ -136,11 +136,16 @@ import {
 } from "../src/slide-components/serialize.ts";
 import { SlideComponent } from "../src/slide-components/slide-component.ts";
 import { VideoClipComponent } from "../src/slide-components/video-clip.ts";
-import { MultiTextComponent } from "../src/slide-components/multi-text.ts";
+import {
+  MultiTextComponent,
+  TextFormatComponent,
+} from "../src/slide-components/multi-text.ts";
+import { TextComponent } from "../src/slide-components/simple-text.ts";
 import { FourierComponent } from "../src/slide-components/fourier.ts";
 import { buildFourierPanel } from "./fourier-panel.ts";
 import { HandwritingEffectComponent } from "../src/slide-components/handwriting-effect.ts";
 import { buildHandwritingPanel } from "./handwriting-panel.ts";
+import { buildCharacterPanel, CharacterPanel } from "./character-panel.ts";
 import { SingleImageComponent } from "../src/slide-components/image.ts";
 import { buildStaticImagePanel } from "./static-image-panel.ts";
 import { InSeriesComponent } from "../src/slide-components/in-series.ts";
@@ -6741,6 +6746,15 @@ function updateScheduleEditor(selectable: Showable) {
     // Every keystroke in Divisions or Progress updates the status.
     scheduleEditorRefreshers.push(handwritingPanel.refresh);
   }
+  const characterPanel = buildCharacterPanelFor(selectable);
+  if (characterPanel) {
+    // The warnings here, the list of characters after the properties.
+    scheduleEditorFieldset.append(characterPanel.status);
+    // Every keystroke in Text, and a new Font.
+    scheduleEditorRefreshers.push(characterPanel.refresh);
+    // The Font at the playhead is the one the list shows.
+    goToButtonUpdaters.push(characterPanel.timeChanged);
+  }
   // A component's own panels, and the project's:  after the library's, so on a Fourier
   // the library's status comes first.
   scheduleEditorFieldset.append(...startEditorPanels(selectable));
@@ -6795,7 +6809,43 @@ function updateScheduleEditor(selectable: Showable) {
     }
     scheduleEditorFieldset.append(section);
   }
+  if (characterPanel) {
+    scheduleEditorFieldset.append(characterPanel.palette);
+  }
   scheduleEditorFieldset.append(buildSoundClipSection(selectable));
+}
+
+/**
+ * The Characters panel for a Text or a Text Format, or undefined for anything else.
+ *
+ * A Text Format doesn't know its text, so its warnings come from its Multi Text:  the
+ * ones for this format.  The Multi Text shows them all, in its Text Frame panel.
+ */
+function buildCharacterPanelFor(
+  selectable: Showable,
+): CharacterPanel | undefined {
+  if (selectable instanceof TextComponent) {
+    return buildCharacterPanel({
+      fontName: () => selectable.fontSchedule.at(componentTimeMs(selectable)),
+      missing: () => selectable.missingCharacters(),
+    });
+  }
+  if (selectable instanceof TextFormatComponent) {
+    return buildCharacterPanel({
+      fontName: () => selectable.fontSchedule.at(componentTimeMs(selectable)),
+      missing() {
+        const parent = (selectable as Showable).parent;
+        if (!(parent instanceof MultiTextComponent)) return [];
+        const name = selectable.nameScalar.value;
+        return parent.formatInScope(name) === selectable
+          ? parent
+              .missingCharacters()
+              .filter(({ formatName }) => formatName === name)
+          : [];
+      },
+    });
+  }
+  return undefined;
 }
 
 // MARK: Split
@@ -7030,6 +7080,7 @@ function buildMultiTextFrame(text: MultiTextComponent): HTMLElement {
           if (root) updateComponentEditor(root);
           updateScheduleEditor(text);
         },
+        timeMs: () => componentTimeMs(text),
       });
     },
   });

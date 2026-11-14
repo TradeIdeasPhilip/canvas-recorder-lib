@@ -43,6 +43,50 @@ export type FontMetrics = {
   // baseLine is now frozen at 0!!!!!
 };
 
+/**
+ * Everything about a font, all at once:  its size, width, slant and stroke.
+ * For {@link Font.cursive}, {@link Font.futuraL} and `makeLineFont()`.
+ * Only `size` is required.
+ *
+ * Give `boldness` or `strokeWidth`, not both.
+ */
+export type FontOptions = {
+  /** The height of a capital M, the font's `mHeight`.  Width doesn't change it. */
+  readonly size: number;
+  /**
+   * How wide the letters are, compared to normal.  1, the default, is
+   * normal.  2 is twice as wide, 0.5 half as wide.  Must be positive.
+   * The height stays `size`.  See {@link Font.stretch}.
+   */
+  readonly width?: number;
+  /**
+   * The slant in degrees, like {@link Font.oblique}.  0, the default, is
+   * upright.  It's the angle you see, whatever the width:  the letters are
+   * stretched first, then slanted.
+   */
+  readonly obliqueness?: number;
+} & (
+  | {
+      /**
+       * The stroke width, compared to the font's own recommendation
+       * ({@link Font.strokeWidth}).  1, the default, is normal; 2 is twice
+       * as thick.  Each font recommends its own:  the line font a tenth of
+       * its size, the Hershey fonts about half that.
+       *
+       * The recommendation follows the geometric mean of the font's height
+       * and width, `size × √width`.  So 1 is a little bolder in a wide font
+       * and a little lighter in a narrow one.  See {@link Font.stretch}.
+       */
+      readonly boldness?: number;
+      readonly strokeWidth?: never;
+    }
+  | {
+      /** The stroke width, in the same units as `size`. */
+      readonly strokeWidth: number;
+      readonly boldness?: never;
+    }
+);
+
 export type DescriptionOfLetter = {
   readonly shape: PathShape;
   readonly advance: number;
@@ -297,14 +341,97 @@ export class Font {
       result.#letters.set(key, newLetter);
     });
   }
-  static cursive(size: number, degreesRight = 0): Font {
-    const base = this.fromJSON(cursiveBase);
-    const result = base.resize(size).oblique(degreesRight);
-    return result;
+  /**
+   * The same font, recommending a different {@link strokeWidth}.
+   * The letters are shared, not copied.
+   */
+  #withStrokeWidth(strokeWidth: number): Font {
+    if (strokeWidth == this.strokeWidth) {
+      return this;
+    }
+    return new Font(
+      this.top,
+      this.bottom,
+      this.spaceWidth,
+      strokeWidth,
+      this.kerning,
+      this.mHeight,
+      this.#letters,
+    );
   }
-  static futuraL(size: number, degreesRight = 0): Font {
-    const base = this.fromJSON(futuraLBase);
-    const result = base.resize(size).oblique(degreesRight);
-    return result;
+  /**
+   * One of the Hershey fonts, from its JSON.  Parsed once, the first time it's
+   * needed.  A font never changes, so everyone can share it.
+   *
+   * These fonts came from 7-bit ASCII, which put a curly quote where `'` and
+   * `` ` `` are.  So `'` and `` ` `` draw as `’` and `‘`.  Without that, "don't"
+   * would lose its apostrophe.
+   */
+  static #hershey(json: unknown): Font {
+    const font = Font.fromJSON(json);
+    for (const [ascii, curly] of [
+      ["'", "’"],
+      ["`", "‘"],
+    ]) {
+      const letter = font.#letters.get(curly);
+      if (letter && !font.#letters.has(ascii)) {
+        font.#letters.set(ascii, letter);
+      }
+    }
+    return font;
+  }
+  static #cursiveBase: Font | undefined;
+  static #futuraLBase: Font | undefined;
+  /**
+   * Size, width, slant and stroke, all at once, in the right order.
+   * See {@link FontOptions}.
+   */
+  static #fromOptions(base: Font, options: FontOptions): Font {
+    const { size, width = 1, obliqueness = 0 } = options;
+    if (!(width > 0 && isFinite(width))) {
+      throw new Error(`width must be positive, not ${width}.`);
+    }
+    const shaped = base.resize(size).stretch(width).oblique(obliqueness);
+    return shaped.#withStrokeWidth(
+      options.strokeWidth ?? shaped.strokeWidth * (options.boldness ?? 1),
+    );
+  }
+  /**
+   * A handwritten script, from the Hershey fonts.  Its letters join up.
+   *
+   * It has the 96 printable ASCII characters and nothing else.
+   * @param size The height of a capital M.
+   * @param degreesRight Slant it this much more.  See {@link oblique}.
+   */
+  static cursive(size: number, degreesRight?: number): Font;
+  /**
+   * A handwritten script, from the Hershey fonts, with its size, width,
+   * slant and stroke set all at once.  See {@link FontOptions}.
+   */
+  static cursive(options: FontOptions): Font;
+  static cursive(sizeOrOptions: number | FontOptions, degreesRight = 0): Font {
+    const base = (Font.#cursiveBase ??= Font.#hershey(cursiveBase));
+    return typeof sizeOrOptions === "number"
+      ? base.resize(sizeOrOptions).oblique(degreesRight)
+      : Font.#fromOptions(base, sizeOrOptions);
+  }
+  /**
+   * A simple sans-serif, from the Hershey fonts.
+   *
+   * It has the 96 printable ASCII characters and nothing else.
+   * @param size The height of a capital M.
+   * @param degreesRight Slant it this much.  See {@link oblique}.
+   */
+  static futuraL(size: number, degreesRight?: number): Font;
+  /**
+   * A simple sans-serif, from the Hershey fonts, with its size, width, slant
+   * and stroke set all at once.  See {@link FontOptions}.
+   */
+  static futuraL(options: FontOptions): Font;
+  static futuraL(sizeOrOptions: number | FontOptions, degreesRight = 0): Font {
+    const base = (Font.#futuraLBase ??= Font.#hershey(futuraLBase));
+    return typeof sizeOrOptions === "number"
+      ? base.resize(sizeOrOptions).oblique(degreesRight)
+      : Font.#fromOptions(base, sizeOrOptions);
   }
 }

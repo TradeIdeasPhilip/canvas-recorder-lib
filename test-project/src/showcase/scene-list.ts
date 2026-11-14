@@ -38,6 +38,7 @@ import {
   multiTextFontWidthAndObliqueness,
   multiTextFontWidthInUse,
 } from "./multi-text-font-width.ts";
+import { multiTextCharacters, multiTextFonts } from "./multi-text-fonts.ts";
 import { multiTextFrame } from "./multi-text-frame.ts";
 import { multiTextHeightMode } from "./multi-text-height-mode.ts";
 import { multiTextMayGrow } from "./multi-text-may-grow.ts";
@@ -124,6 +125,8 @@ export const showcaseSlides: (() => Showable)[] = [
   multiTextFontWidth,
   multiTextFontWidthAndObliqueness,
   multiTextFontWidthInUse,
+  multiTextFonts,
+  multiTextCharacters,
   multiTextPleaseCheck,
 ];
 

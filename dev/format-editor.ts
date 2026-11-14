@@ -45,6 +45,12 @@ export class FormatEditor {
    */
   onChange: ((value: string) => void) | undefined;
 
+  /**
+   * Called when the cursor moves inside the editor, including after a change.
+   * See {@link formatAtCursor}.
+   */
+  onCursorMove: (() => void) | undefined;
+
   #knownNames: readonly string[] = [];
   /**
    * If the user deletes the leading format, we put this one back.
@@ -117,6 +123,7 @@ export class FormatEditor {
         const selection = this.#getSelection();
         if (selection) {
           this.#lastSelection = selection;
+          this.onCursorMove?.();
         }
       },
       { signal: this.#abort.signal },
@@ -190,6 +197,35 @@ export class FormatEditor {
         // Not supported.  The select still has focus, so the arrow keys work.
       }
     }
+  }
+
+  /**
+   * Type `text` at the cursor, replacing the selection, as if the user had typed it.
+   * For a button outside the editor:  the cursor is where it was last, even if the
+   * button took the focus.  Format markers in `text` are dropped.
+   */
+  insertText(text: string) {
+    const selection = this.#getSelection() ??
+      this.#lastSelection ?? {
+        start: this.#units().length,
+        end: this.#units().length,
+      };
+    this.element.focus();
+    this.#replace(selection, pushContent([], text), "typing");
+  }
+
+  /**
+   * The name of the format in effect at the cursor, or where the cursor was last.
+   * Text typed there would be in this format.
+   */
+  formatAtCursor(): string {
+    const units = this.#units();
+    const offset = (this.#getSelection() ?? this.#lastSelection)?.start;
+    // Before the leading format, typing goes after it.  See #replace().
+    return (
+      formatInEffect(units, Math.max(1, offset ?? units.length)) ??
+      this.#leadingName
+    );
   }
 
   undo() {

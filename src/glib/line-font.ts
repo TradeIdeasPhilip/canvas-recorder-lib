@@ -6,7 +6,7 @@ import {
   pickAny,
   polarToRectangular,
 } from "phil-lib/misc";
-import { Font, FontMetrics } from "./letters-base.ts";
+import { Font, FontMetrics, FontOptions } from "./letters-base.ts";
 import {
   PathShape,
   PathBuilder,
@@ -104,45 +104,9 @@ export type FontMap = Map<string, DescriptionOfLetter>;
 
 /**
  * Everything about a line font, all at once, for {@link makeLineFont}.
- * Only `size` is required.
- *
- * Give `boldness` or `strokeWidth`, not both.
+ * The same options the other fonts take.  See {@link FontOptions}.
  */
-export type LineFontOptions = {
-  /** The height of a capital M, the font's `mHeight`.  Width doesn't change it. */
-  readonly size: number;
-  /**
-   * How wide the letters are, compared to normal.  1, the default, is
-   * normal.  2 is twice as wide, 0.5 half as wide.  Must be positive.
-   * The height stays `size`.  See {@link Font.stretch}.
-   */
-  readonly width?: number;
-  /**
-   * The slant in degrees, like {@link Font.oblique}.  0, the default, is
-   * upright.  It's the angle you see, whatever the width:  the letters are
-   * stretched first, then slanted.
-   */
-  readonly obliqueness?: number;
-} & (
-  | {
-      /**
-       * The stroke width, compared to normal.  1, the default, is normal; 2
-       * is twice as thick.
-       *
-       * Normal is a tenth of the font's size.  For a stretched font, the size
-       * is the geometric mean of its height and its width:
-       * `size × √width`.  So 1 is a little bolder in a wide font and a little
-       * lighter in a narrow one.  See {@link Font.stretch}.
-       */
-      readonly boldness?: number;
-      readonly strokeWidth?: never;
-    }
-  | {
-      /** The stroke width, in the same units as `size`. */
-      readonly strokeWidth: number;
-      readonly boldness?: never;
-    }
-);
+export type LineFontOptions = FontOptions;
 
 /**
  * Make a line font.
@@ -184,6 +148,13 @@ export function makeLineFont(
  * thin as it goes, instead of throwing.
  */
 export const MIN_FONT_WIDTH = 0.01;
+
+/**
+ * The smallest `size` the text components draw.  A Font Size of 0 or less in
+ * the Visual Editor is drawn at this size, too small to see, instead of
+ * throwing.  Typing 0.5 passes through 0, and an animation can start at 0.
+ */
+export const MIN_FONT_SIZE = 1e-6;
 
 /** {@link makeLineFont} with a {@link LineFontOptions}. */
 function makeLineFontFromOptions(options: LineFontOptions): Font {
