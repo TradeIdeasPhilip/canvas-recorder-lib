@@ -96,6 +96,8 @@ export function parseTermGroups(text: string): TermGroups {
   const errors: string[] = [];
   const warnings: string[] = [];
   if (text.trim() === "") return { groups: [], errors, warnings };
+  /** Empty groups are common, to keep several Fouriers in step.  One warning covers them all. */
+  const emptyGroups: number[] = [];
   /** Where each term was first added, to report repeats. */
   const firstGroup = new Map<number, number>();
   const groups = text.split(",").map((piece, groupIndex) => {
@@ -116,9 +118,7 @@ export function parseTermGroups(text: string): TermGroups {
     };
     const tokens = piece.trim().split(/\s+/).filter(Boolean);
     if (tokens.length === 0) {
-      warnings.push(
-        `Group ${groupNumber} is empty, so that step adds nothing.`,
-      );
+      emptyGroups.push(groupNumber);
     }
     for (const token of tokens) {
       const single = /^\d+$/.exec(token);
@@ -141,6 +141,18 @@ export function parseTermGroups(text: string): TermGroups {
     }
     return group;
   });
+  if (emptyGroups.length) {
+    // "2", "2 and 3", "3, 5 and 7", "2, 3, 4, 5, 6, 7 and 4 more".
+    const shown = emptyGroups.slice(0, 6).map(String);
+    const more = emptyGroups.length - shown.length;
+    if (more > 0) shown.push(`${more} more`);
+    const last = shown.pop()!;
+    const list = shown.length ? `${shown.join(", ")} and ${last}` : last;
+    const one = emptyGroups.length === 1;
+    warnings.push(
+      `${one ? "Group" : "Groups"} ${list} ${one ? "is" : "are"} empty, so ${one ? "that step adds" : "those steps add"} nothing.`,
+    );
+  }
   return { groups, errors, warnings };
 }
 

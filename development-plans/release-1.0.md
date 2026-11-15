@@ -119,6 +119,9 @@ Collect them here before release. So far:
 - **"Style Name", with a saved name apart from the visible one** ([saturday-afternoon.md](saturday-afternoon.md#style-name-not-name-and-style)), added 2026-11-13.
   Not breaking, but it looks odd, and 1.0 is when other people start looking. So it comes before 1.0.
 
+- **Rename a saved backup in the Load dialog; named entries aren't auto-deleted** ([load-history.md](load-history.md#first-step-name-a-backup-before-10)), added 2026-11-14.
+  Not breaking. Wanted before 1.0 because it protects a good version from the 20-entry limit.
+
 Additions aren't breaking and can come any time. 7-pointed-star's issues 5 and 9 (export `FourierComponent` and `LatticeValue` from the package root) went into 0.6.0.
 
 ## Order

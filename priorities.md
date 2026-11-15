@@ -13,6 +13,9 @@ I raised "One editor, many videos" to the Simple Video Editor's first priority. 
    - Rename `InParallelComponent` → `ComponentBase`, first (above).
    - Moving the video size into the save file, which the Simple Video Editor's projects need. It breaks old saves only if we skip copying the remembered size over the first time an old save loads, so it can come either before or after 1.0.
    - (The `samplesFromParametric()` fix shipped as a patch on 2026-11-09: a bug fix isn't breaking.)
+   - Not breaking, but wanted before 1.0, so a stranger doesn't see the oddities:
+     - "Style Name" for a Text Format's name and a Text Span's style, saved under the old names ([saturday-afternoon.md](development-plans/saturday-afternoon.md)).
+     - Rename a saved backup in the Load dialog, and never auto-delete a named one. About half a day ([load-history.md](development-plans/load-history.md#first-step-name-a-backup-before-10)).
 
 **Groundwork for saving.** Projects and the two-window sync both rework the same saving code. Doing this part once, with tests, guards against losing work:
 
@@ -23,6 +26,8 @@ I raised "One editor, many videos" to the Simple Video Editor's first priority. 
 - Automated tests of save files. [automated-tests.md](development-plans/automated-tests.md) says to start there.
 
 **Features:**
+
+- **Clipping in the Slide component:** a rectangle first, not general clipping and masking. Reasonably high priority, raised 2026-11-14, for zooming into a spot on a star circuit in 7-pointed-star without taking over the screen. [clipping.md](development-plans/clipping.md).
 
 - **Simple Video Editor projects:** New, Open, Save As, the file name always showing, and a separate history and size for each video. Raised today.
 - **One slide per window** ([multi-window-sync.md](development-plans/multi-window-sync.md)). Raised yesterday.
