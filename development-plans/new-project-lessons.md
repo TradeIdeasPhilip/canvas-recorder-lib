@@ -117,7 +117,7 @@ GitHub's build machine has no `../canvas-recorder-lib`.
 **Fix.** Published 0.5.0 to npm on 2026-10-18. riemann depends on `"^0.5.0"`, and its deploy went green the same day (`f2be281`).
 For local work, `npm link ../canvas-recorder-lib` swaps in the local copy without touching `package.json` or `package-lock.json`, and a later `npm install` or `npm ci` puts the published copy back.
 
-**README:** [Installing](../README.md#installing), [Working on the library at the same time](../README.md#working-on-the-library-at-the-same-time) and [Releasing](../README.md#releasing).
+**README:** [Installing](../README.md#installing), [Working on the library at the same time](../README.md#working-on-the-library-at-the-same-time) and [Releasing](../README.md#quick-instructions-for-publishing).
 
 **Considered, not chosen:**
 
@@ -156,7 +156,7 @@ Making transcription's dependencies optional would shrink every project's instal
 ### Stale "How this library is made" (2026-10-18)
 
 The README still said canvas-recorder was the source of truth, and described `npm run import`.
-Now it says this library is the master copy, and has a [Releasing](../README.md#releasing) section.
+Now it says this library is the master copy, and has a [Releasing](../README.md#quick-instructions-for-publishing) section.
 
 ### Fixed ports (2026-10-15)
 

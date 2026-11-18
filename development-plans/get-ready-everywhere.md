@@ -3,6 +3,7 @@
 A reminder, not a plan: how the red ✕ at the start of a video clip was fixed in one place, and where the same fix could go next.
 
 **Status (2026-10-25):** Done for a Video Clip that is a direct child of an In Series. The rest waits for a real case to test with.
+**A real case (2026-11-15):** 7-pointed-star's video №8. Reasonably high priority to look at, and probably a small fix (the user). See "The real case" below.
 
 ## What was done
 
@@ -20,6 +21,25 @@ A Video Clip used to hear about itself only on the frame it was drawn, and decod
 **Why a separate method, not `show()` at out-of-range times:** the series already does that for `PaddingComponent`, which expects it.
 But a Video Clip can have children of its own, and calling its `show()` early would draw them early.
 Some components are _aware_ of times outside 0 … duration and most are _naive_; a separate method keeps the naive ones safe.
+
+## The real case: 7-pointed-star's Scratch 8
+
+The user, 2026-11-15: "I saw more red x's than I would have expected", in video №8, which has video from a phone. There were notes in the Debug Log. Not looked at together yet; the user expects it to be repeatable.
+
+Found by reading that project's `properties/7-pointed-star-shorts.txt` and this library's code. Not run, and I haven't seen the log.
+
+- **Scratch 8 has four Video Clips,** all direct children of the scene or one level down:
+  - an In Series holding the first two
+  - "Padding #1" holding the third, starting at 79.4 s. Later that day the user put an In Series between the two, to be able to split the clip. That doesn't change this: the clip is the first thing in that series, and nothing calls the series before the Padding's start.
+  - "Padding #2" holding the fourth, starting at 34.0 s
+- **Only the second clip is ever told to get ready.** The series tells it. The scene is a parallel container, and the other two wrappers are Paddings, and neither kind passes `getReady()` on. That's the gap listed under "Containers", next.
+- **So I expect a ✕ at the start of the third and fourth clips, and none at the start of the second.** That's the check to make first.
+  The first clip starts when the scene does, so it depends on how you got there: a ✕ when playing in from the scene before, none when starting from a pause at the scene's start.
+  The second time through, a clip still has frames from the first time, so it shows an old frame with a corner mark, not a ✕.
+  The Debug Log lines to look for: `VideoClip … drawing X` with its reason, and `RafFrameSource … MISS -- nothing decoded yet`.
+- **A phone's video probably makes it worse,** not different: a bigger picture takes longer to decode its first frame, so the ✕ stays for more frames. A guess.
+- **The fix is the one below:** a `getReady()` in the base container, and one in Padding. A bug fix, so a patch.
+- If the ✕ marks are somewhere else, such as the middle of a clip, this isn't the cause, and the log will say what is.
 
 ## Containers
 

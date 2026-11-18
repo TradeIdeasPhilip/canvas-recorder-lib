@@ -76,7 +76,7 @@ It's problems 2 and 3 in the next section.
 **What's missing before it's a real product,** in rough order:
 
 1. **Projects:** New, Open, Save As, the file name always visible, and a separate history and size for each project. See the next section.
-2. **The size in the save file:** [configurable-video-size.md](configurable-video-size.md#proposal--the-size-and-the-last-save-range-in-the-json-file-2026-10-24)'s proposal. Part of 1.
+2. **The size in the save file:** [configurable-video-size.md](configurable-video-size.md#proposal-the-size-and-the-last-save-range-in-the-json-file-2026-10-24)'s proposal. Part of 1.
 3. **Hide the programmer controls.** (In "Next", above.)
 4. **A help page,** or a note the first time it starts.
 5. **A shorter Insert list.**
@@ -107,7 +107,7 @@ This editor uses one name, `simple-video-editor`, for every video anyone makes w
    Nothing is lost, but the history mixes videos, and a reload comes back to whichever video was edited last.
 3. **The video size isn't in the save file.** It's in localStorage under `canvas-recorder-size|<name>` (`videoSizeStorageKey`).
    Loading another video's `.json` keeps the current size.
-   The fix is already proposed: [configurable-video-size.md](configurable-video-size.md#proposal--the-size-and-the-last-save-range-in-the-json-file-2026-10-24).
+   The fix is already proposed: [configurable-video-size.md](configurable-video-size.md#proposal-the-size-and-the-last-save-range-in-the-json-file-2026-10-24).
 4. **File names.** Each Sync checkbox opens a Save dialog that suggests `<name>.json`, `<name>.txt` or `<name>-ts-defaults.json` (`defaultName` in dev/canvas-recorder.ts).
    The user can type any name, but the suggestion is the same for every video, so it's easy to accept without noticing.
    To rename later: uncheck Sync, check it again, and pick a new name. The old file stays.

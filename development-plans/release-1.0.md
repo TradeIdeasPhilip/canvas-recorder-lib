@@ -2,7 +2,7 @@
 
 Make the next release 1.0.0, and put every breaking change we want into it, so the next one is a long way off.
 
-**Status (2026-11-03):** Planning. The old builders are deprecated; nothing else has started.
+**Status (2026-11-03):** Planning. The old builders are deprecated; nothing else has started. Item 5, the one large item, was added 2026-11-15.
 
 ## What 1.0.0 means
 
@@ -111,7 +111,7 @@ Collect them here before release. So far:
   - Docs: `Showable` is the interface; `ComponentBase` is the standard implementation. A plain object can still be a `Showable` in the tree.
 - ~~**`samplesFromParametric()` samples at `i / (N - 1)`**~~ Fixed 2026-11-09 as a patch: a bug fix isn't breaking, even when it changes what's drawn. 7-pointed-star's issue 10.
 
-- **The video size moves into the save file** ([configurable-video-size.md](configurable-video-size.md#proposal--the-size-and-the-last-save-range-in-the-json-file-2026-10-24)), added 2026-11-09.
+- **The video size moves into the save file** ([configurable-video-size.md](configurable-video-size.md#proposal-the-size-and-the-last-save-range-in-the-json-file-2026-10-24)), added 2026-11-09.
   Wanted for the Simple Video Editor's projects. It isn't an API change.
   But an old save has no size, so once the localStorage key goes away, the old save would open at the program's default size instead of the size it was made at.
   Copy the size from localStorage into the state the first time an old save loads, and it isn't breaking. Without that copy step, it's breaking, and belongs in this release.
@@ -120,9 +120,18 @@ Collect them here before release. So far:
   Not breaking, but it looks odd, and 1.0 is when other people start looking. So it comes before 1.0.
 
 - **Rename a saved backup in the Load dialog; named entries aren't auto-deleted** ([load-history.md](load-history.md#first-step-name-a-backup-before-10)), added 2026-11-14.
+- **A graphical transform editor** ([transform-editor.md](transform-editor.md)), added 2026-11-15. A first version is about a week. With each step as its own component it's not breaking, so the date is the user's preference, not a requirement.
   Not breaking. Wanted before 1.0 because it protects a good version from the 20-entry limit.
 
 Additions aren't breaking and can come any time. 7-pointed-star's issues 5 and 9 (export `FourierComponent` and `LatticeValue` from the package root) went into 0.6.0.
+
+### 5. Place things in time without wrapper components
+
+Added 2026-11-15. **An absolute requirement for 1.0 (the user):** "Someone should be able to add and move video clips without a masters degree!"
+Today, starting a clip later takes a Padding around it, and playing one right after another takes an In Series. A user should be able to drop a clip, or a text, anywhere in its scene.
+
+It isn't small, and it needs a discussion and an agreed design first: [placing-in-time.md](placing-in-time.md). About 3–5 days after that, as a guess.
+The first step proposed there is in the editor only, so it isn't breaking. It's here because of who 1.0 is for.
 
 ## Order
 
@@ -131,6 +140,7 @@ The sound work in [live-sound-mixing.md](live-sound-mixing.md) changes no public
 0.6.0 (2026-11-05) came first, so 7-pointed-star could have the fixes since 0.5.0, including the new diff file.
 
 1. Items 1–4 above. Small.
+   Item 5 is the big one. Its design discussion can start any time.
 2. Release 1.0.0.
 
 The sound work didn't wait: it shipped in 0.7.0.

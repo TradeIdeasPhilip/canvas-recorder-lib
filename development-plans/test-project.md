@@ -5,6 +5,19 @@ A home for the main programs that test and support this library, starting with t
 **Status (2026-11-02):** The folder exists, with one page: the [showcase](../test-project/README.md), moved from canvas-recorder and split into one file per slide.
 It's built and published with the API docs. The other pages below are still plans.
 
+## Quick Cleanup
+
+Every time the program runs I see "No service worker registered." on the console.
+
+That is spammy and pointless.
+That line was copied from the previous project (canvas-recorder) but we have not yet copied and of the code that would set up the service worker, so you will see it every time.
+
+It seems like all of the service worker code should be moved into the test program's main program, rather than this library.
+
+Currently the service works makes some fonts slow and some fonts very slow.
+The library's ability to deal with that (sleep on a promise in production, ignore and accept the automatic fallback on live) works well.
+We may need this again when test other types of slow resources.
+
 ## Goals
 
 - **Test pages.** Each one exercises a feature that is hard to see in a real video.
@@ -24,7 +37,7 @@ three.js keeps its `examples/` in the library's repo, with an index page; many s
 Here, the same repo wins:
 
 - **GitHub Pages works.** A separate project depends on `"file:../canvas-recorder-lib"`, which doesn't exist on GitHub's build machine.
-  (See [new-project-lessons.md](new-project-lessons.md#filecanvas-recorder-lib-breaks-github-pages-2026-10-14).)
+  (See [new-project-lessons.md](new-project-lessons.md#filecanvas-recorder-lib-broke-github-pages-2026-10-14--2026-10-18).)
   Inside this repo, the library is right there.
 - **It's a regression test.** One push builds the library and every test page together.
 - **One website.** The API docs and the live test pages share one URL, so the docs can link to working examples.

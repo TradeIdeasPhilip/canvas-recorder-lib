@@ -292,12 +292,13 @@ None open. Settled 2026-11-07:
 ## Later
 
 - **A live transcript.**
-- **A transcript file Claude can read,** in `properties/`. See "The transcripts" in [ai-in-the-editor.md](ai-in-the-editor.md#option-b--the-files-as-a-two-way-channel).
+- **A transcript file Claude can read,** in `properties/`. See "The transcripts" in [ai-in-the-editor.md](ai-in-the-editor.md#option-b-the-files-as-a-two-way-channel).
 - **Hearing something while recording**, with headphones: the video's soundtrack, or what you just recorded.
 - **Clips that follow their scene,** instead of the Visual Editor's root: the innermost component where the clip starts.
   Then the voice would move when an earlier scene in the same slide gets longer. (Speculation.)
 - **A hot key for ● Record.**
 - **Riemann's other parts:** the log of what you did, the Marker, `analyze-take.ts`.
+  - Philip's notes:  The marker sound seemed like a good idea at first, but in practice it isn't very useful.  I can already *say* "hey, Claude, look at this.  The marker might be useful if we're ever worried that the sound and video got out of sync, but if you're worried, just restart the recording (which can be done with a single click).
 - **Sound Explorer.** The old Stage 1: port it to the [tools folder](test-project.md) as it is, from canvas-recorder at [00058ed](https://github.com/TradeIdeasPhilip/canvas-recorder/tree/00058ed3fa7d3beec6bb21eebf6aa34094d355bf).
   - [sound-explorer.html](https://github.com/TradeIdeasPhilip/canvas-recorder/blob/00058ed3fa7d3beec6bb21eebf6aa34094d355bf/sound-explorer.html), [dev/sound-explorer.ts](https://github.com/TradeIdeasPhilip/canvas-recorder/blob/00058ed3fa7d3beec6bb21eebf6aa34094d355bf/dev/sound-explorer.ts) (1384 lines), [dev/sound-explorer.css](https://github.com/TradeIdeasPhilip/canvas-recorder/blob/00058ed3fa7d3beec6bb21eebf6aa34094d355bf/dev/sound-explorer.css), and [src/click-and-drag.ts](https://github.com/TradeIdeasPhilip/canvas-recorder/blob/00058ed3fa7d3beec6bb21eebf6aa34094d355bf/src/click-and-drag.ts) (261 lines), which only Sound Explorer used.
   - **`fetch(soundUrl)`** ([:559](https://github.com/TradeIdeasPhilip/canvas-recorder/blob/00058ed3fa7d3beec6bb21eebf6aa34094d355bf/dev/sound-explorer.ts#L559)) becomes `fetchMedia()`, so `?src=local:…` opens a local file.

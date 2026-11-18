@@ -12,6 +12,7 @@ An optional method on a component, called at the end of loading it, given the pa
 
 1. **A variable number of properties.** Today a component's properties are whatever a freshly built one has.
    A better Slide: the Transform Template says which properties exist, so there are exactly as many as it needs, not always 10 numbers (𝓐 to 𝓙), and they don't all have to be numbers.
+   (2026-11-15: [transform-editor.md](transform-editor.md) may remove this case. If each transform step is its own component, the Slide doesn't need a variable list. 1a and the renames still do.)
    1a. **A property for each child** of a container. Adding or removing a child adds or removes a property.
 2. **Renames.**
    - A property: `sizeInInches` becomes `sizeInCm`. If a save still has `sizeInInches`, convert it. That code stays forever, which is fine.

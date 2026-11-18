@@ -23,6 +23,15 @@ Sometimes that's too much freedom, and what the timeline shows doesn't match wha
 The timeline is mostly right, but only when the padding shows nothing before and after (Show Before and Show After set to hide).
 With freeze or live, the child draws outside the block the timeline shows.
 
+## Related plans
+
+Added 2026-11-15. Four plans are about time on the timeline, and they should be designed together:
+
+- This one: how long a thing is, and whether the timeline shows it.
+- [placing-in-time.md](placing-in-time.md): where a thing starts. Required for 1.0, so it's the one to start with.
+- [stretch-vs-extend.md](stretch-vs-extend.md): what dragging an edge does to the keyframes inside.
+- [bridges.md](bridges.md): locking one thing's times to another's.
+
 ## Notes
 
 - The timeline's blocks are built by `_buildTimelineBlocks()` in [dev/canvas-recorder.ts](../dev/canvas-recorder.ts).

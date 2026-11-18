@@ -225,7 +225,7 @@ Either way, the live player no longer needs a buffer as long as the video.
 ### Steps
 
 1. Turn on the timing log, and write down rebuild times for affine-transforms.
-2. `requestSoundtrack()`, and remove the six debounces. See [the rate limit](#1--the-soundtrack-owns-its-own-rate-limit).
+2. `requestSoundtrack()`, and remove the six debounces. See [the rate limit](#1-the-soundtrack-owns-its-own-rate-limit).
    Test it the hard way: call it from a drag handler with no debounce.
 3. Recording and Record Just Sound wait for the newest soundtrack.
 4. Step 1, the long-lived cache. Measure again.

@@ -8404,7 +8404,7 @@ async function fetchJsonSnapshot(): Promise<FetchJsonResult> {
  *
  * A stored entry now covers the entire video, but the Load dialog has always acted on
  * whatever the chapter selector points at.  Locating `target` inside the snapshot keeps that
- * behaviour: picking an older entry while a single slide is selected reverts that slide and
+ * behavior: picking an older entry while a single slide is selected reverts that slide and
  * leaves its siblings alone.  Selecting the root applies everything.
  */
 function applyScopedToTarget(
