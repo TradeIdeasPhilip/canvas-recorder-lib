@@ -5,10 +5,11 @@ The **showcase** for canvas-recorder-lib, plus pages that test and support the l
 
 The published copy is at https://tradeideasphilip.github.io/canvas-recorder-lib/tests/.
 
-| Page                               | What                                                                                                                                                                                                                 |
-| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [showcase.html](showcase.html)     | 🖼️ Slides that show what the library can do, one topic per slide. New library features usually show up here first.                                                                                                   |
-| [sound-test.html](sound-test.html) | 🔊 Checks that live playback sounds the same as a saved video, through edits and speed changes. Silent: it plays into an `OfflineAudioContext`. Run it after changing `dev/soundtrack.ts` or `dev/audio-builder.ts`. |
+| Page                                           | What                                                                                                                                                                                                                    |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [showcase.html](showcase.html)                 | 🖼️ Slides that show what the library can do, one topic per slide. New library features usually show up here first.                                                                                                      |
+| [sound-test.html](sound-test.html)             | 🔊 Checks that live playback sounds the same as a saved video, through edits and speed changes. Silent: it plays into an `OfflineAudioContext`. Run it after changing `dev/soundtrack.ts` or `dev/audio-builder.ts`.    |
+| [path-parser-test.html](path-parser-test.html) | 📐 Reads about 90 SVG path strings with `PathShape.fromRawString()` and with the browser's own `Path2D`, and checks that they draw the same thing. Run it after changing `src/glib/svg-path-parser.ts` or `svg-arc.ts`. |
 
 The showcase, the user documentation and the test cases overlap a lot.
 A slide shows off a feature, shows how to use it, and fails to build when a library change breaks it.

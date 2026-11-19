@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="icon.png" type="image/png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>📐 Path Parser Test</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+      }
+      .pass {
+        color: green;
+      }
+      .fail {
+        color: red;
+        font-weight: bold;
+      }
+      #cases {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.8em;
+      }
+      .case {
+        width: 200px;
+        font-size: 0.8em;
+      }
+      .case canvas {
+        display: block;
+        border: 1px solid #888;
+        background: white;
+      }
+      .case code {
+        word-break: break-all;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>📐 Path parser test</h1>
+    <p>
+      Checks <code>PathShape.fromRawString()</code> against the browser's own
+      reader, <code>new Path2D(d)</code>, which understands every SVG path
+      command. Each picture has the browser's version underneath, wide and
+      pink, and ours on top, thin and dark. If ours wanders outside the pink,
+      or the pink shows a stroke ours doesn't have, it fails. The same check
+      runs on the pixels, and the result is below each picture.
+    </p>
+    <p id="summary"></p>
+    <div id="cases"></div>
+    <script type="module" src="./src/path-parser-test.ts"></script>
+  </body>
+</html>
