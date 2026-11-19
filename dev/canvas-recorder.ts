@@ -8294,8 +8294,9 @@ getById("dumpDbBtn", HTMLButtonElement).addEventListener("click", async () => {
   const pre = getById("dbDump", HTMLPreElement);
   const lines: string[] = [];
 
+  const entryCount = videoRecord?.entries.length ?? 0;
   lines.push(
-    `=== videos["${toShowKey}"] — ${videoRecord?.entries.length ?? 0} entr(ies) ===`,
+    `=== videos["${toShowKey}"] — ${entryCount} ${entryCount === 1 ? "entry" : "entries"} ===`,
   );
   const latest = videoRecord?.entries.at(-1);
   lines.push(latest ? JSON.stringify(latest, null, 2) : "(none)");
@@ -8567,25 +8568,25 @@ function initResizeHandle(handle: HTMLElement, topPane: HTMLElement): void {
 }
 
 initResizeHandle(
-  getById("hresize-left", HTMLDivElement),
+  getById("h-resize-left", HTMLDivElement),
   getById("top-left", HTMLDivElement),
 );
 initResizeHandle(
-  getById("hresize-right", HTMLDivElement),
+  getById("h-resize-right", HTMLDivElement),
   getById("top-right", HTMLDivElement),
 );
 
 {
-  const vhandle = getById("vresize", HTMLDivElement);
+  const vHandle = getById("v-resize", HTMLDivElement);
   const leftCol = getById("left-col", HTMLDivElement);
   const MIN_COL = 80;
   const vStorageKey = "pane-width-left-col";
 
-  vhandle.addEventListener("mousedown", (startEvent) => {
+  vHandle.addEventListener("mousedown", (startEvent) => {
     startEvent.preventDefault();
-    vhandle.classList.add("dragging");
+    vHandle.classList.add("dragging");
     const totalW = document.body.getBoundingClientRect().width;
-    const handleW = vhandle.getBoundingClientRect().width;
+    const handleW = vHandle.getBoundingClientRect().width;
     const startClientX = startEvent.clientX;
     const startColW = leftCol.getBoundingClientRect().width;
 
@@ -8602,7 +8603,7 @@ initResizeHandle(
     };
 
     const onUp = () => {
-      vhandle.classList.remove("dragging");
+      vHandle.classList.remove("dragging");
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
       // flex is "0 0 X%" — store just the percentage part

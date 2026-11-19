@@ -5,7 +5,6 @@ A component that draws one path, takes it from an SVG file (the simple kind Inks
 **Status (2026-11-15):** A plan, nothing built. Priority not given yet.
 Later the same day: a smaller first Path component comes first, with a typed or pasted path and no file or editor. See [path-component.md](path-component.md). This plan is what it could grow into.
 The user's own framing: _simple_ paths, like an arrow with a few bends in the middle to go around another object. **Not a replacement for Inkscape**, closer to a replacement for PowerPoint's drawing tools.
-(A rep)
 Parts of this are speculation, and they're marked.
 
 ## What I think
@@ -131,3 +130,130 @@ Editing adds **3–5 days**. Allow plus or minus half again.
 - **Rewriting the path.** An editor that regenerates `d` can change a path it shouldn't. The round-trip test is the guard.
 - **The editor's pointer code** is one big file with several marker kinds. Add this one without changing how the others behave.
 - **A large, hard-to-undo edit** isn't a worry today, because autosave and the Load history are the undo. Named backups ([load-history.md](load-history.md)) would help here.
+
+## Making Progress
+
+### Testing The Parser
+
+One big issues is that my parser doesn't understand everything.
+
+One of the reasons the parser changes so slowly is for lack of test cases.
+Without a real test case in front of me there was less pressure to make progress.
+With so many different things to do, the parser and most other parts of the library are often limited to what I've required for a specific project.
+If we want to make progress we need to start with some test cases.
+
+My preferred way to do most of the testing is to display each path two ways.
+Take each test case and try to draw it with our library and create and svg "file" (probably a data url or a blob url) and draw them both on top of each other.
+
+Draw at the same size and position.
+The reference image / SVG "file" is on the bottom (further from the user's face in the Z order).
+It will use a larger line width, probably 2× the one on top.
+I do that a lot, including every example in the "Will it Fourier" video.
+
+Sometimes, when I'm looking for an exact match, really looking close and squinting, I'll use the same line width in both places.
+That's not the focus.
+But as long as these are all drawn as animations we can set the line width to change and show the tight fit briefly, and the standard 2× fit most of the time.
+
+Ideally each of these would sweep through some reasonable range of values.
+We have the infrastructure.
+This will help make the tests interactive and good looking.
+But also, it will give us a lot more test cases for free, even if we own describe a small number of keyframes.
+
+We might as well add test cases for everything, even though the existing stuff has been tested heavily by use.
+
+I'm imagining a lot of small, simple, test cases, with documentation right on the screen.
+
+### Adding Arcs to the Parser
+
+What's left of quadratics, the cubics and the M's should not be difficult.
+
+I've been avoiding the arcs for multiple reasons.
+Mostly I really hate the  arc commands in SVG.
+I always find them confusing and hard to write and often I find it easier just to guess and test it!
+I would need a better description of these.
+
+My current library contains a way to create arcs of a circle.
+I avoided the ellipse because I didn't need it.
+Also, I really like my circle API.
+It's different from anything I've seen before, so it's useful when I use it directly, but it probably won't help at all with the task at hand.
+(I'm actually drawing a spiral, not a circle, with the assumption that the two input radii are probably meant to be the same length, but might not be *exactly* the same length.)
+
+Let's focus on the standard approach of turning each SVG arc commands a series of cubic Bézier segments.
+I don't have an algorithm handy, but I think this is a standard request.
+Usually a circle becomes 4 cubics with very, very little error.
+If I ever need a circle made of quadratics I'd use a standard algorithm to turn all of th cubics into (a good approximation created with) quadratics.
+
+Note that I recently added simple ellipses to https://github.com/TradeIdeasPhilip/7-pointed-star.
+There are notes in that project about porting the code back to this library.
+Again, those are very custom to my needs and might not help here.
+But there might be some overlap between the projects.
+Ideally I'd have a simple way to make an ellipse at will, not just as part of a path command.
+
+### Editor Prototype
+
+I'd love to see a **very** simple path editor component.
+This should be marked clearly as a prototype.
+Do what's easy and if something gets in the way skip it.
+
+I can imagine something that works a lot like the transforms in SlideComponent.
+The user writes a string for the entire path.
+And the Visual Editor provides *exactly* 10 variables.
+
+Let's say that all of the variables are points.
+My main focus is on lines and quadratics, so this should cover most of my needs.
+
+We already have a point editor in the Visual Editor, so this shouldn't be hard.
+
+Depending on the context, we might need to deal with transforms.
+If we are drawing arrows in place, we probably want to focus on normal screen coordinates.
+But it seems like SVG images will be moved and scaled and rotated a lot.
+If we add a destination rectangle, that will be doing transforms, so the Visual Editor will have to tell the point editor about that.
+Alternatively, we can apply the transform directly to all of the points individually.
+
+Add a Boolean property to add a marker to the final end of the path.
+Make it a triangle so the line becomes an arrow.
+This is just a quick and dirty test.
+If I remember correctly I never liked that feature of SVG.
+The end of the line is the middle of the marker.
+It becomes hard to match the tip of the arrow with anything.
+
+### Z commands
+
+I have some comments in the code warning about the state of the Z commands.
+
+For the most part the Z commands work as they should.
+The problem is that my underlying library does not directly support Z commands, and I don't plan to change that.
+So if we input or output a lot of external things we might run into  trouble.
+But mostly I'm just importing SVG art one image at a time, and mostly those work as is.
+
+If we run into real problems we can take a look.
+But for now my plan is to keep what we have.
+
+### Importing from a File
+
+I recently started some manual work on that process.
+See https://github.com/TradeIdeasPhilip/7-pointed-star/blob/76359ebcf9bd6f6606bf126c00ace343290e57a6/src/svg-sources.ts#L28.
+
+To do this right we need to understand multiple types of elements.
+* `g` - Combine all of the children recursively. Or possibly return a list of separate paths. 
+* `path` - Our goal is to output something that an SVGPathElement can understand.  We already understand the basics and we already have an action item to understand the rest.
+* `ellipse` - Note my previous comments about creating a function to make a path from an SVGEllipseElement.  The path version of a circle or ellipse is complicated and hard to use.  IF you just want an ellipse, the standard SVG element works well.  And we want a stand alone function to do the same.
+* `circle` - Just a special case of an ellipse.
+* `rect`, `line`, `polygon` - These should be very easy to read and parse and convert to a path.
+
+This would be parsed in advance, not every frame.
+It might be done in a dialog box, if not a completely separate window.
+I can imagine a way to select a subset of the file.
+
+There are a lot of features we could add.
+It seems like the only urgent one is the size and position.
+I've found that random SVG files all have different standards for this.
+We can add more features as we run into more issues.
+
+The assumption is that we're focused on simple things.
+We can do most of the work, like deleting useless things, in Inkscape.
+One exception, we might want to extract a lot of separate paths from one SVG file, instead of using Inkscape to create N different simple files.
+
+Does Inkscape let me tag SVG elements?
+Like the id field or maybe “data-find-me="7"”.
+It would be great if the import code could generate a map from id strings to path strings.

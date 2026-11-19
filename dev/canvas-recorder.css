@@ -31,7 +31,7 @@ body {
 
 /* ── Vertical resize handle between left/right columns ──────────────── */
 
-#vresize {
+#v-resize {
   width: 5px;
   background: #999;
   cursor: ew-resize;
@@ -40,14 +40,14 @@ body {
   user-select: none;
 }
 
-#vresize:hover,
-#vresize.dragging {
+#v-resize:hover,
+#v-resize.dragging {
   background: #444;
 }
 
 /* ── Horizontal resize handle between top/bottom of each column ─────── */
 
-.hresize {
+.h-resize {
   height: 5px;
   background: #999;
   cursor: ns-resize;
@@ -55,8 +55,8 @@ body {
   user-select: none;
 }
 
-.hresize:hover,
-.hresize.dragging {
+.h-resize:hover,
+.h-resize.dragging {
   background: #444;
 }
 

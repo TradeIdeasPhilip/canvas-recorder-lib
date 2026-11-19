@@ -244,18 +244,21 @@ export class Transcriber {
     const step =
       ALIGNER_WINDOW_SAMPLES - 2 * ALIGNER_OVERLAP_FRAMES * ALIGNER_HOP_SAMPLES;
     let vocabularySize = 0;
-    let logProbs = new Float32Array(0);
+    let logProbabilities = new Float32Array(0);
     /** Frames filled in so far, from the start. */
     let written = 0;
     for (let offset = 0; written < frameCount; offset += step) {
       onProgress?.({ stage: "aligning", fraction: offset / samples.length });
       const window = samples.subarray(offset, offset + ALIGNER_WINDOW_SAMPLES);
       const isLast = offset + ALIGNER_WINDOW_SAMPLES >= samples.length;
+      // "Logits" is the machine-learning word for a model's raw scores:  any
+      // number, higher is more likely.  logSoftmax() turns them into log
+      // probabilities.  The name comes from transformers.js, so it stays.
       const { logits } = await model(await processor(window));
       const [, frames, size] = logits.dims as number[];
       if (vocabularySize === 0) {
         vocabularySize = size;
-        logProbs = new Float32Array(frameCount * size);
+        logProbabilities = new Float32Array(frameCount * size);
       }
       const data = logits.data as Float32Array;
       const base = offset / ALIGNER_HOP_SAMPLES;
@@ -266,7 +269,7 @@ export class Transcriber {
       );
       const to = isLast ? frames : frames - ALIGNER_OVERLAP_FRAMES;
       for (let k = from; k < to && base + k < frameCount; k++) {
-        logSoftmax(data, k * size, size, logProbs, (base + k) * size);
+        logSoftmax(data, k * size, size, logProbabilities, (base + k) * size);
         written = base + k + 1;
       }
       if (isLast) break;
@@ -278,7 +281,7 @@ export class Transcriber {
     }
     const letterOf = (token: number) => letters.get(token);
     return {
-      logProbs,
+      logProbabilities,
       vocabularySize,
       frameCount: written,
       frameMs: (ALIGNER_HOP_SAMPLES / SAMPLE_RATE) * 1000,

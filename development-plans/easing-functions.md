@@ -112,7 +112,7 @@ The three cover one, two and four numbers, and all three use handles. A stepped 
 
 - **A function from code, with no recipe:** what does the save file say? Today it silently becomes a hold.
 - **"Text" as an input:** a name picked from a list is fine. A formula typed as text is code in the configuration, which [instant-startup.md](from-previous-project/instant-startup.md) decided against.
-- **Schedules that shouldn't ease at all** (a text, a select): they only make sense with hold. See "TODO: Discrete only schedules" in [editor-with-changable-schedules.md](from-previous-project/editor-with-changable-schedules.md).
+- **Schedules that shouldn't ease at all** (a text, a select): they only make sense with hold. See "TODO: Discrete only schedules" in [editor-with-changeable-schedules.md](from-previous-project/editor-with-changeable-schedules.md).
 - **Copying a schedule as TypeScript** would write `makeEasing("exponential", { rate: 2 })`, and pasting has to read it back. `parseScheduleFromClipboard()` does that with regular expressions today, which won't stretch.
 - **One recipe on many keyframes** ("all my zooms use the same curve"): a named preset? Later.
 - **1.0:** adding this isn't breaking. But [release-1.0.md](release-1.0.md) item 3 makes `src/` public, so the interface should be marked as unsettled if it lands before it has settled.

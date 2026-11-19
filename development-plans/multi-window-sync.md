@@ -13,7 +13,7 @@ canvas-recorder's [sound-explorer.html](https://github.com/TradeIdeasPhilip/canv
 - **A display that doesn't fit the layout.** A prototype, a one-off, a rarely used panel:
   open another window instead of finding room in the existing HTML.
 - **The accidental duplicate tab.** The same video open twice without realizing it. This
-  has already happened once, and explained some mysterious behaviour just before it. It was
+  has already happened once, and explained some mysterious behavior just before it. It was
   also the main reason Sound Explorer got this feature.
 - **Copying between slides.** _Added 11/8/2026._ One tab on an old slide and one on a new
   slide, copying and comparing back and forth. This is now the case to design for. See the
@@ -396,7 +396,7 @@ for v3 and v4 warns about. The fix is to cache one connection and close it on
 "never clobber" rule compares the file on disk with that remembered body. So when window A
 writes the synced file, window B's memory goes stale. The next time B syncs, it sees A's write
 as an outside edit and reports "⚠ changed on disk". That may be some of the mysterious
-behaviour seen with the accidental duplicate tab.
+behavior seen with the accidental duplicate tab.
 
 The fix is for each sync to re-read its record from IndexedDB, which is where `store()` keeps
 it. Possibly also only the window that saved should write the files.

@@ -93,7 +93,7 @@ Read on 2026-11-15, not run. This is about the "2 + 2 = 4?" scene, lines 1568 to
 2. **References by name:** a property that points at another component, or at a part of one.
    - Every component already has a name the user can edit (`userEditableDescription`).
    - A Text Span already finds its Text Format by its Style Name, looking up the tree.
-   - [editor-with-changable-schedules.md](from-previous-project/editor-with-changable-schedules.md) asked the same thing for the slide deck: "Maybe names would be better than numbers?!"
+   - [editor-with-changeable-schedules.md](from-previous-project/editor-with-changeable-schedules.md) asked the same thing for the slide deck: "Maybe names would be better than numbers?!"
    - Needed: a picker in the editor, a rule for two components with one name, and a warning when a name isn't found. That's a state, not an error (CLAUDE.md's "User Errors").
    - The same mechanism could name a moment. [instant-startup.md](from-previous-project/instant-startup.md) points to the `MOMENTS` table in riemann-surfaces-3d, which is named times kept in code.
 3. **Time:** when the bridge runs, and when to sample each end.

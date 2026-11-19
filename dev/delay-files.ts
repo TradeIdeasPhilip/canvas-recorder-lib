@@ -31,7 +31,9 @@ export function watchServiceWorkerReady(): void {
 
   navigator.serviceWorker.getRegistration().then((registration) => {
     if (!registration) {
-      console.log("No service worker registered.");
+      // TODO move this to the test project.
+      // See “## Quick Cleanup” in test-project.md for more details.
+      // console.log("No service worker registered.");
     }
     // Else wait for `ready` to resolve.
   });

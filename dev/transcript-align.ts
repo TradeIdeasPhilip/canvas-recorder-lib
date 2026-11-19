@@ -170,11 +170,11 @@ export function spellForAlignment(word: string): string {
 /**
  * Letter probabilities from a CTC model like wav2vec2.
  *
- * `logProbs[frame * vocabularySize + token]` is the log probability that
+ * `logProbabilities[frame * vocabularySize + token]` is the log probability that
  * `token` is being spoken in `frame`.
  */
 export type CtcEmissions = {
-  readonly logProbs: Float32Array;
+  readonly logProbabilities: Float32Array;
   readonly vocabularySize: number;
   readonly frameCount: number;
   /** Length of one frame.  20 ms for wav2vec2. */
@@ -203,8 +203,8 @@ export function forcedAlign(
   tokens: readonly number[],
   firstFrame: number,
   endFrame: number,
-): { first: number; last: number; logProb: number }[] | undefined {
-  const { logProbs, vocabularySize, blank } = emissions;
+): { first: number; last: number; logProbability: number }[] | undefined {
+  const { logProbabilities, vocabularySize, blank } = emissions;
   const frames = endFrame - firstFrame;
   // The extended sequence:  blank, t0, blank, t1, …, blank.
   const states = 2 * tokens.length + 1;
@@ -217,7 +217,7 @@ export function forcedAlign(
   /** How each cell was reached:  0 = stayed, 1 = from s − 1, 2 = from s − 2. */
   const moves = new Uint8Array(frames * states);
   const at = (frame: number, token: number) =>
-    logProbs[(firstFrame + frame) * vocabularySize + token];
+    logProbabilities[(firstFrame + frame) * vocabularySize + token];
 
   previous[0] = at(0, blank);
   previous[1] = at(0, tokens[0]);
@@ -258,7 +258,7 @@ export function forcedAlign(
   const result = tokens.map(() => ({
     first: Infinity,
     last: -Infinity,
-    logProb: 0,
+    logProbability: 0,
   }));
   const counts = new Array<number>(tokens.length).fill(0);
   for (let t = frames - 1; t >= 0; t--) {
@@ -267,13 +267,15 @@ export function forcedAlign(
       const span = result[index];
       span.first = firstFrame + t;
       span.last = Math.max(span.last, firstFrame + t);
-      span.logProb += at(t, tokens[index]);
+      span.logProbability += at(t, tokens[index]);
       counts[index]++;
     }
     s -= moves[t * states + s];
   }
   for (const [index, span] of result.entries()) {
-    span.logProb = counts[index] ? span.logProb / counts[index] : NEG;
+    span.logProbability = counts[index]
+      ? span.logProbability / counts[index]
+      : NEG;
   }
   return result;
 }
@@ -367,13 +369,14 @@ export function alignWords(
       const range = letterRanges[i - from];
       if (!range) continue;
       const letters = spans.slice(range[0], range[1]);
-      const logProb =
-        letters.reduce((sum, span) => sum + span.logProb, 0) / letters.length;
+      const logProbability =
+        letters.reduce((sum, span) => sum + span.logProbability, 0) /
+        letters.length;
       result[i] = {
         startMs: letters[0].first * emissions.frameMs,
         endMs: (letters[letters.length - 1].last + 1) * emissions.frameMs,
         timing: "aligned",
-        confidence: Math.exp(logProb),
+        confidence: Math.exp(logProbability),
       };
     }
   }
@@ -414,7 +417,7 @@ export function lettersHeard(
   firstFrame: number,
   endFrame: number,
 ): HeardWord[] {
-  const { logProbs, vocabularySize, blank, wordSeparator } = emissions;
+  const { logProbabilities, vocabularySize, blank, wordSeparator } = emissions;
   const result: HeardWord[] = [];
   let letters = "";
   let start = -1;
@@ -441,11 +444,11 @@ export function lettersHeard(
     t++
   ) {
     let best = 0;
-    let bestLogProb = -Infinity;
+    let bestLogProbability = -Infinity;
     for (let token = 0; token < vocabularySize; token++) {
-      const logProb = logProbs[t * vocabularySize + token];
-      if (logProb > bestLogProb) {
-        bestLogProb = logProb;
+      const logProbability = logProbabilities[t * vocabularySize + token];
+      if (logProbability > bestLogProbability) {
+        bestLogProbability = logProbability;
         best = token;
       }
     }
@@ -460,7 +463,7 @@ export function lettersHeard(
         // The same letter in neighboring frames is one letter, held.
         if (best !== previous) letters += letter;
         last = t;
-        probabilitySum += Math.exp(bestLogProb);
+        probabilitySum += Math.exp(bestLogProbability);
         frames++;
       }
     }

@@ -2,7 +2,7 @@
 
 These are some things I've noticed when I load the local fonts from my system.
 
-See [sources of font data](/editor-with-changable-schedules.md#sources-of-font-data) for context.
+See [sources of font data](editor-with-changeable-schedules.md#sources-of-font-data) for context.
 
 ## Bug
 

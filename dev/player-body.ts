@@ -98,7 +98,7 @@ export const playerBodyHtml = `
           <div id="canvasLoading">Loading…</div>
         </div>
       </div>
-      <div class="hresize" id="hresize-left"></div>
+      <div class="h-resize" id="h-resize-left"></div>
       <div id="bottom-left">
         <fieldset id="liveControls">
           <fieldset id="play-controls">
@@ -263,7 +263,7 @@ export const playerBodyHtml = `
     </div>
 
     <!-- ── Vertical resize handle ───────────────────────────────────── -->
-    <div id="vresize"></div>
+    <div id="v-resize"></div>
 
     <!-- ── Right column ────────────────────────────────────────────── -->
     <div id="right-col">
@@ -301,7 +301,7 @@ export const playerBodyHtml = `
           <!-- dynamically populated by canvas-recorder.ts -->
         </fieldset>
       </div>
-      <div class="hresize" id="hresize-right"></div>
+      <div class="h-resize" id="h-resize-right"></div>
       <div id="bottom-right">
         <fieldset id="scheduleEditor">
           <p>Coming soon! Edit fields here. TODO.</p>

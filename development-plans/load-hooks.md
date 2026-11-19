@@ -58,7 +58,7 @@ For a project, the simplest is one function over the whole saved tree, before an
 // Speculation.
 canvasRecorder.migrateSavedTree = (tree) =>
   renameChildren(tree, ["7-pointed-star-shorts"], {
-    "Scratch 3": "Four Fouriers",
+    "Scratch 3": "Four Fourier",
   });
 ```
 

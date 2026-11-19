@@ -1,3 +1,4 @@
+import { canvasRecorder } from "../../lib/main-control.ts";
 import { ColorScheduleInfo, NumberScheduleInfo } from "../schedule-helper.ts";
 import { Showable, ShowOptions } from "../showable.ts";
 import { InParallelComponent } from "./in-parallel.ts";
@@ -75,18 +76,21 @@ export class HalftoneShadowComponent extends InParallelComponent {
     const dx = this.dxSchedule.at(timeInMs);
     const dy = this.dySchedule.at(timeInMs);
     const period = this.periodSchedule.at(timeInMs);
-    const cols = Math.ceil(16 / period);
-    const rows = Math.ceil(9 / period);
+    // Read the size every frame:  it can change at any time.
+    const { width, height } = canvasRecorder;
+    // One small pixel per dot.  The last row and column can hang past the edge.
+    const cols = Math.ceil(width / period);
+    const rows = Math.ceil(height / period);
 
     // Low-power mode or CLI context: skip the halftone pass.
     if (options.quality === "Low Power" || typeof document === "undefined") {
       context.fillStyle = backgroundColor;
-      context.fillRect(0, 0, 16, 9);
+      context.fillRect(0, 0, width, height);
       super.show(options);
       return;
     }
 
-    // Resize the small canvas when period changes.
+    // Resize the small canvas when the period or the canvas size changes.
     if (
       !this.#smallCanvas ||
       this.#smallCols !== cols ||
@@ -98,23 +102,22 @@ export class HalftoneShadowComponent extends InParallelComponent {
       this.#smallCtx = this.#smallCanvas.getContext("2d", {
         willReadFrequently: true,
       })!;
-      // Apply the 16×9 root transform once — it stays until the canvas is replaced.
-      this.#smallCtx.scale(cols / 16, rows / 9);
       this.#smallCols = cols;
       this.#smallRows = rows;
     }
     const smallCtx = this.#smallCtx!;
 
     // Render children into the small canvas for alpha sampling.
-    smallCtx.save();
     smallCtx.resetTransform();
     smallCtx.clearRect(0, 0, cols, rows);
-    smallCtx.restore();
+    // Each small pixel is exactly one cell, so it samples where its dot is drawn.
+    // Set every frame:  the period can change without changing cols or rows.
+    smallCtx.scale(1 / period, 1 / period);
     super.show({ ...options, context: smallCtx, registerTransform: undefined });
 
     // Draw background.
     context.fillStyle = backgroundColor;
-    context.fillRect(0, 0, 16, 9);
+    context.fillRect(0, 0, width, height);
 
     // Build halftone dot path from the alpha channel and draw as the shadow.
     const { data } = smallCtx.getImageData(0, 0, cols, rows);
