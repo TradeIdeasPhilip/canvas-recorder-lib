@@ -10,6 +10,7 @@ If the value is different from the default, regardless of why, its value will be
 
 Back in the day Windows had a standard way of creating new windows.
 You could ask for something specific in the constructor, but the normal option was:
+
 > When you pass CW_USEDEFAULT, Windows uses a diagonal cascade algorithm based on title-bar metrics, combined with monitor-selection rules and screen-edge bounds.
 
 Similar when you paste new items into a vector graphics program.

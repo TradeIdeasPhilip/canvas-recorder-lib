@@ -168,7 +168,7 @@ I'm imagining a lot of small, simple, test cases, with documentation right on th
 What's left of quadratics, the cubics and the M's should not be difficult.
 
 I've been avoiding the arcs for multiple reasons.
-Mostly I really hate the  arc commands in SVG.
+Mostly I really hate the arc commands in SVG.
 I always find them confusing and hard to write and often I find it easier just to guess and test it!
 I would need a better description of these.
 
@@ -176,7 +176,7 @@ My current library contains a way to create arcs of a circle.
 I avoided the ellipse because I didn't need it.
 Also, I really like my circle API.
 It's different from anything I've seen before, so it's useful when I use it directly, but it probably won't help at all with the task at hand.
-(I'm actually drawing a spiral, not a circle, with the assumption that the two input radii are probably meant to be the same length, but might not be *exactly* the same length.)
+(I'm actually drawing a spiral, not a circle, with the assumption that the two input radii are probably meant to be the same length, but might not be _exactly_ the same length.)
 
 Let's focus on the standard approach of turning each SVG arc commands a series of cubic Bézier segments.
 I don't have an algorithm handy, but I think this is a standard request.
@@ -197,7 +197,7 @@ Do what's easy and if something gets in the way skip it.
 
 I can imagine something that works a lot like the transforms in SlideComponent.
 The user writes a string for the entire path.
-And the Visual Editor provides *exactly* 10 variables.
+And the Visual Editor provides _exactly_ 10 variables.
 
 Let's say that all of the variables are points.
 My main focus is on lines and quadratics, so this should cover most of my needs.
@@ -223,7 +223,7 @@ I have some comments in the code warning about the state of the Z commands.
 
 For the most part the Z commands work as they should.
 The problem is that my underlying library does not directly support Z commands, and I don't plan to change that.
-So if we input or output a lot of external things we might run into  trouble.
+So if we input or output a lot of external things we might run into trouble.
 But mostly I'm just importing SVG art one image at a time, and mostly those work as is.
 
 If we run into real problems we can take a look.
@@ -235,11 +235,12 @@ I recently started some manual work on that process.
 See https://github.com/TradeIdeasPhilip/7-pointed-star/blob/76359ebcf9bd6f6606bf126c00ace343290e57a6/src/svg-sources.ts#L28.
 
 To do this right we need to understand multiple types of elements.
-* `g` - Combine all of the children recursively. Or possibly return a list of separate paths. 
-* `path` - Our goal is to output something that an SVGPathElement can understand.  We already understand the basics and we already have an action item to understand the rest.
-* `ellipse` - Note my previous comments about creating a function to make a path from an SVGEllipseElement.  The path version of a circle or ellipse is complicated and hard to use.  IF you just want an ellipse, the standard SVG element works well.  And we want a stand alone function to do the same.
-* `circle` - Just a special case of an ellipse.
-* `rect`, `line`, `polygon` - These should be very easy to read and parse and convert to a path.
+
+- `g` - Combine all of the children recursively. Or possibly return a list of separate paths.
+- `path` - Our goal is to output something that an SVGPathElement can understand. We already understand the basics and we already have an action item to understand the rest.
+- `ellipse` - Note my previous comments about creating a function to make a path from an SVGEllipseElement. The path version of a circle or ellipse is complicated and hard to use. IF you just want an ellipse, the standard SVG element works well. And we want a stand alone function to do the same.
+- `circle` - Just a special case of an ellipse.
+- `rect`, `line`, `polygon` - These should be very easy to read and parse and convert to a path.
 
 This would be parsed in advance, not every frame.
 It might be done in a dialog box, if not a completely separate window.

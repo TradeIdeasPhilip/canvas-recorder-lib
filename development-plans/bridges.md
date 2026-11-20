@@ -75,7 +75,7 @@ Then I use a bridged Fourier component to draw the same text, hopefully landing 
 (The latter has a slightly thinner line width and sits closer to the user in the z-order.)
 
 It was very hard to make the text line up perfectly.
-I adjusted things by hand and eye and got them *close enough*.
+I adjusted things by hand and eye and got them _close enough_.
 As mentioned elsewhere, I'm not just lining up two controls.
 I'm trying to line up the text in two controls.
 That's part of what this code needs to do.

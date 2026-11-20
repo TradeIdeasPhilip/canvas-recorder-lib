@@ -36,10 +36,10 @@ About 360 words, roughly 1:50 at a brisk pace. Cut the two paragraphs marked _(o
 ## Lines to check before recording
 
 - **"Created in 2025":** canvas-recorder's first commit is 2025-12-20, so "a year later" is really about eleven months.
-  - Philip's thoughts:  Good enough!  This project has evolved continuously for a while, so there's no reason to be more specific.
+  - Philip's thoughts: Good enough! This project has evolved continuously for a while, so there's no reason to be more specific.
 - **The Manim line:** it's the common complaint about Manim, hedged with "usually". Cut the name to avoid pointing at anyone.
 - **"Reloads before you can reach for your coffee":** true for the page, but the editor doesn't yet put its GUI state back after a reload ([priorities.md](../priorities.md), under Features).
-  - Philip's thoughts:  It's pretty close.  We've been focused on cleaning up the worst offenders first.  And the current plan admits that we may never get all of the cases. 
+  - Philip's thoughts: It's pretty close. We've been focused on cleaning up the worst offenders first. And the current plan admits that we may never get all of the cases.
 - **"Version zero-point-something":** change it if 1.0 ships first.
 
 ## The pictures
