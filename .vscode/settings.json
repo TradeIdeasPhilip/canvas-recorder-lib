@@ -80,6 +80,7 @@
     "undoable",
     "unparenting",
     "unreviewed",
+    "USEDEFAULT",
     "visibilitychange",
     "voiceovers",
     "webgpu",

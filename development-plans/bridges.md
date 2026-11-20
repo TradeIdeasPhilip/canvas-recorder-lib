@@ -67,6 +67,19 @@ Read on 2026-11-15, not run. This is about the "2 + 2 = 4?" scene, lines 1568 to
 - **`slideFrom()` and `morphFrom()` are each written twice,** once per scene, a little different each time: one can fade away, the other animates the line width.
 - **One small bug:** `pack()` in "Going Further" (line 2636) has `height = Math.max(width, bBox.y.max)`. It should start from `height`. It matters only if that table is ported.
 
+## Another Example
+
+In "scratch 13" in the vertical video in https://github.com/TradeIdeasPhilip/7-pointed-star I tried to line up two pieces of text that were drawn with different methods.
+First I draw text using a multi text component and the handwriting effect.
+Then I use a bridged Fourier component to draw the same text, hopefully landing on top of the first.
+(The latter has a slightly thinner line width and sits closer to the user in the z-order.)
+
+It was very hard to make the text line up perfectly.
+I adjusted things by hand and eye and got them *close enough*.
+As mentioned elsewhere, I'm not just lining up two controls.
+I'm trying to line up the text in two controls.
+That's part of what this code needs to do.
+
 ## What a bridge is (speculation)
 
 - **The parts:**
